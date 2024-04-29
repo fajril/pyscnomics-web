@@ -2,6 +2,7 @@ import uvicorn
 
 # from pyapp.modules.lzstring import LZString
 
+
 if __name__ == "__main__":
     # lzstr = LZString()
     # str = lzstr.decompressFromUTF16(
