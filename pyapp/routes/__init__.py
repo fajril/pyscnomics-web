@@ -1,5 +1,4 @@
 import base64
-import copy
 import json
 import logging
 import os
@@ -9,6 +8,7 @@ import string
 import struct
 from distutils.sysconfig import EXEC_PREFIX
 from pathlib import Path
+from typing import Any
 
 # from sqlalchemy.orm import Session
 import numpy as np
@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pyapp.modules.filebrowser import list_drives, list_files
+from pyapp.modules.sens import ProcessSens
 from pyapp.shemas import TableRequest
 from pyapp.shemas.project import ProjectCreate, ProjectUpdate
 from pyscnomics.api.adapter import (
@@ -27,10 +28,6 @@ from pyscnomics.api.adapter import (
     get_costrecovery,
     get_grosssplit,
     get_transition,
-)
-from pyscnomics.optimize.sensitivity import (
-    get_multipliers_sensitivity,
-    run_sensitivity,
 )
 
 from ..crud.project import (
@@ -470,86 +467,15 @@ async def calc_sens(type: int, data: str):
     dataJson = base64.b64decode(data).decode("utf-8")
     json_dict: dict = json.loads(dataJson)
     try:
-        parameter = json_dict["parameter"]  # ["Oil Price", "OPEX", "CAPEX", "Lifting"]
-        multipliers, total_run = get_multipliers_sensitivity(
-            min_deviation=json_dict["config"]["min"],
-            max_deviation=json_dict["config"]["max"],
-            number_of_params=len(parameter),
+        SensTask = ProcessSens(
+            type,
+            json_dict["contract"],
+            json_dict["parameter"],
+            json_dict["config"]["min"],
+            json_dict["config"]["max"],
         )
-        target = ["npv", "irr", "pi", "pot", "gov_take", "ctr_net_share"]
-
-        # Adjust Data
-        def Adjust_Data(par: str, multipliers: float, contract: dict):
-            Adj_Contract = copy.deepcopy(contract)
-            if multipliers == 1.0:
-                return Adj_Contract
-
-            def Adj_Partial_Data(key: str, datakeys: list = []):
-                for item_key in Adj_Contract[key].keys():
-                    item = Adj_Contract[key][item_key]
-                    if key == "lifting":
-                        if (
-                            (par == "Oil Price" and item["fluid_type"] == "Oil")
-                            or (par == "Gas Price" and item["fluid_type"] == "Gas")
-                            or par == "Lifting"
-                        ):
-                            lifting_key = (
-                                "price"
-                                if par == "Oil Price" or par == "Gas Price"
-                                else "lifting_rate"
-                            )
-                            item[lifting_key] = (
-                                np.array(item[lifting_key]) * multipliers
-                            ).tolist()
-                    else:
-                        for data_key in datakeys:
-                            item[data_key] = (
-                                np.array(item[data_key]) * multipliers
-                            ).tolist()
-
-            if par == "Oil Price" or par == "Gas Price" or par == "Lifting":
-                Adj_Partial_Data("lifting")
-            elif par == "OPEX":
-                Adj_Partial_Data("opex", ["fixed_cost", "cost_per_volume"])
-            elif par == "CAPEX":
-                Adj_Partial_Data("tangible", ["cost"])
-                Adj_Partial_Data("intangible", ["cost"])
-
-            return Adj_Contract
-
-        # Create a container for calculation results
-        results = {
-            par: np.zeros(
-                [multipliers.shape[1], len(target) + 1], dtype=np.float_
-            ).tolist()
-            for (i, par) in enumerate(parameter)
-        }
-
-        # Run the simulations to obtain the results (NPV, IRR, PI, POT, GOV_TAKE, CTR_NET_SHARE)
-        for i, par in enumerate(parameter):
-            for j in range(multipliers.shape[1]):
-                dataAdj = Adjust_Data(
-                    par, np.prod(multipliers[i, j, :]), json_dict["contract"]
-                )
-                contract_summary = (
-                    get_costrecovery(data=dataAdj)[0]
-                    if type == 1
-                    else (
-                        get_grosssplit(data=dataAdj)[0]
-                        if type == 2
-                        else get_transition(data=dataAdj)[0] if type >= 3 else []
-                    )
-                )
-                results[par][j] = [
-                    np.prod(multipliers[i, j, :]),
-                    contract_summary["ctr_npv"],
-                    contract_summary["ctr_irr"],
-                    contract_summary["ctr_pi"],
-                    contract_summary["ctr_pot"],
-                    contract_summary["gov_take"],
-                    contract_summary["ctr_net_share"],
-                ]
-        return results
+        output = SensTask.Run()
+        return output
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
