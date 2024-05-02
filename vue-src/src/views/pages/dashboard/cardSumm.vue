@@ -89,7 +89,7 @@ const cardChartOpt = computed(() => {
       valueFormatter: (value) => {
         if (value !== undefined) {
           const val = value / (props.table.sum ?? 1)
-          return (numbro(value).format({ average: true, mantissa: 2, optionalMantissa: true }).toUpperCase() + ` (${numbro(val).format({ output: 'percent', mantissa: 2, optionalMantissa: true })})`)
+          return (numbro(value * 1e6).format({ average: true, mantissa: 2, optionalMantissa: true }).toUpperCase() + ` (${numbro(val).format({ output: 'percent', mantissa: 2, optionalMantissa: true })})`)
         } else
           return ""
       }
