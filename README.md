@@ -14,15 +14,18 @@ It's an application for economic calculation
  Activate environtment
   
     #for powershell
-    fastapi-env\\Scripts\\activate.ps1
+    fastapi-env\Scripts\activate.ps1
    
    or
     
     #for cmd
-    fastapi-env\\Scripts\\activate.bat
+    fastapi-env\Scripts\activate.bat
  Install requirements
  
     pip install -r requirements.txt
+ Run Virtual Machine, using uvicorn
+
+    fastapi-enc\Scripts\uvicorn.exe pyapp:app --host 127.0.0.1 --port 5000 --log-level debug          
     
  ### Frontend (VueJS)
 
