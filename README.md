@@ -36,14 +36,18 @@ It's an application for economic calculation
 
   Development
 
-  running on localhost:5173
-    
+   running on localhost:5173
+   
     pnpm dev
+
 
   Production
 
   Install to static path
 
+  running on localhost:5000
+
     pnpm build
+  
   
  
