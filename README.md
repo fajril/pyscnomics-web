@@ -13,11 +13,12 @@ It's an application for economic calculation
     python -m venv fastapi-env --copies
  Activate environtment
   
-  for powershell
-
+    #for powershell
     fastapi-env\\Scripts\\activate.ps1
-  for cmd
+   
+   or
     
+    #for cmd
     fastapi-env\\Scripts\\activate.bat
  Install requirements
  
