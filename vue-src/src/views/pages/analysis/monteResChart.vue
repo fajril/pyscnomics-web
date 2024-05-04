@@ -85,6 +85,7 @@ const chtOption = computed(() => {
     },
     xAxis: {
       type: 'value',
+      scale: true,
       name: `${props.title}, ${props.unit}`,
       // data: [],
       axisTick: {
@@ -113,7 +114,7 @@ const chtOption = computed(() => {
       axisLabel: {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
-          return value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value
+          return value !== undefined ? numbro(value).format({ mantissa: 0, optionalMantissa: true }) : value
         }
       },
       nameTextStyle: {
