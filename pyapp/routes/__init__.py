@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pyapp.modules.filebrowser import list_drives, list_files
+from pyapp.modules.monte import ProcessMonte
 from pyapp.modules.sens import ProcessSens
 from pyapp.shemas import TableRequest
 from pyapp.shemas.project import ProjectCreate, ProjectUpdate
@@ -476,6 +477,22 @@ async def calc_sens(type: int, data: str):
         )
         output = SensTask.Run()
         return output
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/calc_monte")
+async def calc_monte(type: int, id: int, data: str):
+    dataJson = base64.b64decode(data).decode("utf-8")
+    json_dict: dict = json.loads(dataJson)
+    try:
+        ProcessMonte(
+            type, id, json_dict["contract"], json_dict["numsim"], json_dict["parameter"]
+        ).run()
+        return {"state": "running"}
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
