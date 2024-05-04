@@ -49,11 +49,9 @@ defineExpose({
   <AppCardActions
     :title="$props.title + ($props.multiContract ? ($props.isContract2 ? ' 2nd Contract' : ' 1st Contract') : '')"
     actionCollapsed compact-header>
-    <VRow no-gutter>
-      <VCol cols="12">
-        <hot-table ref="refTableCF" :settings="tableCFConfig" class="not_to_dimmed" />
-      </VCol>
-    </VRow>
+    <VCardText>
+      <hot-table ref="refTableCF" :settings="tableCFConfig" class="not_to_dimmed" />
+    </VCardText>
   </AppCardActions>
 </template>
 

@@ -46,7 +46,7 @@ watch(dataContr, val => {
       </VAlert>
     </VCardText>
     <VCardText v-else>
-      <VRow no-gutters>
+      <VRow>
         <VCol cols="12" md="6">
           <AppCardActions action-collapsed
             :title="[1, 3, 4].includes(dataGConf.type_of_contract) ? `Cost Recovery${dataGConf.type_of_contract >= 3 ? ' - 1st Contract' : ''}` : `Gross Split${dataGConf.type_of_contract >= 3 ? ' - 1st Contract' : ''}`">

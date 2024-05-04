@@ -49,6 +49,16 @@ const mainSetting = ref({
         isalert: true
       })
     }
+    else {
+      const ctype = refTableOpex.value.hotInstance.getDataType(row, +prop, row, +prop)
+      nextTick(() => {
+        if (ctype === 'numeric' && (typeof dataOpex.value[row][+prop] === 'string') &&
+          dataOpex.value[row][+prop].indexOf('=') != -1) {
+          dataOpex.value[row][+prop] = value
+          refTableOpex.value.hotInstance.updateData(dataOpex.value)
+        }
+      })
+    }
     return isValid
   },
   beforeRemoveRow(index, amount, physicalRows) {
@@ -89,11 +99,9 @@ onMounted(() => {
   <VCard title="OPEX" subtitle="Cost">
     <VCardText>
       <AppCardActions action-collapsed title="Table Entry" compact-header>
-        <VRow no-gutter>
-          <VCol cols="12">
-            <hot-table ref="refTableOpex" :settings="mainSetting" />
-          </VCol>
-        </VRow>
+        <VCardText>
+          <hot-table ref="refTableOpex" :settings="mainSetting" />
+        </VCardText>
       </AppCardActions>
     </VCardText>
     <VCardText>

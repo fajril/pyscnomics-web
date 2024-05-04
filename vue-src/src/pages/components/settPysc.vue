@@ -2,7 +2,6 @@
 import { useAppStore } from '@/stores/appStore';
 import * as Pysc from '@/utils/pysc/pyscType';
 import 'handsontable/dist/handsontable.full.css';
-import HyperFormula from 'hyperformula';
 
 const appStore = useAppStore()
 const numbro = Pysc.useNumbro()
@@ -28,9 +27,9 @@ const TaxSetting = ref({
     direction: 'vertical',
     autoInsertRow: true
   },
-  formulas: {
-    engine: HyperFormula,
-  },
+  // formulas: {
+  //   engine: HyperFormula,
+  // },
   afterValidate(isValid, value, row, prop) {
     if (!isValid) {
       appStore.showAlert({
@@ -118,9 +117,9 @@ const GSSetting = ref({
     direction: 'vertical',
     autoInsertRow: true
   },
-  formulas: {
-    engine: HyperFormula,
-  },
+  // formulas: {
+  //   engine: HyperFormula,
+  // },
   afterValidate(isValid, value, row, prop) {
     if (!isValid) {
       appStore.showAlert({

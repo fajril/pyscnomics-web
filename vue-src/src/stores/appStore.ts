@@ -25,7 +25,6 @@ export const useAppStore = defineStore('pyscConfig', () => {
       ],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const curSelCase = useStorage<number | null>(namespaceConfig('sel-case'), null, undefined, { initOnMounted: true, })
   const curWS = useStorage<string | null>(namespaceConfig('project-ws'), null)
@@ -36,7 +35,6 @@ export const useAppStore = defineStore('pyscConfig', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [{ year: 2013, tax: 0.44 }, { year: 2016, tax: 0.42 }, { year: 2020, tax: 0.40 }],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const gsSett = useStorage<number[]>(namespaceConfig('pysc-sett-gs'), [0.05, 0.03, 0, 0, 0.08, 0.1, 0.12, 0.14, 0.16, 0, 0.01, 0, 0.02, 0.04, 0, 0.16, 0.01, 0, 0, 0.02, 0.03, 0.04, 0, 0.06, 0.1, 0, 0.005, 0.01, 0.015, 0.02, 0.04, 0, 0.01, 0.02, 0.03, 0.04, 0.05],
     undefined, {
@@ -44,7 +42,6 @@ export const useAppStore = defineStore('pyscConfig', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [0.05, 0.03, 0, 0, 0.08, 0.1, 0.12, 0.14, 0.16, 0, 0.01, 0, 0.02, 0.04, 0, 0.16, 0.01, 0, 0, 0.02, 0.03, 0.04, 0, 0.06, 0.1, 0, 0.005, 0.01, 0.015, 0.02, 0.04, 0, 0.01, 0.02, 0.03, 0.04, 0.05],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
 
   const alertFunc = ref<tAlert | null>(null)

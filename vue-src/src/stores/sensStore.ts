@@ -8,7 +8,6 @@ export const usePyscSensStore = defineStore('pyscSensConf', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [80, 80],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
 
   return {

@@ -45,6 +45,16 @@ const mainSetting = ref({
         isalert: true
       })
     }
+    else {
+      const ctype = refTableIntangible.value.hotInstance.getDataType(row, +prop, row, +prop)
+      nextTick(() => {
+        if (ctype === 'numeric' && (typeof dataIntan.value[row][+prop] === 'string') &&
+          dataIntan.value[row][+prop].indexOf('=') != -1) {
+          dataIntan.value[row][+prop] = value
+          refTableIntangible.value.hotInstance.updateData(dataIntan.value)
+        }
+      })
+    }
     return isValid
   },
   beforeRemoveRow(index, amount, physicalRows) {
@@ -85,11 +95,9 @@ onMounted(() => {
   <VCard title="Intangible" subtitle="Cost">
     <VCardText>
       <AppCardActions action-collapsed title="Table Entry" compact-header>
-        <VRow no-gutter>
-          <VCol cols="12">
-            <hot-table ref="refTableIntangible" :settings="mainSetting" />
-          </VCol>
-        </VRow>
+        <VCardText>
+          <hot-table ref="refTableIntangible" :settings="mainSetting" />
+        </VCardText>
       </AppCardActions>
     </VCardText>
     <VCardText>

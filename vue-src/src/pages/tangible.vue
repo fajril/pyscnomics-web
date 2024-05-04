@@ -52,6 +52,16 @@ const mainSetting = ref({
         isalert: true
       })
     }
+    else {
+      const ctype = refTableTangible.value.hotInstance.getDataType(row, +prop, row, +prop)
+      nextTick(() => {
+        if (ctype === 'numeric' && (typeof dataTan.value[row][+prop] === 'string') &&
+          dataTan.value[row][+prop].indexOf('=') != -1) {
+          dataTan.value[row][+prop] = value
+          refTableTangible.value.hotInstance.updateData(dataTan.value)
+        }
+      })
+    }
     return isValid
   },
   beforeRemoveRow(index, amount, physicalRows) {
@@ -94,11 +104,9 @@ onMounted(() => {
   <VCard title="Tangible" subtitle="Cost">
     <VCardText>
       <AppCardActions action-collapsed title="Table Entry" compact-header>
-        <VRow no-gutter>
-          <VCol cols="12">
-            <hot-table ref="refTableTangible" :settings="mainSetting" />
-          </VCol>
-        </VRow>
+        <VCardText>
+          <hot-table ref="refTableTangible" :settings="mainSetting" />
+        </VCardText>
       </AppCardActions>
     </VCardText>
     <VCardText>

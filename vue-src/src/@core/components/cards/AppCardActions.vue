@@ -81,7 +81,7 @@ const triggeredRemove = () => {
 <template>
   <VExpandTransition>
     <VCard v-if="!isCardRemoved" v-bind="$attrs">
-      <VCardItem :class="{ 'px-0 py-2': compactHeader }">
+      <VCardItem :class="{ 'py-2': compactHeader }">
         <VCardTitle v-if="props.title || $slots.title" @click.stop="clickedHeader"
           :class="{ 'cursor-pointer': actionCollapsed }">
           <!-- 👉 Title slot and prop -->

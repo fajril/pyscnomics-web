@@ -145,25 +145,27 @@ watch(curSelCase, val => nextTick(() => {
   <VCard :loading="isLoading" title="Sensitivity" subtitle="Analysis">
     <VCardText>
       <AppCardActions action-collapsed title="Parameter" compact-header>
-        <VRow>
-          <VCol cols="12" md="4">
-            <VRow>
-              <VCol cols="12" class="ms-4 pe-8">
-                <div class="ml-n4 font-weight-bold text-primary mb-4">Sensitivity Configuration</div>
-                <VTextField v-model.number="sensConfig[0]" label="Min, %" variant="outlined"
-                  :rules="[requiredValidator, numberValidator]" />
-              </VCol>
-              <VCol cols="12" class="ms-4 pe-8">
-                <VTextField v-model.number="sensConfig[1]" label="Max, %" variant="outlined"
-                  :rules="[requiredValidator, numberValidator]" />
-              </VCol>
-            </VRow>
-          </VCol>
-          <VCol cols="12" md="8">
-            <div class="ml-n4 font-weight-bold text-primary mb-2">Sensitivity Parameter</div>
-            <hot-table ref="refTableSensCfg" :settings="tableSensConfig" class="not_to_dimmed" />
-          </VCol>
-        </VRow>
+        <VCardText>
+          <VRow>
+            <VCol cols="12" md="4">
+              <VRow>
+                <VCol cols="12" class="ms-4 pe-8">
+                  <div class="ml-n4 font-weight-bold text-primary mb-4">Sensitivity Configuration</div>
+                  <VTextField v-model.number="sensConfig[0]" label="Min, %" variant="outlined"
+                    :rules="[requiredValidator, numberValidator]" />
+                </VCol>
+                <VCol cols="12" class="ms-4 pe-8">
+                  <VTextField v-model.number="sensConfig[1]" label="Max, %" variant="outlined"
+                    :rules="[requiredValidator, numberValidator]" />
+                </VCol>
+              </VRow>
+            </VCol>
+            <VCol cols="12" md="8">
+              <div class="ml-n4 font-weight-bold text-primary mb-2">Sensitivity Parameter</div>
+              <hot-table ref="refTableSensCfg" :settings="tableSensConfig" class="not_to_dimmed" />
+            </VCol>
+          </VRow>
+        </VCardText>
       </AppCardActions>
       <AppCardActions class="mt-4" action-collapsed title="Result" compact-header>
         <VCardText class="px-2">

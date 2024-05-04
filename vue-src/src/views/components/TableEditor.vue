@@ -37,6 +37,17 @@ const hotSettings = ref({
         isalert: true
       })
     }
+    else {
+      const iCol = hotSettings.value.columns.findIndex(c => c.data === prop)
+      const ctype = tblhot.value.hotInstance.getDataType(row, iCol, row, iCol)
+      nextTick(() => {
+        if (ctype === 'numeric' && (typeof modelValue.value[row][prop] === 'string') &&
+          modelValue.value[row][prop].indexOf('=') != -1) {
+          modelValue.value[row][prop] = value
+          tblhot.value.hotInstance.updateData(modelValue.value)
+        }
+      })
+    }
     return isValid
   },
   beforeRemoveRow(index, amount, physicalRows) {

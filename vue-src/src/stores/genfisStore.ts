@@ -11,28 +11,24 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defGenConfig()],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const producer = useStorage<producerConfig[][]>(namespaceConfig('prod'), [defProdConfig()], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defProdConfig()],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const contracts = useStorage<Contracts[]>(namespaceConfig('contract'), [defContracts()], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defContracts()],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const fiscal = useStorage<Fiskal[]>(namespaceConfig('fiscal'), [defFiskal()], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defFiskal()],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
 
   // costs
@@ -42,7 +38,6 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(9).fill(null)]],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const intangible = useStorage<Array<number | string | null>[][]>(namespaceConfig('intangible'),
     [[Array(5).fill(null)]], undefined, {
@@ -50,7 +45,6 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(5).fill(null)]],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const opex = useStorage<Array<number | string | null>[][]>(namespaceConfig('opex'),
     [[Array(8).fill(null)]], undefined, {
@@ -58,7 +52,6 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(8).fill(null)]],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
   const asr = useStorage<Array<number | string | null>[][]>(namespaceConfig('asr'),
     [[Array(4).fill(null)]], undefined, {
@@ -66,7 +59,6 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(4).fill(null)]],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
-    initOnMounted: true,
   })
 
   const appStore = useAppStore()

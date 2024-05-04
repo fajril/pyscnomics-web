@@ -44,6 +44,16 @@ const mainSetting = ref({
         isalert: true
       })
     }
+    else {
+      const ctype = refTableASR.value.hotInstance.getDataType(row, +prop, row, +prop)
+      nextTick(() => {
+        if (ctype === 'numeric' && (typeof dataASR.value[row][+prop] === 'string') &&
+          dataASR.value[row][+prop].indexOf('=') != -1) {
+          dataASR.value[row][+prop] = value
+          refTableASR.value.hotInstance.updateData(dataASR.value)
+        }
+      })
+    }
     return isValid
   },
   beforeRemoveRow(index, amount, physicalRows) {
@@ -83,11 +93,9 @@ onMounted(() => {
   <VCard title="ASR" subtitle="Cost">
     <VCardText>
       <AppCardActions action-collapsed title="Table Entry" compact-header>
-        <VRow no-gutter>
-          <VCol cols="12">
-            <hot-table ref="refTableASR" :settings="mainSetting" />
-          </VCol>
-        </VRow>
+        <VCardText>
+          <hot-table ref="refTableASR" :settings="mainSetting" />
+        </VCardText>
       </AppCardActions>
     </VCardText>
     <VCardText>

@@ -62,7 +62,7 @@ watch([dataGConf, dataFisc], val => {
     <VCol cols="12">
       <VCard title="General and Fiscal" subtitle="Configuration">
         <VCardText>
-          <VRow no-gutters>
+          <VRow>
             <VCol cols="12" md="6">
               <AppCardActions action-collapsed title="General">
                 <VCardText>
@@ -85,7 +85,7 @@ watch([dataGConf, dataFisc], val => {
               </AppCardActions>
             </VCol>
           </VRow>
-          <VRow v-if="dataGConf.type_of_contract >= 3" no-gutters>
+          <VRow v-if="dataGConf.type_of_contract >= 3">
             <VCol cols="12" md="6">
               <AppCardActions action-collapsed title="Fiscal - 1st Contract">
                 <template #before-actions>

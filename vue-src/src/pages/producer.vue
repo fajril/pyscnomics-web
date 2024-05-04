@@ -119,7 +119,7 @@ const currentTab = ref(0)
 <template>
   <VCard title="Producer" subtitle="Configuration">
     <VCardText>
-      <VRow no-gutters>
+      <VRow>
         <VCol cols="12" md="4">
           <AppCardActions action-collapsed title="Produced Fluid">
             <template #before-actions>
