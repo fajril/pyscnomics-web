@@ -1,6 +1,7 @@
+import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from pyscnomics.api.router import router
 
 from .database.db import create_db_and_tables
+from .modules.wsconnection import wsMan
 from .routes import routerapi
 
 
@@ -55,6 +57,20 @@ async def read_root(request: Request):
     return templates.TemplateResponse(
         "index.html", {"request": request, "message": "Hello, World!"}
     )
+
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: int):
+    await wsMan.connect(websocket)
+    try:
+        await wsMan.broadcast(json.dumps({"client": client_id, "status": 1}))
+        while True:
+            data = await websocket.receive_text()
+            # await wsMan.send_personal_message(f"You wrote: {data}", websocket)
+            await wsMan.broadcast(f"Client #{client_id} says: {data}")
+    except WebSocketDisconnect:
+        wsMan.disconnect(websocket)
+        await wsMan.broadcast(f"Client #{client_id} left the chat")
 
 
 @app.get("/app/", response_class=HTMLResponse)
