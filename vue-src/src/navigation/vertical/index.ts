@@ -68,8 +68,9 @@ export default [
         to: { name: 'pysc-sens' },
       },
       {
-        title: 'Montecarlo',
+        title: 'Uncertainity',
         icon: { icon: 'tabler-dice' },
+        to: { name: 'pysc-monte' },
       },
       {
         title: 'Optimization',
