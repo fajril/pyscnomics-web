@@ -8,6 +8,7 @@ import { useTheme } from 'vuetify'
 import SettDialogs from '@/pages/components/settPysc.vue'
 import { tAlert, useAppStore } from "@/stores/appStore"
 import { usePyscConfStore } from '@/stores/genfisStore'
+import { useWSStore } from '@/stores/wsStore'
 
 const { global } = useTheme()
 
@@ -18,6 +19,7 @@ initConfigStore()
 const configStore = useConfigStore()
 const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
+const wsStore = useWSStore()
 const { settFunc, alertFunc } = storeToRefs(appStore)
 const isShowAlert = ref(false)
 
@@ -86,5 +88,17 @@ settFunc.value = (tab: number) => RefSettDialogs.value?.ShowSetting(tab)
 <style lang="scss">
 .htMenu.htContextMenu.handsontable {
   z-index: 9000 !important;
+}
+
+.v-card {
+  .v-card-item {
+    >div:has(.v-card-title) {
+      border-block-end: 2px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+    }
+  }
+
+  .v-card--variant-elevated {
+    box-shadow: 0 1px 10px rgba(var(--v-shadow-key-umbra-color), 0.4), 0 0 transparent, 0 0 transparent !important;
+  }
 }
 </style>

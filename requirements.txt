@@ -2,6 +2,7 @@ fastapi[all]
 SQLAlchemy
 aiosqlite
 packaging
+websockets
 uvicorn[standard]
 databases
 pypiwin32
