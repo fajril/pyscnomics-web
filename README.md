@@ -1,5 +1,11 @@
 # PySCnomicsApp
 It's an application for economic calculation
+## Features
+|       Model        |      Analysis           |
+| ------------------ | ----------------------- |
+| PSC Cost Recovery  | Sensitivity             |
+| PSC Gross Split    | Monte Carlo             |
+| Transition         | Optimization            |
 ## Setup for Windows
 ### Requirements
 - Python 3.11
