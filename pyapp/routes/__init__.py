@@ -173,6 +173,46 @@ async def chkfileproj(path: str):
     return {"state": False}
 
 
+@routerapi.get("/getcases", response_class=JSONResponse)
+async def chkfileprojheader(path: str):
+    try:
+        pathFile = Path(base64.b64decode(path).decode("utf-8"))
+        if pathFile.exists():
+            packer = pyscPacker()
+            if packer.isValidFileHeader(pathFile):
+                return {"state": True, "cases": packer.getCases(pathFile)}
+        return {"state": False}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/importcase", response_class=JSONResponse)
+async def importcase(data: str):
+    try:
+        dataJson = base64.b64decode(data).decode("utf-8")
+        json_dict: dict = json.loads(dataJson)
+        pathFile = Path(json_dict["path"])
+        caseID = json_dict["caseid"]
+        packer = pyscPacker()
+        resImport = packer.importCase(pathFile, caseID)
+        return {
+            "state": True if isinstance(resImport, str) else False,
+            "path": (
+                base64.b64encode(resImport.encode())
+                if isinstance(resImport, str)
+                else None
+            ),
+        }
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
 @routerapi.get("/rdcases", response_class=JSONResponse)
 async def rdCases(tmppath: str):
     pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
