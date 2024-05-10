@@ -303,7 +303,8 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     const end2Y = Pysc.useDayJs().utc(dGConf.end_date_project_second).local().year()
 
     const table2Array = (table: Array<Pysc.GlobalTabValue>, istartY: number, iendY: number) => {
-      const rateTab: Pysc.GlobalTabValue[] = JSON.parse(JSON.stringify(table))
+      //filter not unempty row
+      const rateTab: Pysc.GlobalTabValue[] = JSON.parse(JSON.stringify(table)).filter(row => !isEmpty(row.year) && !isEmpty(row.rate))
       rateTab.sort((a, b) => a.year - b.year)
       const mapY = Array.from({ length: iendY - istartY + 1 }, (_, i) => (istartY - 1) + i + 1)
       let retvalue = Array<number | null>(iendY - istartY + 1).fill(0.0)
@@ -398,7 +399,15 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       prod.forEach((value, index) => {
         for (var i = 0; i < value.ProdNumber; i++) {
           //OIL
-          const prod_price: Pysc.prodPriceBase[] = JSON.parse(JSON.stringify(value.prod_price[i]))
+          const prod_price: Pysc.prodPriceBase[] = JSON.parse(JSON.stringify(value.prod_price[i])).filter(row => {
+            if (value.Tipe === 0)
+              return (!isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price)) ||
+                (!isEmpty(row.year) && !isEmpty(row.condensate_sales) && !isEmpty(row.condensate_price))
+            else if (value.Tipe === 1)
+              return !isEmpty(row.year) && !isEmpty(row.production)
+            else
+              return !isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price)
+          })
           prod_price.sort((a, b) => a.year - b.year)
           if (isTransistion) {
             prod_price.splice(0, prod_price.length, ...prod_price.filter(row => {
@@ -429,7 +438,7 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
             for (var ii = 0; ii < value.GSANumber; ii++) {
               lifting = {
                 ...lifting,
-                [`GSA${value.ProdNumber ? (' ' + (i + 1)) : ''}${value.GSANumber ? (' ' + (ii + 1)) : ''}`]: {
+                [`GSA${value.ProdNumber ? (' ' + (i + 1)) : ''}${value.GSANumber ? (' ' + (ii + 1)) : ''}`]: prod_price.length ? {
                   start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                   end_year: (isTransistion && icontract === 1 ? end2Y : endY),
                   lifting_rate: prod_price.map(v => v.production),
@@ -438,20 +447,20 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
                   ghv: prod_price.map(v => v.gsa[`ghv${ii + 1}`]),
                   prod_rate: prod_price.map(v => v.gsa[`vol${ii + 1}`]),
                   fluid_type: "Gas",
-                },
+                } : undefined,
               }
             }
           } else {
             lifting = {
               ...lifting,
-              [`${Object.values(ProducerType)[value.Tipe]}${value.ProdNumber ? (' ' + (i + 1)) : ''}`]: {
+              [`${Object.values(ProducerType)[value.Tipe]}${value.ProdNumber ? (' ' + (i + 1)) : ''}`]: prod_price.length ? {
                 start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                 end_year: (isTransistion && icontract === 1 ? end2Y : endY),
                 lifting_rate: prod_price.map(v => v.sales),
                 price: prod_price.map(v => v.price),
                 prod_year: prod_price.map(v => v.year),
                 fluid_type: Object.values(ProducerType)[value.Tipe],
-              },
+              } : undefined,
             }
             if (value.Tipe === 0 && prod_price.map(v => v.condensate_sales).filter(v => !isNaN(+v)).length) {
 
@@ -467,7 +476,9 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     ) => {
       const toValue = (val: any, def: number | null = 0.0) => (+val) ? val : def
 
-      const cost_data = JSON.parse(JSON.stringify(icost))
+      const cost_data = JSON.parse(JSON.stringify(icost)).filter(row => {
+        return !isEmpty(row[0]) && !isEmpty(row[1]) && !isEmpty(row[2])
+      })
       cost_data.sort((a, b) => a[0] - b[0])
       if (isTransistion) {
         cost_data.splice(0, cost_data.length, ...cost_data.filter(row => {
