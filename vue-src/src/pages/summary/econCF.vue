@@ -141,7 +141,7 @@ const loadCF = async () => {
           if (ir === DYear.length)
             return row.map((col, ic) => {
               if (ic > 0)
-                return Object.values(dataOil[mapO[ic]]).reduce((total, current) => total + current, 0)
+                return Object.values(dataOil[mapO[ic]]).reduce((total, current) => (ic === row.length - 2) ? current : total + current, 0)
               else return col
             })
           return row.map((col, ic) => {
@@ -167,7 +167,7 @@ const loadCF = async () => {
           if (ir === DYear.length)
             return row.map((col, ic) => {
               if (ic > 0)
-                return Object.values(dataGas[mapG[ic]]).reduce((total, current) => total + current, 0)
+                return Object.values(dataGas[mapG[ic]]).reduce((total, current) => (ic === row.length - 2) ? current : total + current, 0)
               else return col
             })
           return row.map((col, ic) => {
@@ -192,7 +192,7 @@ const loadCF = async () => {
         ...Array(CYear.length + 1).fill(Array(mapCons.length).fill(null)).map((row, ir) => {
           if (ir === CYear.length) return row.map((col, ic) => {
             if (ic > 0)
-              return Object.values(dataConst[mapCons[ic]]).reduce((total, current) => total + current, 0)
+              return Object.values(dataConst[mapCons[ic]]).reduce((total, current) => (ic === row.length - 2) ? current : total + current, 0)
             else return col
           })
           return row.map((col, ic) => {
