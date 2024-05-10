@@ -1,6 +1,9 @@
 import logging
 import math
+import os
 import pickle
+import random
+import string
 import struct
 from io import BufferedReader, BufferedWriter
 from pathlib import Path
@@ -68,6 +71,76 @@ class pyscPacker:
             }
 
         return [getiCase() for i in range(lencase)]
+
+    def getCases(self, path: Path):
+        with open(path, "rb") as fs:
+            hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
+            return self.readCase(fs)
+
+    def importCase(self, pathFile: Path, caseID: list):
+        # log.info([pathFile, caseID])
+        letters = string.ascii_lowercase
+        pathWS = "".join(random.choice(letters) for _ in range(8))
+        tmpPath = str(Path(__file__).parent.parent.parent) + f"\\~tmp\\{pathWS}"
+        if not os.path.exists(tmpPath):
+            os.makedirs(tmpPath)
+        if not os.path.exists(tmpPath):
+            return False
+
+        with open(pathFile, "rb") as fs:
+            hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
+
+            fullcases = self.readCase(fs)
+            selCase = [
+                icase for idx, icase in enumerate(fullcases) if icase["id"] in caseID
+            ]
+            with open(str(tmpPath) + "\\cases.bin", "wb") as out0:
+                pickle.dump(selCase, out0)
+
+            for idx, icase in enumerate(fullcases):
+                caseid = icase["id"]
+                type_of_contract = int(self.readPack("i", fs, 1))
+                genConf = {
+                    "type_of_contract": type_of_contract,
+                    "discount_rate_start_year": self.readPack("i", fs, 0),
+                    "discount_rate": self.readPack("d", fs, 0.0),
+                    "inflation_rate_applied_to": self.readPack("h", fs, 0),
+                    "start_date_project": self.readPack("q", fs, 0),
+                    "end_date_project": self.readPack("q", fs, 0),
+                    "start_date_project_second": self.readPack("q", fs, 0),
+                    "end_date_project_second": self.readPack("q", fs, 0),
+                }
+                fiscal = {
+                    "Fiskal": self.readFiscalBase(fs),
+                    "Fiskal2": self.readFiscalBase(fs),
+                }
+                producer = self.readProducer(fs)
+                contracts = self.readcontrats(type_of_contract, fs)
+                tangible = self.readCosts(0, fs)
+                intangible = self.readCosts(1, fs)
+                opex = self.readCosts(2, fs)
+                asr = self.readCosts(3, fs)
+                if caseid in caseID:
+                    with open(str(tmpPath) + f"\\genconf_{caseid}.bin", "wb") as out1:
+                        pickle.dump(genConf, out1)
+                    with open(str(tmpPath) + f"\\fiscal_{caseid}.bin", "wb") as out2:
+                        pickle.dump(fiscal, out2)
+                    with open(str(tmpPath) + f"\\producer_{caseid}.bin", "wb") as out3:
+                        pickle.dump(producer, out3)
+                    with open(str(tmpPath) + f"\\contracts_{caseid}.bin", "wb") as out4:
+                        pickle.dump(contracts, out4)
+                    with open(str(tmpPath) + f"\\tangible_{caseid}.bin", "wb") as out5:
+                        pickle.dump(tangible, out5)
+                    with open(
+                        str(tmpPath) + f"\\intangible_{caseid}.bin", "wb"
+                    ) as out6:
+                        pickle.dump(intangible, out6)
+                    with open(str(tmpPath) + f"\\opex_{caseid}.bin", "wb") as out7:
+                        pickle.dump(opex, out7)
+                    with open(str(tmpPath) + f"\\asr_{caseid}.bin", "wb") as out8:
+                        pickle.dump(asr, out8)
+
+        return tmpPath
 
     def writeGenConfig(self, path: Path, value: dict):
         with open(path, "ab") as fs:
@@ -171,7 +244,7 @@ class pyscPacker:
             else:
                 cols = int(self.readPack("i", fs, 0))
                 return [
-                    {self.readPack(getfmt(ii), fs) for ii in range(cols)}
+                    [self.readPack(getfmt(ii), fs) for ii in range(cols)]
                     for i in range(lenTable)
                 ]
 
