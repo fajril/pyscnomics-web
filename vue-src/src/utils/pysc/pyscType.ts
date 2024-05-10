@@ -113,6 +113,11 @@ export interface ProjectBase {
   state: number
   multicase: number[]
 }
+export interface selImprCases {
+  path: string
+  caseID: Array<number>
+}
+
 
 export const defProj = (): ProjectBase => ({
   id: null,

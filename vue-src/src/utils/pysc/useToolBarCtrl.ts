@@ -34,6 +34,9 @@ export const useToolBarCtrl = () => {
     const result = await $api(url, {
       params: param,
       method: mode,
+      onResponseError({ response }) {
+        throw [response.status, response._data.detail]
+      },
     })
     return result
   }
@@ -190,9 +193,113 @@ export const useToolBarCtrl = () => {
 
   const expXlsxProject = () => {
 
+
   }
 
+  const importFrPySC = async (pathfile: string | null, caseLst: number[] = []) => {
+    //chk
+    let wspath = null
+    let dataLoaded = false
+    try {
+      let resImport = await $api("/auth/importcase", {
+        params: { data: btoa(JSON.stringify({ path: pathfile, caseid: caseLst })) },
+        method: "GET",
+        onResponseError({ response }) {
+          throw [response.status, response._data.detail]
+        },
+      })
+      if (resImport.state !== true) throw "Invalid file type or it's an old file"
+      wspath = resImport.path
+      if (typeof wspath != 'string' || isEmpty(wspath)) throw "Error while mkdir temporary path"
 
+      resImport = await execPartData('/auth/rdcases', 'GET', { tmppath: wspath })
+      if (resImport.state !== true) throw "error rdcases"
+      const cases: Pysc.ProjectBase[] = resImport.data
+      const tangible = []
+      const intangible = []
+      const opex = []
+      const asr = []
+
+      const genConf = []
+      const producer = []
+      const fiscal = []
+      const contracts = []
+
+      for (let icase = 0; icase < cases.length; icase++) {
+        const caseid = cases[icase].id
+        resImport = await execPartData('/auth/rdgenconf', 'GET', { tmppath: wspath, index: caseid })
+        if (resImport.state !== true) throw "error rdgenconf"
+        genConf.push(JSON.parse(JSON.stringify(resImport.data)))
+        // console.log(genConf)
+        resImport = await execPartData('/auth/rdfiscalconf', 'GET', { tmppath: wspath, index: caseid })
+        if (resImport.state !== true) throw "error rdfiscalconf"
+        fiscal.push(JSON.parse(JSON.stringify(resImport.data)))
+        // console.log(fiscalConf)
+        resImport = await execPartData('/auth/rdproducer', 'GET', { tmppath: wspath, index: caseid })
+        if (resImport.state !== true) throw "error rdproducer"
+        producer.push(JSON.parse(JSON.stringify(resImport.data)))
+        // console.log(prodConf)
+        resImport = await execPartData('/auth/rdcontracts', 'GET', { tmppath: wspath, index: caseid })
+        if (resImport.state !== true) throw "error rdcontracts"
+        contracts.push(JSON.parse(JSON.stringify(resImport.data)))
+        // console.log(contractConf)
+        resImport = await execPartData('/auth/rdcosts', 'GET', { tmppath: wspath, mode: 0, index: caseid })
+        if (resImport.state !== true) throw "error rdcosts(0)"
+        tangible.push(JSON.parse(JSON.stringify(resImport.data)))
+        // console.log(tanConf)
+        resImport = await execPartData('/auth/rdcosts', 'GET', { tmppath: wspath, mode: 1, index: caseid })
+        if (resImport.state !== true) throw "error rdcosts(1)"
+        intangible.push(JSON.parse(JSON.stringify(resImport.data)))
+        // console.log(IntanConf)
+        resImport = await execPartData('/auth/rdcosts', 'GET', { tmppath: wspath, mode: 2, index: caseid })
+        if (resImport.state !== true) throw "error rdcosts(2)"
+        opex.push(JSON.parse(JSON.stringify(resImport.data)))
+        // console.log(opexConf)
+        resImport = await execPartData('/auth/rdcosts', 'GET', { tmppath: wspath, mode: 3, index: caseid })
+        if (resImport.state !== true) throw "error rdcosts(3)"
+        asr.push(JSON.parse(JSON.stringify(resImport.data)))
+      }
+
+      // change case id
+      cases.forEach(value => {
+        value.id = Math.floor(Math.random() * (2000000 - 1000)) + 1000;
+      })
+
+      //merge
+      PyscConf.$patch({
+        tangible: JSON.parse(JSON.stringify([...PyscConf.tangible, ...tangible])),
+        intangible: JSON.parse(JSON.stringify([...PyscConf.intangible, ...intangible])),
+        opex: JSON.parse(JSON.stringify([...PyscConf.opex, ...opex])),
+        asr: JSON.parse(JSON.stringify([...PyscConf.asr, ...asr])),
+
+        generalConfig: JSON.parse(JSON.stringify([...PyscConf.generalConfig, ...genConf])),
+        producer: JSON.parse(JSON.stringify([...PyscConf.producer, ...producer])),
+        fiscal: JSON.parse(JSON.stringify([...PyscConf.fiscal, ...fiscal])),
+        contracts: JSON.parse(JSON.stringify([...PyscConf.contracts, ...contracts])),
+      })
+
+      appStore.$patch({
+        projects: JSON.parse(JSON.stringify([...appStore.projects, ...cases])),
+      })
+
+      dataLoaded = true
+
+      appStore.showAlert({
+        text: "Data imported successfully",
+        isalert: false
+      })
+    } catch (error) {
+      appStore.showAlert({
+        text: `Error ${Array.isArray(error) ? error[0] : ''}: ${Array.isArray(error) ? error[1] : error}`,
+        isalert: true
+      })
+    }
+    if (!isEmpty(wspath))
+      try {
+        await execPartData('/auth/closeddata', 'GET', { tmppath: wspath })
+      } catch (error) { }
+    return dataLoaded
+  }
 
   return {
     newProject,
@@ -200,5 +307,6 @@ export const useToolBarCtrl = () => {
     saveProject,
     expJsonProject,
     expXlsxProject,
+    importFrPySC,
   }
 }

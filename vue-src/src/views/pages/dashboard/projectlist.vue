@@ -4,6 +4,9 @@ import { useAppStore } from "@/stores/appStore";
 import { usePyscConfStore } from '@/stores/genfisStore';
 import * as Pysc from "@/utils/pysc/pyscType";
 import { useDayJs } from "@/utils/pysc/pyscType";
+import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl';
+import dirDialogs from "@/views/components/fileDialogs/dirDialogs.vue";
+import selCases from "@/views/components/selCases.vue";
 import { VDataTableVirtual } from 'vuetify/labs/VDataTable';
 import ProjectEditor from "./AddNewProject.vue";
 
@@ -31,27 +34,6 @@ const headers = [
   { title: "Type", key: "type", align: 'start', value: item => Object.values(Pysc.ContractType)[parseInt(item.type)] },
   { title: "Updated at", key: "updated_at", align: 'center', value: item => dayjs.utc(item.updated_at).local().format("lll") },
 ]
-
-// const openProject = (id) => {
-//   appStore.$patch({
-//     curProject: id,
-//   })
-//   nextTick(() => {
-//     router.replace("/pysc-conf")
-//   })
-// }
-
-const addNewProj = () => {
-  RefProjEditor.value.OpenEditor()
-}
-
-const importProj = () => {
-  console.log("comming soon")
-}
-
-const exportProj = () => {
-  console.log("comming soon")
-}
 
 const updateProject = (param: Pysc.ProjectBase) => {
   isLoading.value = true
@@ -81,36 +63,53 @@ const updateProject = (param: Pysc.ProjectBase) => {
   })
 
   isLoading.value = false
+}
 
-  // appStore.postProjects(btoa(JSON.stringify(param)))
-  //   .then(resv => {
-  //     appStore.showAlert({
-  //       text: "project list updated",
-  //     })
-  //     nextTick(() => loadProjs(options.value))
-  //   }, err => {
-  //     appStore.showAlert({
-  //       text: "error",
-  //       isalert: true
-  //     })
-  //   })
-  //   .catch(() => {
+const SelLocImportRef = ref()
+const selCasesDialogs = ref()
 
-  //   })
-  //   .finally(() => {
-  //     isLoading.value = false
-  //   })
+const updateSelImportPath = async (value: string) => {
+  // console.log(value)
+  try {
+    const resInit = await $api('/auth/getcases', { params: { path: btoa(value) }, method: 'GET' })
+    if (resInit.state !== true) throw "Invalid file type or it's an old file"
+    //show select cases
+    // console.log(resInit)
+    selCasesDialogs.value?.ShowCaseDialogs(value, resInit.cases)
+  } catch (error) {
+    appStore.showAlert({
+      text: typeof error === 'string' ? error : 'Error while loading data',
+      isalert: true
+    })
+  }
+}
+
+const postImportData = async (param: Pysc.selImprCases) => {
+  isLoading.value = true
+  const res = await useToolBarCtrl().importFrPySC(param.path, param.caseID)
+  isLoading.value = false
 }
 
 const moreprojList = [
-  { title: "New Case", value: "newproj", onClick: addNewProj }, //
+  { title: "New Case", value: "newproj" }, //
   {
     title: "Import", value: "importproj", child: [
+      { title: "From .pySC", value: "imppysc" },
       { title: "From JSON", value: "impjson" },
-      { title: "From XLSX", value: "impxlsx" },
     ]
   }, //
 ]
+
+const projectMenuClick = (key) => {
+  if (key === "newproj")
+    RefProjEditor.value.OpenEditor()
+  else if (key === "imppysc") {
+    if (!isEmpty(appStore.curProjectPath))
+      SelLocImportRef.value?.loadMyDris("open", appStore.curProjectPath?.split(/\/|\\/).slice(0, -1).join("\\"))
+    else
+      SelLocImportRef.value?.loadMyDris("open", "__local__")
+  }
+}
 
 const moreTabData = [
   { title: "New Case", value: "new" },
@@ -166,7 +165,22 @@ onMounted(() => {
   <VCard title="My Cases" subtitle="List of cases" :loading="isLoading">
     <template #prepend>
       <div class="mt-n4 me-n2">
-        <MoreBtn :menu-list="moreprojList" item-props />
+        <IconBtn>
+          <VIcon icon="tabler-dots-vertical" />
+          <VMenu activator="parent" offset="14px">
+            <VList>
+              <VListItem v-for="(item) in moreprojList" :key="item.title" :value="item.value" :title="item.title"
+                @click="() => projectMenuClick(item.value)">
+                <VMenu v-if="item.child" activator="parent" :offset="[14, 20]" location="end">
+                  <VList>
+                    <VListItem v-for="(child) in item.child" :key="child.title" :value="child.value"
+                      :title="child.title" @click="() => projectMenuClick(child.value)" />
+                  </VList>
+                </VMenu>
+              </VListItem>
+            </VList>
+          </VMenu>
+        </IconBtn>
       </div>
     </template>
     <!-- 👉 Data Table  -->
@@ -215,6 +229,8 @@ onMounted(() => {
   <ProjectEditor ref="RefProjEditor" v-model:isDrawerOpen="isEditorDrawerVisible" @update:proj-data="updateProject" />
   <ConfirmDialogs v-model:is-show="isShowConfirmDelete" :msg="`Do you want to remove case '${caseDeleteID.name}' ?`"
     @confirm="deleteCase" />
+  <dirDialogs ref="SelLocImportRef" @update:path="updateSelImportPath" />
+  <selCases ref="selCasesDialogs" @update:importcase="postImportData" />
 </template>
 
 <style lang="scss" scoped>
