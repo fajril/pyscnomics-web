@@ -5,7 +5,6 @@ packaging
 websockets
 uvicorn[standard]
 databases
-pypiwin32
 dateutils>=0.6.12
 matplotlib>=3.4.3
 pandas>=2.2.0
