@@ -70,7 +70,7 @@ const fetchDirs = async (_path: string | null) => {
       method: 'GET',
       params: {
         flext: fileExt.value,
-        root: _path ? btoa(_path) : btoa("__drive__")
+        root: _path ? btoa(_path) : btoa("/"/*"__drive__"*/)
       },
       onResponseError({ response }) {
       },
@@ -155,7 +155,7 @@ defineExpose({
       <VCardText>
         <VRow no-gutters>
           <VCol cols="12">
-            <VTextField v-model="filePath" label="Select Path" variant="outlined" />
+            <VTextField v-model="filePath" label="Select Path" variant="outlined" autofocus />
           </VCol>
           <VCol cols="12">
             <VList nav :lines="false" :disabled="IsLoading" v-model:selected="childSelected">
@@ -164,7 +164,7 @@ defineExpose({
                   Not found
                 </VListItemTitle>
               </VListItem>
-              <VListItem v-if="childlist.parent && childlist.parent != '__drive__'"
+              <VListItem v-if="childlist.parent && childlist.parent != '/'"
                 :value="-(Math.floor(Math.random() * 1000))">
                 <VListItemTitle>
                   . .
