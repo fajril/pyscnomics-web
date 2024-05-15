@@ -3,18 +3,22 @@ import math
 import os
 import pickle
 import random
+import shutil
 import string
 import struct
 from io import BufferedReader, BufferedWriter
 from pathlib import Path
+from sys import exception
 from typing import Any, List
 
 import numpy as np
+from typing_extensions import Buffer
 
 log = logging.getLogger("uvicorn")
 
 
 class pyscPacker:
+    typeContract: int = 1
     __hfl: str = "pySCapp"
     __vfl: int = 4  # ver.3: var add sign (1 byte) for Null int
     # ver.4: add case data
@@ -31,9 +35,19 @@ class pyscPacker:
             hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
             return hfl == self.__hfl.encode() and vfl == self.__vfl
 
-    def writeCase(self, path: Path, value: List):
-        lcase: int = len(value)
-        with open(path, "ab") as fs:
+    def makePath(self, path: Path, filename: str):
+        return Path(str(path), filename)
+
+    def writeCase(
+        self, isTmp: bool, path: Path, value: List, fsw: BufferedWriter | None = None
+    ):
+        if isTmp:
+            filePath = Path(str(path), "cases.bin")
+            out0 = fsw if fsw is not None else open(str(filePath), "wb")
+            pickle.dump(value, out0)
+        else:
+            lcase: int = len(value)
+            fs = fsw if fsw is not None else open(path, "ab")
             self.writePack(lcase, "i", fs)
             for i, icase in enumerate(value):
                 self.writePack(icase["id"], "i", fs)
@@ -77,16 +91,7 @@ class pyscPacker:
             hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
             return self.readCase(fs)
 
-    def importCase(self, pathFile: Path, caseID: list):
-        # log.info([pathFile, caseID])
-        letters = string.ascii_lowercase
-        pathWS = "".join(random.choice(letters) for _ in range(8))
-        tmpPath = str(Path(__file__).parent.parent.parent) + f"\\~tmp\\{pathWS}"
-        if not os.path.exists(tmpPath):
-            os.makedirs(tmpPath)
-        if not os.path.exists(tmpPath):
-            return False
-
+    def importCase(self, wsPath: Path, pathFile: Path, caseID: list, newCaseID: list):
         with open(pathFile, "rb") as fs:
             hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
 
@@ -94,11 +99,12 @@ class pyscPacker:
             selCase = [
                 icase for idx, icase in enumerate(fullcases) if icase["id"] in caseID
             ]
-            with open(str(tmpPath) + "\\cases.bin", "wb") as out0:
-                pickle.dump(selCase, out0)
-
             for idx, icase in enumerate(fullcases):
-                caseid = icase["id"]
+                writeData = icase["id"] in caseID
+                caseid = (
+                    newCaseID[caseID.index(icase["id"])] if writeData else icase["id"]
+                )
+
                 type_of_contract = int(self.readPack("i", fs, 1))
                 genConf = {
                     "type_of_contract": type_of_contract,
@@ -120,39 +126,76 @@ class pyscPacker:
                 intangible = self.readCosts(1, fs)
                 opex = self.readCosts(2, fs)
                 asr = self.readCosts(3, fs)
-                if caseid in caseID:
-                    with open(str(tmpPath) + f"\\genconf_{caseid}.bin", "wb") as out1:
+                if writeData:
+                    with open(
+                        str(self.makePath(wsPath, f"genconf_{caseid}.bin")), "wb"
+                    ) as out1:
                         pickle.dump(genConf, out1)
-                    with open(str(tmpPath) + f"\\fiscal_{caseid}.bin", "wb") as out2:
+                    with open(
+                        str(self.makePath(wsPath, f"fiscal_{caseid}.bin")), "wb"
+                    ) as out2:
                         pickle.dump(fiscal, out2)
-                    with open(str(tmpPath) + f"\\producer_{caseid}.bin", "wb") as out3:
+                    with open(
+                        str(self.makePath(wsPath, f"producer_{caseid}.bin")), "wb"
+                    ) as out3:
                         pickle.dump(producer, out3)
-                    with open(str(tmpPath) + f"\\contracts_{caseid}.bin", "wb") as out4:
+                    with open(
+                        str(self.makePath(wsPath, f"contracts_{caseid}.bin")), "wb"
+                    ) as out4:
                         pickle.dump(contracts, out4)
-                    with open(str(tmpPath) + f"\\tangible_{caseid}.bin", "wb") as out5:
+                    with open(
+                        str(self.makePath(wsPath, f"tangible_{caseid}.bin")), "wb"
+                    ) as out5:
                         pickle.dump(tangible, out5)
                     with open(
-                        str(tmpPath) + f"\\intangible_{caseid}.bin", "wb"
+                        str(self.makePath(wsPath, f"intangible_{caseid}.bin")), "wb"
                     ) as out6:
                         pickle.dump(intangible, out6)
-                    with open(str(tmpPath) + f"\\opex_{caseid}.bin", "wb") as out7:
+                    with open(
+                        str(self.makePath(wsPath, f"opex_{caseid}.bin")), "wb"
+                    ) as out7:
                         pickle.dump(opex, out7)
-                    with open(str(tmpPath) + f"\\asr_{caseid}.bin", "wb") as out8:
+                    with open(
+                        str(self.makePath(wsPath, f"asr_{caseid}.bin")), "wb"
+                    ) as out8:
                         pickle.dump(asr, out8)
+            return selCase
 
-        return tmpPath
-
-    def writeGenConfig(self, path: Path, value: dict):
+    def writeProject(self, wsPath: Path, path: Path):
+        cases = self.loadCases(wsPath)
         with open(path, "ab") as fs:
-            self.writePack(value["type_of_contract"], "i", fs)
-            self.writePack(value["discount_rate_start_year"], "i", fs)
-            self.writePack(value["discount_rate"], "d", fs)
-            self.writePack(value["inflation_rate_applied_to"], "h", fs)
-            self.writePack(value["start_date_project"], "q", fs)
-            self.writePack(value["end_date_project"], "q", fs)
-            self.writePack(value["start_date_project_second"] | 0, "q", fs)
-            self.writePack(value["end_date_project_second"] | 0, "q", fs)
-            fs.close()
+            self.writeCase(False, Path(), cases, fs)
+            for idx, icase in enumerate(cases):
+                self.typeContract = icase["type"]
+                id = icase["id"]
+                self.writeGenConfig(Path(), self.loadGenConfig(wsPath, id), fs)
+                self.writeFiscalConfig(Path(), self.loadFiscalConfig(wsPath, id), fs)
+                self.writeProducer(Path(), self.loadproducer(wsPath, id), fs)
+                self.writecontrats(
+                    Path(), self.typeContract, self.loadcontracts(wsPath, id), fs
+                )
+                # tangible
+                self.writeCosts(Path(), 0, self.loadCosts(0, wsPath, id), fs)
+                # intanginble
+                self.writeCosts(Path(), 1, self.loadCosts(1, wsPath, id), fs)
+                # opex
+                self.writeCosts(Path(), 2, self.loadCosts(2, wsPath, id), fs)
+                # ars
+                self.writeCosts(Path(), 3, self.loadCosts(3, wsPath, id), fs)
+        return True
+
+    def writeGenConfig(
+        self, path: Path, value: dict, fsw: BufferedWriter | None = None
+    ):
+        fs = fsw if fsw is not None else open(path, "ab")
+        self.writePack(value["type_of_contract"], "i", fs)
+        self.writePack(value["discount_rate_start_year"], "i", fs)
+        self.writePack(value["discount_rate"], "d", fs)
+        self.writePack(value["inflation_rate_applied_to"], "h", fs)
+        self.writePack(value["start_date_project"], "q", fs)
+        self.writePack(value["end_date_project"], "q", fs)
+        self.writePack(value["start_date_project_second"] | 0, "q", fs)
+        self.writePack(value["end_date_project_second"] | 0, "q", fs)
 
     def getFormatIndex(self, fmtType: List | str, index: int) -> str:
         if isinstance(fmtType, List):
@@ -496,40 +539,41 @@ class pyscPacker:
             "GasDMO": self.readDMO(fs),
         }
 
-    def writeFiscalConfig(self, path: Path, value: dict):
-        with open(path, "ab") as fs:
-            self.writeFiscalBase(value["Fiskal"], fs)
-            self.writeFiscalBase(value["Fiskal2"], fs)
-            fs.close()
+    def writeFiscalConfig(
+        self, path: Path, value: dict, fsw: BufferedWriter | None = None
+    ):
+        fs = fsw if fsw is not None else open(path, "ab")
+        self.writeFiscalBase(value["Fiskal"], fs)
+        self.writeFiscalBase(value["Fiskal2"], fs)
 
-    def writeProducer(self, path: Path, value: dict):
-        with open(path, "ab") as fs:
-            self.writePack(len(value), "i", fs)
-            for prod in value:
-                tipeProd: int = prod["Tipe"]
-                self.writePack(tipeProd, "h", fs)
-                self.writePack(prod["onstream_date"], "q", fs)
-                self.writePack(prod["ProdNumber"], "h", fs)
-                self.writePack(prod["GSANumber"], "h", fs)
-                prod_price = prod["prod_price"]
-                # num ProdNumber
-                self.writePack(len(prod_price), "i", fs)
-                for iProd in range(prod["ProdNumber"]):
-                    prodItem = prod_price[iProd]
-                    if tipeProd == 1:  # Gas Producer
-                        self.writePack(len(prodItem), "i", fs)
-                        if len(prodItem) > 0:
-                            for i, item in enumerate(prodItem):
-                                if isinstance(item, dict):
-                                    self.writePack(item["year"], "i", fs)
-                                    self.writePack(item["production"], "d", fs)
-                                    gsa: dict = item["gsa"]
-                                    keys = gsa.keys()
-                                    self.writePack(len(keys), "i", fs)
-                                    for idx, key in enumerate(keys):
-                                        self.writePack(gsa[key], "d", fs)
-                    else:
-                        self.writeTable(prodItem, ["i", "d"], fs)
+    def writeProducer(self, path: Path, value: dict, fsw: BufferedWriter | None = None):
+        fs = fsw if fsw is not None else open(path, "ab")
+        self.writePack(len(value), "i", fs)
+        for prod in value:
+            tipeProd: int = prod["Tipe"]
+            self.writePack(tipeProd, "h", fs)
+            self.writePack(prod["onstream_date"], "q", fs)
+            self.writePack(prod["ProdNumber"], "h", fs)
+            self.writePack(prod["GSANumber"], "h", fs)
+            prod_price = prod["prod_price"]
+            # num ProdNumber
+            self.writePack(len(prod_price), "i", fs)
+            for iProd in range(prod["ProdNumber"]):
+                prodItem = prod_price[iProd]
+                if tipeProd == 1:  # Gas Producer
+                    self.writePack(len(prodItem), "i", fs)
+                    if len(prodItem) > 0:
+                        for i, item in enumerate(prodItem):
+                            if isinstance(item, dict):
+                                self.writePack(item["year"], "i", fs)
+                                self.writePack(item["production"], "d", fs)
+                                gsa: dict = item["gsa"]
+                                keys = gsa.keys()
+                                self.writePack(len(keys), "i", fs)
+                                for idx, key in enumerate(keys):
+                                    self.writePack(gsa[key], "d", fs)
+                else:
+                    self.writeTable(prodItem, ["i", "d"], fs)
 
     def readProducer(self, fs: BufferedReader):
         def readGSA():
@@ -625,16 +669,18 @@ class pyscPacker:
         else:
             return []
 
-    def writecontrats(self, path: Path, tipe: int, value: dict):
-        with open(path, "ab") as fs:
-            self.writecostRecConfig(value["cr"], fs)
-            self.writegsConfig(value["gs"], fs)
-            if tipe >= 3:
-                (
-                    self.writecostRecConfig(value["second"], fs)
-                    if tipe in [3, 6]
-                    else self.writegsConfig(value["second"], fs)
-                )
+    def writecontrats(
+        self, path: Path, tipe: int, value: dict, fsw: BufferedWriter | None = None
+    ):
+        fs = fsw if fsw is not None else open(path, "ab")
+        self.writecostRecConfig(value["cr"], fs)
+        self.writegsConfig(value["gs"], fs)
+        if tipe >= 3:
+            (
+                self.writecostRecConfig(value["second"], fs)
+                if tipe in [3, 6]
+                else self.writegsConfig(value["second"], fs)
+            )
 
     def readcontrats(self, tipe: int, fs: BufferedReader):
         result = {
@@ -650,18 +696,39 @@ class pyscPacker:
             )
         return result
 
-    def writeCosts(self, path: Path, mode: int, value: List):
-        with open(path, "ab") as fs:
-            fmt = ["d"]
-            if mode == 0:  # tangible
-                fmt = ["i", "h", "d", "i", "i", "d", "h", "d", "s"]
-            elif mode == 1:  # intangible
-                fmt = ["i", "h", "d", "d", "s"]
-            elif mode == 2:  # opex
-                fmt = ["i", "h", "d", "d", "d", "d", "d", "s"]
-            elif mode == 3:  # asr
-                fmt = ["i", "h", "d", "s"]
-            self.writeTable(value, fmt, fs)
+    def writeCosts(
+        self, path: Path, mode: int, value: List, fsw: BufferedWriter | None = None
+    ):
+        fs = fsw if fsw is not None else open(path, "ab")
+        fmt = ["d"]
+        cvvalue = [
+            [
+                (
+                    0
+                    if icol == 1 and col == "Oil"
+                    else (
+                        1
+                        if icol == 1 and col == "Gas"
+                        else (
+                            1
+                            if mode == 0 and icol == 6 and col == "Yes"
+                            else 0 if mode == 0 and icol == 6 and col == "No" else col
+                        )
+                    )
+                )
+                for icol, col in enumerate(row)
+            ]
+            for irow, row in enumerate(value)
+        ]
+        if mode == 0:  # tangible
+            fmt = ["i", "h", "d", "i", "i", "d", "h", "d", "s"]
+        elif mode == 1:  # intangible
+            fmt = ["i", "h", "d", "d", "s"]
+        elif mode == 2:  # opex
+            fmt = ["i", "h", "d", "d", "d", "d", "d", "s"]
+        elif mode == 3:  # asr
+            fmt = ["i", "h", "d", "s"]
+        self.writeTable(cvvalue, fmt, fs)
 
     def readCosts(self, mode: int, fs: BufferedReader):
         def readTableList(fmt: List) -> List[Any]:
@@ -694,15 +761,18 @@ class pyscPacker:
             fmt = ["i", "h", "d", "s"]
         return readTableList(fmt)
 
-    def ExtractFile(self, source: Path, target: Path):
+    def ExtractFile(self, source: Path, target: Path, useID: bool = False):
         with open(source, "rb") as fs:
             hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
+            if hfl != self.__hfl.encode() or vfl != self.__vfl:
+                return "Invalid file type"
 
             cases = self.readCase(fs)
             with open(str(target) + "\\cases.bin", "wb") as out0:
                 pickle.dump(cases, out0)
 
             for idx, icase in enumerate(cases):
+                id = icase["id"] if useID else idx
                 type_of_contract = int(self.readPack("i", fs, 1))
                 genConf = {
                     "type_of_contract": type_of_contract,
@@ -724,55 +794,207 @@ class pyscPacker:
                 intangible = self.readCosts(1, fs)
                 opex = self.readCosts(2, fs)
                 asr = self.readCosts(3, fs)
-                with open(str(target) + f"\\genconf_{idx}.bin", "wb") as out1:
+                with open(str(target) + f"\\genconf_{id}.bin", "wb") as out1:
                     pickle.dump(genConf, out1)
-                with open(str(target) + f"\\fiscal_{idx}.bin", "wb") as out2:
+                with open(str(target) + f"\\fiscal_{id}.bin", "wb") as out2:
                     pickle.dump(fiscal, out2)
-                with open(str(target) + f"\\producer_{idx}.bin", "wb") as out3:
+                with open(str(target) + f"\\producer_{id}.bin", "wb") as out3:
                     pickle.dump(producer, out3)
-                with open(str(target) + f"\\contracts_{idx}.bin", "wb") as out4:
+                with open(str(target) + f"\\contracts_{id}.bin", "wb") as out4:
                     pickle.dump(contracts, out4)
-                with open(str(target) + f"\\tangible_{idx}.bin", "wb") as out5:
+                with open(str(target) + f"\\tangible_{id}.bin", "wb") as out5:
                     pickle.dump(tangible, out5)
-                with open(str(target) + f"\\intangible_{idx}.bin", "wb") as out6:
+                with open(str(target) + f"\\intangible_{id}.bin", "wb") as out6:
                     pickle.dump(intangible, out6)
-                with open(str(target) + f"\\opex_{idx}.bin", "wb") as out7:
+                with open(str(target) + f"\\opex_{id}.bin", "wb") as out7:
                     pickle.dump(opex, out7)
-                with open(str(target) + f"\\asr_{idx}.bin", "wb") as out8:
+                with open(str(target) + f"\\asr_{id}.bin", "wb") as out8:
                     pickle.dump(asr, out8)
+            return True
 
     def loadCases(self, sourcePath: Path):
-        with open(str(sourcePath) + "\\cases.bin", "rb") as fl:
+        with open(str(self.makePath(sourcePath, "cases.bin")), "rb") as fl:
             return pickle.load(fl)
 
     def loadGenConfig(self, sourcePath: Path, index: int):
-        with open(str(sourcePath) + f"\\genconf_{index}.bin", "rb") as fl:
+        filePath = self.makePath(sourcePath, f"genconf_{index}.bin")
+        if not filePath.exists():
+            raise Exception(f"genconf file for id={index} not found")
+        with open(str(filePath), "rb") as fl:
             return pickle.load(fl)
 
     def loadFiscalConfig(self, sourcePath: Path, index: int):
-        with open(str(sourcePath) + f"\\fiscal_{index}.bin", "rb") as fl:
+        filePath = self.makePath(sourcePath, f"fiscal_{index}.bin")
+        if not filePath.exists():
+            raise Exception(f"fiscal file for id={index} not found")
+        with open(str(filePath), "rb") as fl:
             return pickle.load(fl)
 
     def loadproducer(self, sourcePath: Path, index: int):
-        with open(str(sourcePath) + f"\\producer_{index}.bin", "rb") as fl:
+        filePath = self.makePath(sourcePath, f"producer_{index}.bin")
+        if not filePath.exists():
+            raise Exception(f"producer file for id={index} not found")
+        with open(str(filePath), "rb") as fl:
             return pickle.load(fl)
 
     def loadcontracts(self, sourcePath: Path, index: int):
-        with open(str(sourcePath) + f"\\contracts_{index}.bin", "rb") as fl:
+        filePath = self.makePath(sourcePath, f"contracts_{index}.bin")
+        if not filePath.exists():
+            raise Exception(f"contract file for id={index} not found")
+        with open(str(filePath), "rb") as fl:
             return pickle.load(fl)
 
     def loadCosts(self, mode: int, sourcePath: Path, index: int):
         if mode == 0:
-            with open(str(sourcePath) + f"\\tangible_{index}.bin", "rb") as fl:
+            filePath = self.makePath(sourcePath, f"tangible_{index}.bin")
+            if not filePath.exists():
+                raise Exception(f"tangible file for id={index} not found")
+            with open(str(filePath), "rb") as fl:
                 return pickle.load(fl)
         elif mode == 1:
-            with open(str(sourcePath) + f"\\intangible_{index}.bin", "rb") as fl:
+            filePath = self.makePath(sourcePath, f"intangible_{index}.bin")
+            if not filePath.exists():
+                raise Exception(f"intangible file for id={index} not found")
+            with open(str(filePath), "rb") as fl:
                 return pickle.load(fl)
         elif mode == 2:
-            with open(str(sourcePath) + f"\\opex_{index}.bin", "rb") as fl:
+            filePath = self.makePath(sourcePath, f"opex_{index}.bin")
+            if not filePath.exists():
+                raise Exception(f"opex file for id={index} not found")
+            with open(str(filePath), "rb") as fl:
                 return pickle.load(fl)
         elif mode == 3:
-            with open(str(sourcePath) + f"\\asr_{index}.bin", "rb") as fl:
+            filePath = self.makePath(sourcePath, f"asr_{index}.bin")
+            if not filePath.exists():
+                raise Exception(f"asr file for id={index} not found")
+            with open(str(filePath), "rb") as fl:
                 return pickle.load(fl)
         else:
             return []
+
+    def extractProject(self, filePath: Path, oldWSPath: str | None, newWSPath: str):
+        owsPath: Path | None = (
+            None
+            if oldWSPath is None
+            else Path(str(Path(__file__).parent.parent.parent) + f"\\~tmp\\{oldWSPath}")
+        )
+        wsPath: Path = Path(
+            str(Path(__file__).parent.parent.parent) + f"\\~tmp\\{newWSPath}"
+        )
+        result = "Path not found"
+        if filePath.exists():
+            if not wsPath.exists():
+                os.makedirs(name=wsPath, exist_ok=True)
+            # extract data to temp path
+            result = self.ExtractFile(filePath, wsPath, True)
+        # remove old temp data
+        if isinstance(owsPath, Path) and owsPath.exists():
+            shutil.rmtree(str(owsPath), ignore_errors=True, onerror=None)
+        return result
+
+    def cloneCase(
+        self, wspath: str, sourceid: int, targetid: int, ctrType: int, typechg: bool
+    ):
+        def clonefile(tmpPath: Path, flnm: str):
+            try:
+                sourcePath = Path(str(tmpPath), f"{flnm}_{sourceid}.bin")
+                targetPath = Path(str(tmpPath), f"{flnm}_{targetid}.bin")
+                if sourcePath.exists():
+                    shutil.copyfile(str(sourcePath), str(targetPath))
+            except Exception:
+                pass
+
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if typechg:
+            try:
+                genconf = self.loadGenConfig(tmpPath, sourceid)
+                genconf["type_of_contract"] = ctrType
+                with open(
+                    str(self.makePath(tmpPath, f"genconf_{targetid}.bin")), "wb"
+                ) as out1:
+                    pickle.dump(genconf, out1)
+            except Exception:
+                pass
+        else:
+            clonefile(tmpPath, "genconf")
+        clonefile(tmpPath, "fiscal")
+        clonefile(tmpPath, "producer")
+        if typechg:
+            try:
+                contracts = self.loadcontracts(tmpPath, sourceid)
+                if ctrType >= 3:
+                    if ctrType in [3, 6]:
+                        if (
+                            contracts["second"] is None
+                            or "oil_ftp" not in contracts["second"]
+                        ):
+                            contracts["second"] = contracts["cr"]
+                    elif ctrType in [4, 5]:
+                        if (
+                            contracts["second"] is None
+                            or "field_status" not in contracts["second"]
+                        ):
+                            contracts["second"] = contracts["gs"]
+                elif contracts["second"] is not None:
+                    if "oil_ftp" in contracts["second"] and ctrType not in [3, 4]:
+                        contracts["cr"] = contracts["second"]
+                    elif "field_status" in contracts["second"] and ctrType not in [
+                        5,
+                        6,
+                    ]:
+                        contracts["gs"] = contracts["second"]
+                    contracts["second"] = None
+                with open(
+                    str(self.makePath(tmpPath, f"contracts_{targetid}.bin")), "wb"
+                ) as out2:
+                    pickle.dump(contracts, out2)
+            except Exception:
+                pass
+        else:
+            clonefile(tmpPath, "contracts")
+        clonefile(tmpPath, "tangible")
+        clonefile(tmpPath, "intangible")
+        clonefile(tmpPath, "opex")
+        clonefile(tmpPath, "asr")
+
+    def chgCtrType(self, wspath: str, sourceid: int, oldCtrType: int, newCtrType: int):
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        try:
+            genconf = self.loadGenConfig(tmpPath, sourceid)
+            genconf["type_of_contract"] = newCtrType
+            with open(
+                str(self.makePath(tmpPath, f"genconf_{sourceid}.bin")), "wb"
+            ) as out1:
+                pickle.dump(genconf, out1)
+        except Exception:
+            pass
+        try:
+            contracts = self.loadcontracts(tmpPath, sourceid)
+            if newCtrType >= 3:
+                if newCtrType in [3, 6]:
+                    if (
+                        contracts["second"] is None
+                        or "oil_ftp" not in contracts["second"]
+                    ):
+                        contracts["second"] = contracts["cr"]
+                elif newCtrType in [4, 5]:
+                    if (
+                        contracts["second"] is None
+                        or "field_status" not in contracts["second"]
+                    ):
+                        contracts["second"] = contracts["gs"]
+            elif contracts["second"] is not None:
+                if "oil_ftp" in contracts["second"] and newCtrType not in [3, 4]:
+                    contracts["cr"] = contracts["second"]
+                elif "field_status" in contracts["second"] and newCtrType not in [
+                    5,
+                    6,
+                ]:
+                    contracts["gs"] = contracts["second"]
+                contracts["second"] = None
+            with open(
+                str(self.makePath(tmpPath, f"contracts_{sourceid}.bin")), "wb"
+            ) as out2:
+                pickle.dump(contracts, out2)
+        except Exception:
+            pass

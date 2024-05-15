@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppStore } from "@/stores/appStore";
 import { usePyscConfStore } from '@/stores/genfisStore';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import CostChart from '@/views/pages/config/costChart.vue';
 import 'handsontable/dist/handsontable.full.min.css';
 import HyperFormula from 'hyperformula';
@@ -18,8 +19,6 @@ const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
 const { dataASR } = storeToRefs(PyscConf)
 const refTableASR = ref()
-
-const curSelCase = computed(() => appStore.curSelCase)
 
 const mainSetting = ref({
   data: dataASR.value,
@@ -70,23 +69,13 @@ const mainSetting = ref({
   licenseKey: 'non-commercial-and-evaluation'
 })
 
-watch(curSelCase, val1 => {
+const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
+  console.log("ASR trigger")
   mainSetting.value.data = dataASR.value
   refTableASR.value?.hotInstance.updateSettings(mainSetting.value)
-}, { deep: true })
-
-const icurSelCase = ref(appStore.curSelCase)
-watch(dataASR, val => {
-  if (icurSelCase.value !== appStore.curSelCase) {
-    icurSelCase.value = appStore.curSelCase
-    return
-  }
-  appStore.dataChanges()
-}, { deep: true })
-onMounted(() => {
-  icurSelCase.value = appStore.curSelCase
 })
-
+onMounted(() => CallableFunc())
+onUnmounted(() => stopCaseID())
 </script>
 
 <template>

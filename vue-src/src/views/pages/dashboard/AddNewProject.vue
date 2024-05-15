@@ -24,10 +24,6 @@ const isFormValid = ref(false)
 const refForm = ref<VForm>()
 const dataEditor = ref<Pysc.ProjectBase>(Pysc.defProj())
 
-watch(dataEditor, val => {
-  console.log(dataEditor.value.multicase)
-}, { deep: true })
-
 const MultiCaseRule = (value: number[]) => {
   if (value.length > 0) return true
   return 'at least 1 case selected.'
@@ -47,7 +43,7 @@ const onSubmit = () => {
   refForm.value?.validate().then(({ valid }) => {
     if (valid) {
       if (dataEditor.value.type === -1 && dataEditor.value.multicase.length === 0) return
-      emit('update:projData', dataEditor.value)
+      emit('update:projData', JSON.parse(JSON.stringify(dataEditor.value)))
       emit("update:isDrawerOpen", false)
       nextTick(() => {
         refForm.value?.reset()

@@ -3,6 +3,7 @@ import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
 import { usePyscSensStore } from '@/stores/sensStore';
 import * as Pysc from "@/utils/pysc/pyscType";
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import SensResChart from '@/views/pages/analysis/sensResChart.vue';
 import SensResTable from '@/views/pages/analysis/sensResTable.vue';
 import 'handsontable/dist/handsontable.full.min.css';
@@ -127,17 +128,20 @@ watchDebounced(sensConfig, () => {
 
 const selPanel = ref([0])
 
-onMounted(() => nextTick(() => {
+
+const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
+  console.log("sens trigger")
   calcSensPar()
   nextTick(() => calcSens())
-}))
+})
 
-const curSelCase = computed(() => appStore.curSelCase)
+onMounted(() => {
+  CallableFunc()
+})
 
-watch(curSelCase, val => nextTick(() => {
-  calcSensPar()
-  calcSens()
-}), { deep: true })
+onUnmounted(() => {
+  stopCaseID()
+})
 
 </script>
 

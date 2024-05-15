@@ -29,7 +29,7 @@ def is_folder_normal(folder_path):
         return False  # Folder does not exist
 
 
-def is_filePySC(folder_path: Path, flext: str = "pysc"):
+def is_filePySC(folder_path: Path, flext: str = "psc"):
     if folder_path.suffix.lower() != f".{flext}":
         return False
     else:

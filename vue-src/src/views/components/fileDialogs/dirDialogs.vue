@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const fileMode = ref('open')
-const fileExt = ref('pysc')
+const fileExt = ref('psc')
 const IsLoading = ref(false)
 const itsOverwriteNote = ref(false)
 const isDialogVisible = ref(false)

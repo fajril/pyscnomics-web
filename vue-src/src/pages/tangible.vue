@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAppStore } from "@/stores/appStore";
 import { usePyscConfStore } from '@/stores/genfisStore';
-import * as Pysc from '@/utils/pysc/pyscType';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import CostChart from '@/views/pages/config/costChart.vue';
 import 'handsontable/dist/handsontable.full.min.css';
 import HyperFormula from 'hyperformula';
@@ -19,9 +19,6 @@ const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
 const { dataTan } = storeToRefs(PyscConf)
 const refTableTangible = ref()
-const dayjs = Pysc.useDayJs()
-
-const curSelCase = computed(() => appStore.curSelCase)
 
 const mainSetting = ref({
   data: dataTan.value,
@@ -78,26 +75,14 @@ const mainSetting = ref({
   licenseKey: 'non-commercial-and-evaluation'
 })
 
-watch(curSelCase, (val1) => {
+
+const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
+  console.log("tangible trigger")
   mainSetting.value.data = dataTan.value
   refTableTangible.value?.hotInstance.updateSettings(mainSetting.value)
-}, { deep: true })
-
-const icurSelCase = ref(appStore.curSelCase)
-
-watch(dataTan, val => {
-  if (icurSelCase.value !== appStore.curSelCase) {
-    icurSelCase.value = appStore.curSelCase
-    return
-  }
-  appStore.dataChanges()
-}, { deep: true })
-
-
-onMounted(() => {
-  icurSelCase.value = appStore.curSelCase
 })
-
+onMounted(() => CallableFunc())
+onUnmounted(() => stopCaseID())
 </script>
 
 <template>

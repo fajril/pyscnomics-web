@@ -2,6 +2,7 @@
 import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
 import { useNumbro } from "@/utils/pysc/pyscType";
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import CardSumm from '@/views/pages/dashboard/cardSumm.vue';
 import Project from '@/views/pages/dashboard/projectlist.vue';
 import EcoSummary from '@/views/pages/dashboard/projectsumm.vue';
@@ -17,7 +18,6 @@ definePage({
   },
 })
 
-const curSelCase = computed(() => appStore.curSelCase)
 const isLoading = ref(false)
 const templatedata = [
   { param: "Oil Production", unit: "MMSTB", ctrl: null },
@@ -193,8 +193,12 @@ const loadSummary = async () => {
   isLoading.value = false
 }
 
-watch(curSelCase, val => nextTick(() => loadSummary()), { deep: true })
-onMounted(() => nextTick(() => loadSummary()))
+const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
+  console.log("client trigger")
+  loadSummary()
+})
+onMounted(() => CallableFunc())
+onUnmounted(() => stopCaseID())
 </script>
 
 <template>

@@ -4,6 +4,7 @@ import { usePyscConfStore } from '@/stores/genfisStore';
 import { MonteDistType, usePyscMonteStore } from '@/stores/monteStore';
 import { useWSStore } from '@/stores/wsStore';
 import * as Pysc from "@/utils/pysc/pyscType";
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import MonteResChart from '@/views/pages/analysis/monteResChart.vue';
 import MonteResTable from '@/views/pages/analysis/monteResTable.vue';
 import 'handsontable/dist/handsontable.full.min.css';
@@ -191,22 +192,8 @@ function Calc() {
     })
 }
 
-
-onMounted(() => {
-  nextTick(() => {
-    isValid.value = ValidateData()
-    addBroadCast()
-  })
-})
-
-onUnmounted(() => {
-  if (curCaseID.value)
-    wsStore.removeBroadCast('monte', curCaseID.value)
-})
-
-const curSelCase = computed(() => appStore.curSelCase)
-
-watchDebounced(curSelCase, () => {
+const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
+  console.log("monte trigger")
   if (curCaseID.value) {
     wsStore.removeBroadCast('monte', curCaseID.value)
     MonteStore.$patch({
@@ -214,9 +201,20 @@ watchDebounced(curSelCase, () => {
     })
   }
   nextTick(() => {
+    isValid.value = ValidateData()
     addBroadCast()
   })
-}, { debounce: 2000, deep: true })
+})
+
+onMounted(() => {
+  CallableFunc()
+})
+
+onUnmounted(() => {
+  stopCaseID()
+  if (curCaseID.value)
+    wsStore.removeBroadCast('monte', curCaseID.value)
+})
 
 </script>
 

@@ -1,96 +1,82 @@
 import { useAppStore } from "@/stores/appStore";
 import * as Pysc from '@/utils/pysc/pyscType';
-import { ContractType, Contracts, Fiskal, ProducerType, defContracts, defFiskal, defGenConfig, defProdConfig, genConfig, producerConfig } from '@/utils/pysc/pyscType';
+import { Contracts, Fiskal, ProducerType, defContracts, defFiskal, defGenConfig, defProdConfig, genConfig, producerConfig } from '@/utils/pysc/pyscType';
+import { useDataStore } from "@/utils/pysc/useDataStore";
 import { namespaceConfig } from '@layouts/stores/config';
 import { useStorage } from '@vueuse/core';
 import * as lzs from 'lz-string';
 
 export const usePyscConfStore = defineStore('pyscEcoConf', () => {
-  const generalConfig = useStorage<genConfig[]>(namespaceConfig('genConf'), [defGenConfig()], undefined, {
+  const generalConfig = useStorage<genConfig>(namespaceConfig('genConf'), defGenConfig(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defGenConfig()],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defGenConfig(),
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
-  const producer = useStorage<producerConfig[][]>(namespaceConfig('prod'), [defProdConfig()], undefined, {
+  const producer = useStorage<producerConfig[]>(namespaceConfig('prod'), defProdConfig(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defProdConfig()],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defProdConfig(),
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
-  const contracts = useStorage<Contracts[]>(namespaceConfig('contract'), [defContracts()], undefined, {
+  const contracts = useStorage<Contracts>(namespaceConfig('contract'), defContracts(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defContracts()],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defContracts(),
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
-  const fiscal = useStorage<Fiskal[]>(namespaceConfig('fiscal'), [defFiskal()], undefined, {
+  const fiscal = useStorage<Fiskal>(namespaceConfig('fiscal'), defFiskal(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [defFiskal()],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defFiskal(),
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
 
   // costs
-  const tangible = useStorage<Array<number | string | null>[][]>(namespaceConfig('tangible'),
-    [[Array(9).fill(null)]], undefined, {
+  const tangible = useStorage<Array<number | string | null>[]>(namespaceConfig('tangible'),
+    [Array(9).fill(null)], undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(9).fill(null)]],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(9).fill(null)],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
-  const intangible = useStorage<Array<number | string | null>[][]>(namespaceConfig('intangible'),
-    [[Array(5).fill(null)]], undefined, {
+  const intangible = useStorage<Array<number | string | null>[]>(namespaceConfig('intangible'),
+    [Array(5).fill(null)], undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(5).fill(null)]],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(5).fill(null)],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
-  const opex = useStorage<Array<number | string | null>[][]>(namespaceConfig('opex'),
-    [[Array(8).fill(null)]], undefined, {
+  const opex = useStorage<Array<number | string | null>[]>(namespaceConfig('opex'),
+    [Array(8).fill(null)], undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(8).fill(null)]],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(8).fill(null)],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
-  const asr = useStorage<Array<number | string | null>[][]>(namespaceConfig('asr'),
-    [[Array(4).fill(null)]], undefined, {
+  const asr = useStorage<Array<number | string | null>[]>(namespaceConfig('asr'),
+    [Array(4).fill(null)], undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [[Array(4).fill(null)]],
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(4).fill(null)],
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
 
   const appStore = useAppStore()
-  const curSelCase = computed(() => appStore.curSelCase)
-
-  watch(curSelCase, (newv, oldv) => {
-    if (typeof oldv === 'number') {
-      //save cur data
-      const idx = appStore.caseList.findIndex(e => e.value === oldv);
-      if (idx !== -1 && appStore.projects[idx].state)
-        console.log(`save ${oldv}`)
-    }
-    if (newv !== +oldv) {
-      //load cur data
-      console.log(`load ${newv}`)
-    }
-  }, { deep: true })
 
   function $reset() {
-    tangible.value = JSON.parse(JSON.stringify([[Array(9).fill(null)]]))
-    intangible.value = JSON.parse(JSON.stringify([[Array(5).fill(null)]]))
-    opex.value = JSON.parse(JSON.stringify([[Array(8).fill(null)]]))
-    asr.value = JSON.parse(JSON.stringify([[Array(4).fill(null)]]))
+    tangible.value = JSON.parse(JSON.stringify([Array(9).fill(null)]))
+    intangible.value = JSON.parse(JSON.stringify([Array(5).fill(null)]))
+    opex.value = JSON.parse(JSON.stringify([Array(8).fill(null)]))
+    asr.value = JSON.parse(JSON.stringify([Array(4).fill(null)]))
 
-    generalConfig.value = JSON.parse(JSON.stringify([defGenConfig()]))
-    producer.value = JSON.parse(JSON.stringify([defProdConfig()]))
-    fiscal.value = JSON.parse(JSON.stringify([defFiskal()]))
-    contracts.value = JSON.parse(JSON.stringify([defContracts()]))
+    generalConfig.value = JSON.parse(JSON.stringify(defGenConfig()))
+    producer.value = JSON.parse(JSON.stringify(defProdConfig()))
+    fiscal.value = JSON.parse(JSON.stringify(defFiskal()))
+    contracts.value = JSON.parse(JSON.stringify(defContracts()))
   }
 
   function chgVer(_oldver: number, _newver: number) {
-    console.log(_oldver)
     if (_oldver <= 1) {
       localStorage.removeItem(namespaceConfig('genConf'))
       localStorage.removeItem(namespaceConfig('prod'))
@@ -101,24 +87,8 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       localStorage.removeItem(namespaceConfig('intangible'))
       localStorage.removeItem(namespaceConfig('opex'))
       localStorage.removeItem(namespaceConfig('asr'))
-
       $reset()
     }
-  }
-
-  const ContractList = (index: number) => {
-    let items = []
-    if (generalConfig.value[index].type_of_contract === 0)
-      items.push({ title: ContractType.Project, value: 0 })
-    else if ([1, 3, 4].includes(generalConfig.value[index].type_of_contract))
-      items.push({ title: ContractType.PSC, value: 0 })
-    else if ([2, 5, 6].includes(generalConfig.value[index].type_of_contract))
-      items.push({ title: ContractType.GS, value: 0 })
-    if ([3, 6].includes(generalConfig.value[index].type_of_contract))
-      items.push({ title: `${ContractType.PSC} 2nd-Contract`, value: 1 })
-    else if ([4, 5].includes(generalConfig.value[index].type_of_contract))
-      items.push({ title: `${ContractType.GS} 2nd-Contract`, value: 1 })
-    return items
   }
 
   const mapTable = (table: Array<number | string | null>[], chkIndex: Array<number>, valTrue: Array<string>) => {
@@ -133,149 +103,63 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
 
   }
 
-  const TangibleJson = (index: number) => {
+  const TangibleJson = () => {
     let result = [Array(9).fill(null)]
-    result = mapTable(tangible.value[index], [1, 6], ['gas', 'yes'])
+    result = mapTable(tangible.value, [1, 6], ['gas', 'yes'])
     if (result.length === 0) result = [Array(9).fill(null)]
     return result
   }
 
-  const InTangibleJson = (index: number) => {
+  const InTangibleJson = () => {
     let result = [Array(5).fill(null)]
-    result = mapTable(intangible.value[index], [1], ['gas'])
+    result = mapTable(intangible.value, [1], ['gas'])
     if (result.length === 0) result = [Array(5).fill(null)]
     return result
   }
 
-  const OpexJson = (index: number) => {
+  const OpexJson = () => {
     let result = [Array(8).fill(null)]
-    result = mapTable(opex.value[index], [1], ['gas'])
+    result = mapTable(opex.value, [1], ['gas'])
     if (result.length === 0) result = [Array(8).fill(null)]
     return result
   }
 
-  const ASRJson = (index: number) => {
+  const ASRJson = () => {
     let result = [Array(4).fill(null)]
-    result = mapTable(asr.value[index], [1], ['gas'])
+    result = mapTable(asr.value, [1], ['gas'])
     if (result.length === 0) result = [Array(4).fill(null)]
     return result
   }
 
-  const ApplyData = (genConf, fiscConf, prodConf, ContrConf, tanConf, intanConf, opexConf, asrConf) => {
-    tangible.value.splice(0, tangible.value.length, ...JSON.parse(JSON.stringify(tanConf)))
-    intangible.value.splice(0, intangible.value.length, ...JSON.parse(JSON.stringify(intanConf)))
-    opex.value.splice(0, opex.value.length, ...JSON.parse(JSON.stringify(opexConf)))
-    asr.value.splice(0, asr.value.length, ...JSON.parse(JSON.stringify(asrConf)))
+  const dataGConf = computed(() => appStore.IndexCase !== -1 ? generalConfig.value : defGenConfig())
+  const dataFisc = computed(() => appStore.IndexCase !== -1 ? fiscal.value : defFiskal())
+  const dataProd = computed(() => appStore.IndexCase !== -1 ? producer.value : defProdConfig())
+  const dataContr = computed(() => appStore.IndexCase !== -1 ? contracts.value : defContracts())
+  const dataTan = computed(() => appStore.IndexCase !== -1 ? tangible.value : [Array(9).fill(null)])
+  const dataIntan = computed(() => appStore.IndexCase !== -1 ? intangible.value : [Array(5).fill(null)])
+  const dataOpex = computed(() => appStore.IndexCase !== -1 ? opex.value : [Array(8).fill(null)])
+  const dataASR = computed(() => appStore.IndexCase !== -1 ? asr.value : [Array(4).fill(null)])
 
-    generalConfig.value.splice(0, generalConfig.value.length, ...JSON.parse(JSON.stringify(genConf)))
-    producer.value.splice(0, producer.value.length, ...JSON.parse(JSON.stringify(prodConf)))
-    fiscal.value.splice(0, fiscal.value.length, ...JSON.parse(JSON.stringify(fiscConf)))
-    contracts.value.splice(0, contracts.value.length, ...JSON.parse(JSON.stringify(ContrConf)))
-  }
-
-  const dataGConf = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < generalConfig.value.length ? generalConfig.value[appStore.IndexCase] : defGenConfig())
-  const dataFisc = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < fiscal.value.length ? fiscal.value[appStore.IndexCase] : defFiskal())
-  const dataProd = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < producer.value.length ? producer.value[appStore.IndexCase] : defProdConfig())
-  const dataContr = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < contracts.value.length ? contracts.value[appStore.IndexCase] : defContracts())
-  const dataTan = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < tangible.value.length ? tangible.value[appStore.IndexCase] : [Array(9).fill(null)])
-  const dataIntan = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < intangible.value.length ? intangible.value[appStore.IndexCase] : [Array(5).fill(null)])
-  const dataOpex = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < opex.value.length ? opex.value[appStore.IndexCase] : [Array(8).fill(null)])
-  const dataASR = computed(() => appStore.IndexCase !== -1 && appStore.IndexCase < asr.value.length ? asr.value[appStore.IndexCase] : [Array(4).fill(null)])
-
-  watch(dataGConf, (newv, oldv) => {
-  }, { deep: true })
-
-  const getProducer = (tipe: typeof ProducerType[keyof typeof ProducerType], index: number | null = null) => {
-    if (index !== null) {
-      const selProd = producer.value[index].filter(item => item.Tipe == Object.keys(ProducerType).indexOf(tipe))
-      return selProd.length ? selProd[0] : null
-    }
-    const selProd = dataProd.value.filter(item => item.Tipe == Object.keys(ProducerType).indexOf(tipe))
+  const getProducer = (tipe: typeof ProducerType[keyof typeof ProducerType]) => {
+    const selProd = producer.value.filter(item => item.Tipe == Object.keys(ProducerType).indexOf(tipe))
     return selProd.length ? selProd[0] : null
   }
   const prodHasGas = () => dataProd.value.findIndex(e => e.Tipe === 1) != -1
 
-  const addCase = (casetype: number) => {
-    tangible.value.push([Array(9).fill(null)])
-    intangible.value.push([Array(5).fill(null)])
-    opex.value.push([Array(8).fill(null)])
-    asr.value.push([Array(4).fill(null)])
+  const watcherAllData = pausableWatch(
+    [generalConfig, fiscal, producer, contracts, tangible, intangible, opex, asr],
+    (value, oldValue) => {
+      if (appStore.watcherSelCase.isActive)
+        nextTick(() => appStore.dataChanges())
+    }, { deep: true })
 
-    const ngc = defGenConfig()
-    ngc.type_of_contract = casetype
-    generalConfig.value.push(ngc)
-    producer.value.push(defProdConfig())
-    fiscal.value.push(defFiskal())
-    contracts.value.push(defContracts())
-  }
-  const cloneCase = (index: number, casetype: number) => {
-    tangible.value.push(JSON.parse(JSON.stringify(tangible.value[index])))
-    intangible.value.push(JSON.parse(JSON.stringify(intangible.value[index])))
-    opex.value.push(JSON.parse(JSON.stringify(opex.value[index])))
-    asr.value.push(JSON.parse(JSON.stringify(asr.value[index])))
-
-    const ngc = JSON.parse(JSON.stringify(generalConfig.value[index]))
-    const castTypeChg = ngc.type_of_contract !== casetype
-    ngc.type_of_contract = casetype
-    generalConfig.value.push(ngc)
-    producer.value.push(JSON.parse(JSON.stringify(producer.value[index])))
-    fiscal.value.push(JSON.parse(JSON.stringify(fiscal.value[index])))
-
-    const newContract = JSON.parse(JSON.stringify(contracts.value[index]))
-    if (castTypeChg) {
-      if (casetype >= 3) {
-        if ([3, 6].includes(casetype)) {
-          if (!(newContract.second?.hasOwnProperty('oil_ftp')))
-            newContract.second = Object.assign({}, newContract.cr)
-        } else if ([4, 5].includes(casetype)) {
-          if (!(newContract.second?.hasOwnProperty('field_status')))
-            newContract.second = Object.assign({}, newContract.gs)
-        }
-      } else {
-        if (newContract.second?.hasOwnProperty('oil_ftp') && ![3, 4].includes(casetype))
-          newContract.cr = Object.assign({}, <Pysc.costRec>newContract.second)
-        else if (newContract.second?.hasOwnProperty('field_status') && ![5, 6].includes(casetype))
-          newContract.gs = Object.assign({}, <Pysc.GS>newContract.second)
-        newContract.second = null
-      }
+  watch(() => dataGConf.value.type_of_contract, (value, oldvalue) => {
+    if (!watcherAllData.isActive || !appStore.watcherSelCase.isActive)
+      return
+    if (value != oldvalue) {
+      useDataStore().changeCtrType(1, value, oldvalue)
     }
-    contracts.value.push(JSON.parse(JSON.stringify(newContract)))
-  }
-  const delCase = (index: number) => {
-    tangible.value.splice(index, 1)
-    intangible.value.splice(index, 1)
-    opex.value.splice(index, 1)
-    asr.value.splice(index, 1)
-
-    generalConfig.value.splice(index, 1)
-    producer.value.splice(index, 1)
-    fiscal.value.splice(index, 1)
-    contracts.value.splice(index, 1)
-  }
-
-  const updateTypeCase = (index: number, casetype: number) => {
-    const castTypeChg = generalConfig.value[index].type_of_contract !== casetype
-    generalConfig.value[index].type_of_contract = casetype
-    if (castTypeChg) {
-      const newContract = JSON.parse(JSON.stringify(contracts.value[index]))
-      if (casetype >= 3) {
-        if ([3, 6].includes(casetype)) {
-          if (!(newContract.second?.hasOwnProperty('oil_ftp')))
-            newContract.second = Object.assign({}, newContract.cr)
-        } else if ([4, 5].includes(casetype)) {
-          if (!(newContract.second?.hasOwnProperty('field_status')))
-            newContract.second = Object.assign({}, newContract.gs)
-        }
-      } else {
-        if (newContract.second?.hasOwnProperty('oil_ftp') && ![3, 4].includes(casetype))
-          newContract.cr = Object.assign({}, <Pysc.costRec>newContract.second)
-        else if (newContract.second?.hasOwnProperty('field_status') && ![5, 6].includes(casetype))
-          newContract.gs = Object.assign({}, <Pysc.GS>newContract.second)
-        newContract.second = null
-      }
-      contracts.value[index] = Object.assign({}, JSON.parse(JSON.stringify(newContract)))
-    }
-  }
+  })
 
   const makeJSON = (id: number, useDate: boolean = true) => {
     const caseIndex = appStore.projects.findIndex(e => e.id === id)
@@ -283,17 +167,17 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     if (caseIndex === -1) return jsonres
 
 
-    const dGConf = generalConfig.value[caseIndex]
-    const dFisc = fiscal.value[caseIndex]
-    const dProd = producer.value[caseIndex]
-    const dContr = contracts.value[caseIndex]
-    const dTan = tangible.value[caseIndex]
-    const dIntan = intangible.value[caseIndex]
-    const dOpex = opex.value[caseIndex]
-    const dASR = asr.value[caseIndex]
+    const dGConf = generalConfig.value
+    const dFisc = fiscal.value
+    const dProd = producer.value
+    const dContr = contracts.value
+    const dTan = tangible.value
+    const dIntan = intangible.value
+    const dOpex = opex.value
+    const dASR = asr.value
 
-    const Oil = getProducer(ProducerType.Oil, caseIndex)
-    const Gas = getProducer(ProducerType.Gas, caseIndex)
+    const Oil = getProducer(ProducerType.Oil)
+    const Gas = getProducer(ProducerType.Gas)
 
     const type_of_contract = dGConf.type_of_contract
     const startY = Pysc.useDayJs().utc(dGConf.start_date_project).local().year()
@@ -640,19 +524,15 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     opex, dataOpex, OpexJson,
     asr, dataASR, ASRJson,
 
-    ApplyData,
-
     prodHasGas,
     $reset,
     chgVer,
 
     getProducer,
 
-    ContractList,
-
-    addCase, updateTypeCase, cloneCase, delCase,
-
     makeJSON,
+
+    watcherAllData
 
   }
 })

@@ -9,6 +9,8 @@ import SettDialogs from '@/pages/components/settPysc.vue'
 import { tAlert, useAppStore } from "@/stores/appStore"
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { useWSStore } from '@/stores/wsStore'
+import * as Pysc from '@/utils/pysc/pyscType'
+import { useDataStore } from '@/utils/pysc/useDataStore'
 
 const { global } = useTheme()
 
@@ -22,15 +24,60 @@ const PyscConf = usePyscConfStore()
 const wsStore = useWSStore()
 const { settFunc, alertFunc } = storeToRefs(appStore)
 const isShowAlert = ref(false)
+const dayjs = Pysc.useDayJs()
 
 const RefSettDialogs = ref()
 
-const curVer = 2 //add multiple case, dashboard
+/*              2 add multiple case, dashboard
+*               3 browser local storage (blc), hanya menyimpan per-case saja   
+*                 load to server on demand
+*/
+const curVer = 3
 
-if (+appStore.appver !== curVer) {
+appStore.mainCallbackCaseID = async (value, oldValue) => {
+  if (value != oldValue && oldValue != -1) {
+    const oldIndex = appStore.projects.findIndex(p => p.id === oldValue)
+    if (oldIndex != -1 && appStore.projects[oldIndex].state === 1) {
+      await useDataStore().saveCaseData(appStore.curWS, oldValue,
+        PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
+        PyscConf.tangible, PyscConf.intangible,
+        PyscConf.opex, PyscConf.asr)
+    }
+  }
+  await useDataStore().applyCase(appStore.curWS, [], true)
+  appStore.watcherSelCase.resume()
+}
+
+const oldWS = appStore.curWS
+if (+appStore.appver !== curVer || isEmpty(appStore.curWS)) {
   const oldVer = +appStore.appver
-  appStore.chgVer(oldVer, curVer)
-  PyscConf.chgVer(oldVer, curVer)
+  const newWS = "D" + Math.random().toString(36).slice(2)
+
+  //reset
+  appStore.watcherSelCase.pause()
+  PyscConf.watcherAllData.pause()
+  if (oldVer <= 2) {
+    useDataStore().resetDataStore(curVer, newWS, true, false)
+  }
+
+  const extractState = ref<string | boolean | null>(false)
+  useDataStore().extractProject(appStore.curProjectPath, newWS, oldWS).then(result => {
+    extractState.value = true
+  }, err => {
+    extractState.value = false
+    //show alert for error
+    const error = isObject(err) && err.hasOwnProperty('state') ? err.state : err
+    const errorStatus = Array.isArray(error) && error.length === 2 ? error[0] : ''
+    const errorMsg = Array.isArray(error) && error.length === 2 ? error[1] : (error.toLowerCase().indexOf("<html") === -1 ? error : "Unknown error")
+    appStore.showAlert({
+      text: `Error ${errorStatus}: ${errorMsg}`,
+      isalert: true
+    })
+  }).finally(async () => {
+    appStore.$patch({ curWS: newWS })
+    appStore.watcherSelCase.resume()
+    PyscConf.watcherAllData.resume()
+  })
 }
 
 const alertProps = ref<tAlert>({

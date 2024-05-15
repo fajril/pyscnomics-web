@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore';
-import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import dirDialogs from "@/views/components/fileDialogs/dirDialogs.vue";
 const appStore = useAppStore()
 
@@ -9,9 +9,7 @@ const isSaveProgress = ref(false)
 
 const PostDataProj = async (path: string) => {
   isSaveProgress.value = true
-  const sukses = await useToolBarCtrl().saveProject(path)
-  if (sukses)
-    appStore.$patch({ curProjectPath: path })
+  const sukses = await useDataStore().saveProject(path)
   nextTick(() => isSaveProgress.value = false)
   return sukses
 }

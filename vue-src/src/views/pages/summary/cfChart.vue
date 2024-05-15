@@ -207,7 +207,6 @@ const chtOption = computed(() => {
   else if (txMax.indexOf('t') !== -1)
     vmax = (+txMax.slice(0, txMax.indexOf(" t")) + 0.1) * 1e12 * (vmax < 0 ? -1 : 1)
 
-  console.log([vmin, vmax])
   Opt.xAxis.data = props.dataChart.data.map(v => v[0]).slice(0, lenData - 1)
 
   Opt.yAxis.forEach(a => {

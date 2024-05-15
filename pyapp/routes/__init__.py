@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import pickle
 import random
 import shutil
 import string
@@ -100,77 +101,86 @@ async def initfileb_project(path: str):
     return {"state": True}
 
 
-@routerapi.post("/wrtcases", response_class=JSONResponse)
-async def wrt_cases(path: str, gc: str):
-    pathFile = base64.b64decode(path).decode("utf-8")
-    data = json.loads(base64.b64decode(gc).decode("utf-8"))
-    packer = pyscPacker()
-    packer.writeCase(Path(pathFile), data)
-    return {"state": True}
-
-
-@routerapi.post("/wrtgenconf", response_class=JSONResponse)
-async def wrt_genconf(path: str, gc: str):
-    pathFile = base64.b64decode(path).decode("utf-8")
-    data = json.loads(base64.b64decode(gc).decode("utf-8"))
-    packer = pyscPacker()
-    packer.writeGenConfig(Path(pathFile), data)
-    return {"state": True}
-
-
-@routerapi.post("/wrtfiscalconf", response_class=JSONResponse)
-async def wrt_fiscalconf(path: str, gc: str):
-    pathFile = base64.b64decode(path).decode("utf-8")
-    data = json.loads(base64.b64decode(gc).decode("utf-8"))
-    packer = pyscPacker()
-    packer.writeFiscalConfig(Path(pathFile), data)
-    return {"state": True}
-
-
-@routerapi.post("/wrtproducer", response_class=JSONResponse)
-async def wrt_producer(path: str, gc: str):
-    pathFile = base64.b64decode(path).decode("utf-8")
-    data = json.loads(base64.b64decode(gc).decode("utf-8"))
-    packer = pyscPacker()
-    packer.writeProducer(Path(pathFile), data)
-    return {"state": True}
-
-
-@routerapi.post("/wrtcontract", response_class=JSONResponse)
-async def wrt_contract(path: str, tipe: int, gc: str):
-    pathFile = base64.b64decode(path).decode("utf-8")
-    data = json.loads(base64.b64decode(gc).decode("utf-8"))
-    packer = pyscPacker()
-    packer.writecontrats(Path(pathFile), tipe, data)
-    return {"state": True}
-
-
-@routerapi.post("/wrtcost", response_class=JSONResponse)
-async def wrt_tangible(path: str, mode: int, gc: str):
-    pathFile = base64.b64decode(path).decode("utf-8")
-    data = json.loads(base64.b64decode(gc).decode("utf-8"))
-    packer = pyscPacker()
-    packer.writeCosts(Path(pathFile), mode, data)
-    return {"state": True}
-
-
-@routerapi.get("/chkheaderfile", response_class=JSONResponse)
-async def chkfileproj(path: str):
-    pathFile = Path(base64.b64decode(path).decode("utf-8"))
-    if pathFile.exists():
+@routerapi.post("/newproject", response_class=JSONResponse)
+async def newproject(wspath: str, data: str):
+    try:
+        tmpWSPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpWSPath.exists():
+            os.makedirs(str(tmpWSPath))
+        casejson = json.loads(base64.b64decode(data).decode("utf-8"))
         packer = pyscPacker()
-        if packer.isValidFileHeader(pathFile):
-            letters = string.ascii_lowercase
-            pathWS = "".join(random.choice(letters) for _ in range(8))
-            tmpPath = str(Path(__file__).parent.parent.parent) + f"\\~tmp\\{pathWS}"
-            if not os.path.exists(tmpPath):
-                os.makedirs(tmpPath)
-            if not os.path.exists(tmpPath):
-                return {"state": False}
-            b64tmpPath = base64.b64encode(tmpPath.encode())
-            packer.ExtractFile(pathFile, Path(tmpPath))
-            return {"state": True, "path": b64tmpPath}
-    return {"state": False}
+        packer.writeCase(False, tmpWSPath, casejson)
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.post("/clearprojtmp", response_class=JSONResponse)
+async def clearprojtmp(wspath: str):
+    try:
+        tmpWSPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if tmpWSPath.exists():
+            shutil.rmtree(str(tmpWSPath), ignore_errors=True, onerror=None)
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.post("/extractproject", response_class=JSONResponse)
+async def extractProject(data: str):
+    try:
+        datajson = json.loads(base64.b64decode(data).decode("utf-8"))
+        filePath = Path(datajson["path"])
+        oldWSPath = datajson["oldWS"]
+        newWSPath = datajson["newWS"]
+        packer = pyscPacker()
+        resPackar = packer.extractProject(filePath, oldWSPath, newWSPath)
+        if isinstance(resPackar, bool) and resPackar:
+            return {
+                "state": resPackar,
+                "cases": (
+                    packer.loadCases(
+                        Path(
+                            str(Path(__file__).parent.parent.parent)
+                            + f"\\~tmp\\{newWSPath}"
+                        )
+                    )
+                    if resPackar
+                    else None
+                ),
+            }
+        else:
+            raise Exception(resPackar)
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+# @routerapi.get("/chkheaderfile", response_class=JSONResponse)
+# async def chkfileproj(path: str):
+#     pathFile = Path(base64.b64decode(path).decode("utf-8"))
+#     if pathFile.exists():
+#         packer = pyscPacker()
+#         if packer.isValidFileHeader(pathFile):
+#             letters = string.ascii_lowercase
+#             pathWS = "".join(random.choice(letters) for _ in range(8))
+#             tmpPath = str(Path(__file__).parent.parent.parent) + f"\\~tmp\\{pathWS}"
+#             if not os.path.exists(tmpPath):
+#                 os.makedirs(tmpPath)
+#             if not os.path.exists(tmpPath):
+#                 return {"state": False}
+#             b64tmpPath = base64.b64encode(tmpPath.encode())
+#             packer.ExtractFile(pathFile, Path(tmpPath))
+#             return {"state": True, "path": b64tmpPath}
+#     return {"state": False}
 
 
 @routerapi.get("/getcases", response_class=JSONResponse)
@@ -189,23 +199,68 @@ async def chkfileprojheader(path: str):
         )
 
 
-@routerapi.get("/importcase", response_class=JSONResponse)
-async def importcase(data: str):
+@routerapi.post("/importcase", response_class=JSONResponse)
+async def importcase(wspath: str, data: str):
     try:
+        tmpWSPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpWSPath.exists():
+            os.makedirs(str(tmpWSPath))
         dataJson = base64.b64decode(data).decode("utf-8")
         json_dict: dict = json.loads(dataJson)
         pathFile = Path(json_dict["path"])
         caseID = json_dict["caseid"]
+        newCaseID = json_dict["newcaseid"]
         packer = pyscPacker()
-        resImport = packer.importCase(pathFile, caseID)
+        selCase = packer.importCase(tmpWSPath, pathFile, caseID, newCaseID)
         return {
-            "state": True if isinstance(resImport, str) else False,
-            "path": (
-                base64.b64encode(resImport.encode())
-                if isinstance(resImport, str)
-                else None
-            ),
+            "state": True if isinstance(selCase, list) else False,
+            "selcase": selCase,
         }
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.post("/wrtproject", response_class=JSONResponse)
+async def wrt_project(wspath: str, targetfile: str):
+    # try:
+    tmpWSPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+    targetpath = Path(base64.b64decode(targetfile).decode("utf-8"))
+    # temporary file merge
+    bundlePath = Path(
+        str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}/bundle.bin"
+    )
+    packer = pyscPacker(bundlePath)
+    if packer.writeProject(tmpWSPath, bundlePath):
+        # copy to target path
+        shutil.copyfile(str(bundlePath), str(targetpath))
+    if bundlePath.exists():
+        os.remove(str(bundlePath))
+    return {"state": True}
+    # except Exception as err:
+    #     if bundlePath.exists():
+    #         os.remove(str(bundlePath))
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail=err.args,
+    #     )
+
+
+@routerapi.post("/wrtcases", response_class=JSONResponse)
+async def wrt_cases(pathfile: str, istmp: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        if istmp == 1:
+            tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{pathfile}")
+            if not tmpPath.exists():
+                os.makedirs(tmpPath)
+        else:
+            tmpPath = Path(base64.b64decode(pathfile).decode("utf-8"))
+        packer = pyscPacker() if istmp == 1 else pyscPacker(tmpPath)
+        packer.writeCase(istmp == 1, tmpPath, data)
+        return {"state": True}
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -222,48 +277,179 @@ async def rdCases(tmppath: str):
     return {"state": False}
 
 
-@routerapi.get("/rdgenconf", response_class=JSONResponse)
-async def rdgenConfig(tmppath: str, index: int):
-    pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
-    if pathFile.exists():
+@routerapi.post("/clonecase", response_class=JSONResponse)
+async def cloneCase(
+    wspath: str, sourceid: int, targetid: int, ctrType: int, typechg: bool
+):
+    try:
         packer = pyscPacker()
-        return {"state": True, "data": packer.loadGenConfig(pathFile, index)}
+        packer.cloneCase(wspath, sourceid, targetid, ctrType, typechg)
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.post("/chgctrtype", response_class=JSONResponse)
+async def chgCtrType(wspath: str, sourceid: int, oldCtrType: int, newCtrType: int):
+    try:
+        packer = pyscPacker()
+        packer.chgCtrType(wspath, sourceid, oldCtrType, newCtrType)
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.post("/wrtgenconf", response_class=JSONResponse)
+async def wrt_genconf(wspath: str, caseid: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        filePath = Path(str(tmpPath), f"genconf_{caseid}.bin")
+        with open(str(filePath), "wb") as out1:
+            pickle.dump(data, out1)
+            out1.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/rdgenconf", response_class=JSONResponse)
+async def rdgenConfig(wspath: str, caseid: int):
+    tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+    if tmpPath.exists():
+        packer = pyscPacker()
+        return {"state": True, "data": packer.loadGenConfig(tmpPath, caseid)}
     return {"state": False}
+
+
+@routerapi.post("/wrtfiscalconf", response_class=JSONResponse)
+async def wrt_fiscalconf(wspath: str, caseid: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        filePath = Path(str(tmpPath), f"fiscal_{caseid}.bin")
+        with open(str(filePath), "wb") as out1:
+            pickle.dump(data, out1)
+            out1.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
 
 
 @routerapi.get("/rdfiscalconf", response_class=JSONResponse)
-async def rdfiscalconf(tmppath: str, index: int):
-    pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
+async def rdfiscalconf(wspath: str, caseid: int):
+    pathFile = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
     if pathFile.exists():
         packer = pyscPacker()
-        return {"state": True, "data": packer.loadFiscalConfig(pathFile, index)}
+        return {"state": True, "data": packer.loadFiscalConfig(pathFile, caseid)}
     return {"state": False}
+
+
+@routerapi.post("/wrtproducer", response_class=JSONResponse)
+async def wrt_producer(wspath: str, caseid: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        filePath = Path(str(tmpPath), f"producer_{caseid}.bin")
+        with open(str(filePath), "wb") as out1:
+            pickle.dump(data, out1)
+            out1.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
 
 
 @routerapi.get("/rdproducer", response_class=JSONResponse)
-async def rdproducer(tmppath: str, index: int):
-    pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
+async def rdproducer(wspath: str, caseid: int):
+    pathFile = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
     if pathFile.exists():
         packer = pyscPacker()
-        return {"state": True, "data": packer.loadproducer(pathFile, index)}
+        return {"state": True, "data": packer.loadproducer(pathFile, caseid)}
     return {"state": False}
+
+
+@routerapi.post("/wrtcontract", response_class=JSONResponse)
+async def wrt_contract(wspath: str, caseid: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        filePath = Path(str(tmpPath), f"contracts_{caseid}.bin")
+        with open(str(filePath), "wb") as out1:
+            pickle.dump(data, out1)
+            out1.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
 
 
 @routerapi.get("/rdcontracts", response_class=JSONResponse)
-async def rdcontracts(tmppath: str, index: int):
-    pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
+async def rdcontracts(wspath: str, caseid: int):
+    pathFile = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
     if pathFile.exists():
         packer = pyscPacker()
-        return {"state": True, "data": packer.loadcontracts(pathFile, index)}
+        return {"state": True, "data": packer.loadcontracts(pathFile, caseid)}
     return {"state": False}
 
 
+@routerapi.post("/wrtcost", response_class=JSONResponse)
+async def wrt_cost(wspath: str, caseid: int, mode: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        match mode:
+            case 1:
+                filePath = Path(str(tmpPath), f"intangible_{caseid}.bin")
+            case 2:
+                filePath = Path(str(tmpPath), f"opex_{caseid}.bin")
+            case 3:
+                filePath = Path(str(tmpPath), f"asr_{caseid}.bin")
+            case _:
+                filePath = Path(str(tmpPath), f"tangible_{caseid}.bin")
+        with open(str(filePath), "wb") as out1:
+            pickle.dump(data, out1)
+            out1.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
 @routerapi.get("/rdcosts", response_class=JSONResponse)
-async def rdcosts(tmppath: str, mode: int, index: int):
-    pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
+async def rdcosts(wspath: str, mode: int, caseid: int):
+    pathFile = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
     if pathFile.exists():
         packer = pyscPacker()
-        return {"state": True, "data": packer.loadCosts(mode, pathFile, index)}
+        return {"state": True, "data": packer.loadCosts(mode, pathFile, caseid)}
     return {"state": False}
 
 

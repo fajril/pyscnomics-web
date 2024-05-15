@@ -4,7 +4,7 @@ import { useAppStore } from "@/stores/appStore";
 import { usePyscConfStore } from '@/stores/genfisStore';
 import * as Pysc from "@/utils/pysc/pyscType";
 import { useDayJs } from "@/utils/pysc/pyscType";
-import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import dirDialogs from "@/views/components/fileDialogs/dirDialogs.vue";
 import selCases from "@/views/components/selCases.vue";
 import { VDataTableVirtual } from 'vuetify/labs/VDataTable';
@@ -35,33 +35,22 @@ const headers = [
   { title: "Updated at", key: "updated_at", align: 'center', value: item => dayjs.utc(item.updated_at).local().format("lll") },
 ]
 
-const updateProject = (param: Pysc.ProjectBase) => {
+const updateProject = async (param: Pysc.ProjectBase) => {
   isLoading.value = true
   const isNew = param.id === null
   param.updated_at = dayjs.utc().valueOf()
-  const nProject = JSON.parse(JSON.stringify(appStore.projects))
   if (isNew) {
     param.id = Math.floor(Math.random() * (2000000 - 1000)) + 1000
-    nProject.push(JSON.parse(JSON.stringify(param)))
-    PyscConf.addCase(param.type)
+    await useDataStore().addCase(param)
   } else if (param.id < 0) {
     const idx = appStore.projects.findIndex(e => e.id === Math.abs(param.id))
     //clone
     param.id = Math.floor(Math.random() * (2000000 - 1000)) + 1000
-    nProject.push(JSON.parse(JSON.stringify(param)))
-    PyscConf.cloneCase(idx, param.type)
+    await useDataStore().cloneCase(param, appStore.projects[idx].id)
   } else {
     //update
-    const idx = appStore.projects.findIndex(e => e.id === param.id)
-    const typeCaseChg = appStore.projects[idx].type !== param.type
-    nProject[idx] = Object.assign({}, JSON.parse(JSON.stringify(param)))
-    if (typeCaseChg) PyscConf.updateTypeCase(idx, param.type)
+    await useDataStore().updateCase(param)
   }
-  appStore.$patch({
-    projects: nProject,
-    curSelCase: param.id
-  })
-
   isLoading.value = false
 }
 
@@ -86,7 +75,7 @@ const updateSelImportPath = async (value: string) => {
 
 const postImportData = async (param: Pysc.selImprCases) => {
   isLoading.value = true
-  const res = await useToolBarCtrl().importFrPySC(param.path, param.caseID)
+  const res = await useDataStore().importFrPySC(param.path, param.caseID)
   isLoading.value = false
 }
 
@@ -94,7 +83,7 @@ const moreprojList = [
   { title: "New Case", value: "newproj" }, //
   {
     title: "Import", value: "importproj", child: [
-      { title: "From .pySC", value: "imppysc" },
+      { title: "From .psc", value: "imppysc" },
       { title: "From JSON", value: "impjson" },
     ]
   }, //
@@ -121,19 +110,8 @@ const moreTabData = [
 const isShowConfirmDelete = ref(false)
 const caseDeleteID = ref({ id: 0, name: '' })
 
-const deleteCase = () => {
-  const index = appStore.projects.findIndex(v => v.id === caseDeleteID.value.id)
-  let newSelID = +appStore.curSelCase
-  if (+appStore.curSelCase === caseDeleteID.value.id) {
-    if (index + 1 < appStore.projects.length) newSelID = appStore.projects[index + 1].id
-    else newSelID = appStore.projects[index - 1].id
-  }
-  //remove data
-  PyscConf.delCase(index)
-  appStore.$patch({
-    curSelCase: newSelID,
-    projects: JSON.parse(JSON.stringify([...appStore.projects.slice(0, index), ...appStore.projects.slice(index + 1)]))
-  })
+const deleteCase = async () => {
+  await useDataStore().delCase(caseDeleteID.value.id)
 }
 
 const TabMenuDataClicked = async (key: string, item: any) => {
@@ -157,8 +135,6 @@ const TabMenuDataClicked = async (key: string, item: any) => {
   }
 }
 
-onMounted(() => {
-})
 </script>
 
 <template>

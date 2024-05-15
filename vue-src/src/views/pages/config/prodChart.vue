@@ -203,14 +203,6 @@ useResizeObserver(refContainer, (entries) => {
   updateChart()
 })
 
-// const curSelCaseStore = computed(() => appStore.curSelCase)
-// watch(curSelCaseStore, val => {
-//   nextTick(() => {
-//     // dataProdChart.value?.chart.updateSeries(ChartSeries.value)
-//     // dataProdChart.value?.chart.updateOptions(chartDataConfig.value)
-
-//   })
-// }, { deep: true })
 </script>
 
 <template>

@@ -1,6 +1,7 @@
 import { ProjectBase, useDayJs } from '@/utils/pysc/pyscType';
 import { namespaceConfig } from '@layouts/stores/config';
 import { useStorage } from '@vueuse/core';
+//import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl'
 import * as lzs from 'lz-string';
 
 export interface tAlert {
@@ -26,8 +27,22 @@ export const useAppStore = defineStore('pyscConfig', () => {
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
     },
   })
-  const curSelCase = useStorage<number | null>(namespaceConfig('sel-case'), null, undefined, { initOnMounted: true, })
+
+  /*reactive for selected case*/
+  const curSelCase = useStorage<number | null>(namespaceConfig('sel-case'), null, undefined, {
+    serializer: {
+      read: (v: any) => typeof v === 'string' ? +v : v,
+      write: (v: any) => v
+    },
+  })
+  const mainCallbackCaseID = ref<Function>(() => { })
+  const watcherSelCase = pausableWatch(curSelCase, (value, oldValue) => {
+    watcherSelCase.pause()
+    mainCallbackCaseID.value(value, oldValue)
+  })
   const curWS = useStorage<string | null>(namespaceConfig('project-ws'), null)
+
+
   const taxSett = useStorage<{ year: number, tax: number }[]>(namespaceConfig('pysc-sett-tax'), [
     { year: 2013, tax: 0.44 }, { year: 2016, tax: 0.42 }, { year: 2020, tax: 0.40 }
   ], undefined, {
@@ -51,6 +66,37 @@ export const useAppStore = defineStore('pyscConfig', () => {
   function showSetting(tab: number) {
     if (typeof settFunc.value === 'function') settFunc.value(tab)
   }
+
+
+  const extractProject = async (projSource: string, wsPath: string) => {
+    const oWS = curWS.value
+    let result = false
+    try {
+      if (!isEmpty(projSource)) {
+        const resExtract = await $api('/auth/extractproject', {
+          params: {
+            data: btoa(JSON.stringify({
+              path: projSource,
+              oldWS: oWS,
+              newWS: wsPath
+            }))
+          },
+          method: 'POST',
+          onResponseError({ response }) {
+            throw [response.status, response._data.detail]
+          },
+        })
+        result = resExtract.state
+      } else
+        result = true
+      curWS.value = wsPath
+    } catch (error) {
+      return false
+    }
+    return result
+  }
+
+
 
   function $reset() {
     curProject.value = null
@@ -81,6 +127,9 @@ export const useAppStore = defineStore('pyscConfig', () => {
   })
 
   const IndexCase = computed(() => projects.value.findIndex(e => e.id === +curSelCase.value))
+
+  const selectedCase = computed(() => IndexCase.value !== -1 ? projects.value[IndexCase.value] :
+    { id: Math.floor(Math.random() * (2000000 - 1000)) + 1000, name: "Case-1", type: 1, description: 'description...', updated_at: dayjs.utc().valueOf(), state: 0, multicase: [] })
 
   const dataChanges = () => {
     projects.value[IndexCase.value].updated_at = dayjs.utc().valueOf()
@@ -115,11 +164,11 @@ export const useAppStore = defineStore('pyscConfig', () => {
     chgVer,
     curProject,
     curProjectPath,
-    curWS,
+    curWS, extractProject,
     headerTitle,
-    curSelCase,
+    curSelCase, mainCallbackCaseID, watcherSelCase,
     IndexCase,
-    projects,
+    projects, selectedCase,
     caseList,
     fetchProjects,
     postProjects,

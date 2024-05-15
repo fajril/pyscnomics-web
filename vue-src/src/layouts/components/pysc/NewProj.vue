@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 
 const router = useRouter()
 const isDialogVisible = ref(false)
-const newProject = () => {
+const newProject = async () => {
   isDialogVisible.value = false
-  const useToolBar = useToolBarCtrl()
-  //reset all data
-  useToolBar.newProject()
-
+  await useDataStore().newProject()
   nextTick(() => {
     router.replace('/')
-
   })
 }
 

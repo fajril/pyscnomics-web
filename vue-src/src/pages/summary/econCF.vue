@@ -2,6 +2,7 @@
 import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
 import * as Pysc from "@/utils/pysc/pyscType";
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import ChartCF from '@/views/pages/summary/cfChart.vue';
 import TableCF from '@/views/pages/summary/cfTable.vue';
 import 'handsontable/dist/handsontable.full.min.css';
@@ -64,7 +65,6 @@ const ConstOpt = ref<Pysc.TableCFOption[]>([
   }
 ])
 
-const curSelCase = computed(() => appStore.curSelCase)
 const isLoading = ref(false)
 
 const numbro = Pysc.useNumbro()
@@ -233,7 +233,17 @@ const loadCF = async () => {
   isLoading.value = false
 }
 
-watch(curSelCase, val => nextTick(() => loadCF()), { deep: true })
+
+const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
+  console.log("cf trigger")
+  loadCF()
+})
+onMounted(() => {
+  CallableFunc()
+})
+onUnmounted(() => {
+  stopCaseID()
+})
 
 const currentTab = ref(0)
 watch(currentTab, val => {
@@ -242,7 +252,7 @@ watch(currentTab, val => {
   else
     updateTable()
 })
-onMounted(() => nextTick(() => loadCF()))
+
 </script>
 
 <template>

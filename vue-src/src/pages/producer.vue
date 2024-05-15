@@ -7,6 +7,7 @@ import {
   defProdPriceBase,
   useDayJs
 } from '@/utils/pysc/pyscType';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import ProdChart from '@/views/pages/config/prodChart.vue';
 import ProdPrice from '@/views/pages/config/prodPrice.vue';
 
@@ -90,27 +91,12 @@ const updateGSANumber = (item, index: number, v: number) => {
   }
 }
 
-const curSelCase = ref(appStore.curSelCase)
-
-const curSelCaseStore = computed(() => appStore.curSelCase)
-
-watch(dataProd, val => {
-  if (curSelCase.value !== appStore.curSelCase) {
-    curSelCase.value = appStore.curSelCase
-    return
-  }
-  appStore.dataChanges()
-}, { deep: true })
-
-watch(curSelCaseStore, val => {
+const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
+  console.log("producer trigger")
   selProd.value = dataProd.value[0].Tipe
-}, { deep: true })
-
-onMounted(() => {
-  selProd.value = dataProd.value[0].Tipe
-  curSelCase.value = appStore.curSelCase
 })
-
+onMounted(() => CallableFunc())
+onUnmounted(() => stopCaseID())
 
 const currentTab = ref(0)
 

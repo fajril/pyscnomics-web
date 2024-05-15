@@ -23,14 +23,6 @@ const resolveNavItemComponent = (item: NavLink | NavSectionTitle | NavSectionCon
 
   return VerticalNavLink
 }
-
-onMounted(() => {
-  const idx = appStore.projects.findIndex(e => e.id === +curSelCase.value)
-  if (idx === -1)
-    curSelCase.value = appStore.projects.length ? appStore.projects[0].id : null
-  else if (curSelCase.value !== (+curSelCase.value))
-    curSelCase.value = (+curSelCase.value) ? +curSelCase.value : null
-})
 </script>
 
 <template>

@@ -17,24 +17,9 @@ definePage({
 const appStore = useAppStore()
 
 const PyscConf = usePyscConfStore()
-const { dataContr } = storeToRefs(PyscConf)
-const dayjs = Pysc.useDayJs()
 
 const dataGConf = computed(() => PyscConf.dataGConf)
 const titleCard = computed(() => Object.values(Pysc.ContractType)[dataGConf.value.type_of_contract])
-
-const curSelCase = ref(appStore.curSelCase)
-onMounted(() => {
-  curSelCase.value = appStore.curSelCase
-})
-
-watch(dataContr, val => {
-  if (curSelCase.value !== appStore.curSelCase) {
-    curSelCase.value = appStore.curSelCase
-    return
-  }
-  appStore.dataChanges()
-}, { deep: true })
 
 </script>
 
