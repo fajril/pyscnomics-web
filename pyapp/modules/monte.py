@@ -144,6 +144,7 @@ class ProcessMonte:
                 std_dev=self.parameter[i]["stddev"],
             )
 
+        # Execute MonteCarlo simulation
         parallel = Parallel(
             return_as="generator",
         )
@@ -151,7 +152,6 @@ class ProcessMonte:
             delayed(self.calcContract)(n, multipliers[n, :]) for n in range(self.numSim)
         )
 
-        # Execute MonteCarlo simulation
         results = np.zeros(
             [self.numSim, len(self.target) + len(self.parameter)], dtype=np.float_
         )
@@ -183,10 +183,10 @@ class ProcessMonte:
             axis=0,
         )
 
-        # Determine indices of data to be captured to Excel
+        # Determine indices of data
         indices = np.linspace(0, self.numSim, 101)[0:-1].astype(int)
 
-        # Final outcomes to be captured to Excel
+        # Final outcomes
         outcomes = {
             "results": results_arranged[indices, :].tolist(),
             "P10": percentiles[0, :].tolist(),
