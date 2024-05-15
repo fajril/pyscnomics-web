@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pyapp.modules.filebrowser import list_drives, list_files
+from pyapp.modules.filebrowser import list_files
 from pyapp.modules.monte import ProcessMonte
 from pyapp.modules.sens import ProcessSens
 from pyapp.shemas import TableRequest
@@ -53,11 +53,7 @@ async def read_dirs(flext: str, root: str = None):
     if root:
         pathname: str = base64.b64decode(root).decode("utf-8")
         if pathname != "__local__":
-            return (
-                list_files(flext, Path(pathname))
-                if pathname != "__drive__"
-                else list_drives()
-            )
+            return list_files(flext, Path(pathname))
     return list_files(
         flext, Path(str(Path(__file__).parent.parent.parent) + "\\Samples")
     )

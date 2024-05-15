@@ -3,18 +3,18 @@ import os
 import stat
 from pathlib import Path
 
-import win32api
-import win32file
+# import win32api
+# import win32file
 
 
-def get_local_drives_win32api():
-    drives = win32api.GetLogicalDriveStrings().split("\x00")
-    local_drives = [
-        drive
-        for drive in drives
-        if win32file.GetDriveType(drive) == win32file.DRIVE_FIXED
-    ]
-    return local_drives
+# def get_local_drives_win32api():
+#     drives = win32api.GetLogicalDriveStrings().split("\x00")
+#     local_drives = [
+#         drive
+#         for drive in drives
+#         if win32file.GetDriveType(drive) == win32file.DRIVE_FIXED
+#     ]
+#     return local_drives
 
 
 def is_folder_normal(folder_path):
@@ -63,12 +63,12 @@ def list_files(flext: str, startpath: Path):
     return {"parent": None, "children": []}
 
 
-def list_drives():
-    local_drives = get_local_drives_win32api()
-    return {
-        "parent": "__drive__",
-        "children": [{"name": item, "type": 0} for item in local_drives],
-    }
+# def list_drives():
+#     local_drives = get_local_drives_win32api()
+#     return {
+#         "parent": "__drive__",
+#         "children": [{"name": item, "type": 0} for item in local_drives],
+#     }
 
 
 # if __name__ == "__main__":
