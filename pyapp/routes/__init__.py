@@ -90,6 +90,49 @@ async def updProjectData(data: str, db: AsyncSession = Depends(get_async_session
     return {"state": True}
 
 
+@routerapi.get("/fileinfo", response_class=JSONResponse)
+async def fileinfo(path: str | None, wspath: str):
+    try:
+        pathFile = base64.b64decode(path).decode("utf-8") if path is not None else None
+        tmpWSPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        # get environtment
+        FasAPIEnvCfg = Path(
+            str(Path(__file__).parent.parent.parent),
+            "fastapi-env/pyvenv.cfg",  # "velz-vue-env/pyvenv.cfg"
+        )
+        retValue = {
+            "filepath": "Unsaved file (newfile)" if pathFile is None else pathFile,
+            "python": {
+                "home": None,
+                "path": None,
+                "version": None,
+            },
+            "engine": "1.0.3",
+        }
+        with open(str(FasAPIEnvCfg), "r") as file1:
+            Lines = file1.readlines()
+            for count, line in enumerate(Lines):
+                lnv = line.split("=")
+                if lnv[0].strip() == "executable":
+                    retValue["python"]["path"] = lnv[1]
+                elif lnv[0].strip() == "version":
+                    retValue["python"]["version"] = lnv[1]
+                elif lnv[0].strip() == "home":
+                    retValue["python"]["home"] = lnv[1]
+            file1.close()
+
+        # TODO: engine version
+        ...
+
+        ...
+        return retValue
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
 @routerapi.post("/initflproject", response_class=JSONResponse)
 async def initfileb_project(path: str):
     pathFile = base64.b64decode(path).decode("utf-8")
