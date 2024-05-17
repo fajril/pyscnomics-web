@@ -1,0 +1,18 @@
+{
+  "Dashboard": "Dashboard",
+  "New": "New Project",
+  "Open": "Open Project",
+  "Save": "Save Project",
+  "SaveAs": "Save As Project",
+  "Export": "Export",
+  "DataChg": "The data has changed, do you want to save it first?",
+  "NewPrjConf": "You will create a new project, all data will be reset, continue?",
+  "GenFisTitle": "General and Fiscal",
+  "List of ": "List of {0}",
+  "Summary of ": "Summary of {0}",
+  "Project Start": "Project Start {0}",
+  "Project End": "Project End {0}",
+  "Discount Rate": "Discount Rate, {0}",
+  "ArrValue": "{0} {1}",
+  "Project saved to": "Project saved to {0}"
+}

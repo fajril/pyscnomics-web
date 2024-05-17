@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { I18nLanguage } from '@layouts/types'
+import type { I18nLanguage } from '@layouts/types';
 
 interface Props {
   languages: I18nLanguage[]
@@ -15,30 +15,17 @@ const { locale } = useI18n({ useScope: 'global' })
 
 <template>
   <IconBtn>
-    <VIcon
-      size="26"
-      icon="tabler-language"
-    />
-
+    <VIcon size="26" icon="tabler-flag" />
+    <VTooltip activator="parent" open-delay="1000" scroll-strategy="close">
+      <span class="text-capitalize">{{ props.languages.filter(e => e.i18nLang === locale)[0].label }}</span>
+    </VTooltip>
     <!-- Menu -->
-    <VMenu
-      activator="parent"
-      :location="props.location"
-      offset="14px"
-    >
+    <VMenu activator="parent" :location="props.location" offset="14px">
       <!-- List -->
-      <VList
-        :selected="[locale]"
-        color="primary"
-        min-width="175px"
-      >
+      <VList :selected="[locale]" color="primary" min-width="175px">
         <!-- List item -->
-        <VListItem
-          v-for="lang in props.languages"
-          :key="lang.i18nLang"
-          :value="lang.i18nLang"
-          @click="locale = lang.i18nLang"
-        >
+        <VListItem v-for="lang in props.languages" :key="lang.i18nLang" :value="lang.i18nLang"
+          @click="locale = lang.i18nLang">
           <!-- Language label -->
           <VListItemTitle>{{ lang.label }}</VListItemTitle>
         </VListItem>

@@ -25,14 +25,14 @@ watch(
     <VIcon :icon="props.themes.find(t => t.name === configStore.theme)?.icon" size="26" />
 
     <VTooltip activator="parent" open-delay="1000" scroll-strategy="close">
-      <span class="text-capitalize">{{ configStore.theme }}</span>
+      <span class="text-capitalize">{{ $t(configStore.theme) }}</span>
     </VTooltip>
 
     <VMenu activator="parent" offset="14px">
       <VList v-model:selected="selectedItem">
         <VListItem v-for="{ name, icon } in props.themes" :key="name" :value="name" :prepend-icon="icon" color="primary"
           class="text-capitalize" @click="() => { configStore.theme = name }">
-          {{ name }}
+          {{ $t(name) }}
         </VListItem>
         <VSpacer
           :style="{ 'border-bottom': '1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important' }" />
@@ -41,7 +41,7 @@ watch(
             <VIcon v-if="configStore.skin === 'bordered'" icon="tabler-check" />
           </template>
           <VListItemTitle>
-            Borderred
+            {{ $t('Borderred') }}
           </VListItemTitle>
         </VListItem>
       </VList>

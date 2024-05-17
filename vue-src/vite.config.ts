@@ -1,3 +1,4 @@
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import { fileURLToPath } from 'node:url'
@@ -87,7 +88,14 @@ export default defineConfig({
       // ℹ️ Disabled to avoid confusion & accidental usage
       ignore: ['useCookies', 'useStorage'],
     }),
-
+    // Docs: https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n#intlifyunplugin-vue-i18n
+    VueI18nPlugin({
+      runtimeOnly: true,
+      compositionOnly: true,
+      include: [
+        fileURLToPath(new URL('./src/plugins/i18n/locales/**', import.meta.url)),
+      ],
+    }),
   ],
   define: { 'process.env': {} },
   resolve: {

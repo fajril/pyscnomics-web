@@ -1,0 +1,24 @@
+{
+  "genfis": {
+    "toc": {
+      "id": "<b>Tipe Kontrak</b><br>Terdiri dari:<br>- Project<br>- PSC Cost Recovery (CR)<br>- PSC Gross Split (GS)<br>- Transition",
+      "en": "Type of contract"
+    },
+    "ps": {
+      "id": "Tanggal dimulainya proyek",
+      "en": "Start date of project"
+    },
+    "es": {
+      "id": "Tanggal berakhirnya proyek",
+      "en": "End date of project"
+    },
+    "dy": {
+      "id": "Tahun berlakunya diskon",
+      "en": "Discount Rate Start Year"
+    },
+    "iato": {
+      "id": "Penerapan nilai Inflasi",
+      "en": "Inflation Rate Applied to"
+    }
+  }
+}
