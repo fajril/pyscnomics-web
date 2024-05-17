@@ -88,21 +88,21 @@ const CR_gas_cr_cap_rate = computed({
       <VCheckbox v-model="contractValue.oil_ftp.ftp_availability" label="Oil FTP Availability" />
       <VCheckbox v-model="contractValue.oil_ftp.ftp_is_shared" label="Oil FTP is Shared"
         :disabled="!contractValue.oil_ftp.ftp_availability" />
-      <VTextField label="Oil FTP Portion, %" class="mt-4" v-model.number="oil_ftp_portion"
+      <AppTextField label-placeholder="Oil FTP Portion, %" class="mt-4" v-model.number="oil_ftp_portion"
         :rules="[requiredValidator, numberValidator]" :disabled="!contractValue.oil_ftp.ftp_availability" />
       <VCheckbox v-model="contractValue.gas_ftp.ftp_availability" label="Gas FTP Availability" />
       <VCheckbox v-model="contractValue.gas_ftp.ftp_is_shared" label="Gas FTP is Shared"
         :disabled="!contractValue.gas_ftp.ftp_availability" />
-      <VTextField label="Gas FTP Portion, %" class="mt-4" v-model.number="gas_ftp_portion"
+      <AppTextField label-placeholder="Gas FTP Portion, %" class="mt-4" v-model.number="gas_ftp_portion"
         :rules="[requiredValidator, numberValidator]" :disabled="!contractValue.gas_ftp.ftp_availability" />
     </VCol>
     <VCol cols="12" class="ms-4 pe-4 mt-4">
       <span class="ml-n4 font-weight-bold text-primary">Pre Tax Split Configuration</span>
-      <VSelect v-model="contractValue.TaxSplit.split_type" :items="Field2Array(TaxSplitType)" item-props
-        variant="outlined" label="Split Type" class="mt-4" />
-      <VTextField label="Oil Contractor Pre Tax, %" :model-value="Tax_pre_tax_ctr_oil" class="mt-4"
+      <AppSelect v-model="contractValue.TaxSplit.split_type" :items="Field2Array(TaxSplitType)" item-props
+        variant="outlined" label-placeholder="Split Type" class="mt-4" />
+      <AppTextField label-placeholder="Oil Contractor Pre Tax, %" v-model.number="Tax_pre_tax_ctr_oil" class="mt-4"
         :rules="[requiredValidator, numberValidator]" />
-      <VTextField label="Gas Contractor Pre Tax, %" :model-value="Tax_pre_tax_ctr_gas" class="mt-4"
+      <AppTextField label-placeholder="Gas Contractor Pre Tax, %" v-model.number="Tax_pre_tax_ctr_gas" class="mt-4"
         :rules="[requiredValidator, numberValidator]" />
     </VCol>
     <VCol v-if="contractValue.TaxSplit.split_type === 1" cols="12" class="ms-4 pe-4 mt-2">
@@ -122,21 +122,21 @@ const CR_gas_cr_cap_rate = computed({
     <VCol cols="12" class="ms-4 pe-4 mt-4">
       <span class="ml-n4 font-weight-bold text-primary">Investment Credit (IC) Configuration</span>
       <VCheckbox v-model="contractValue.IC.ic_availability" label="IC Availability" />
-      <VTextField label="Oil IC, %" v-model.number="IC_ic_oil" class="mt-4"
+      <AppTextField label-placeholder="Oil IC, %" v-model.number="IC_ic_oil" class="mt-4"
         :rules="[requiredValidator, numberValidator]" />
-      <VTextField label="Gas IC, %" v-model.number="IC_ic_gas" class="mt-4"
+      <AppTextField label-placeholder="Gas IC, %" v-model.number="IC_ic_gas" class="mt-4"
         :rules="[requiredValidator, numberValidator]" />
     </VCol>
     <VCol cols="12" class="ms-4 pe-4 mt-4">
       <span class="ml-n4 font-weight-bold text-primary">Cost Recovery (CR) Configuration</span>
-      <VTextField label="Oil CR Cap Rate, %" v-model.number="CR_oil_cr_cap_rate" class="mt-4"
+      <AppTextField label-placeholder="Oil CR Cap Rate, %" v-model.number="CR_oil_cr_cap_rate" class="mt-4"
         :rules="[requiredValidator, numberValidator]" />
-      <VTextField label="Gas CR Cap Rate, %" v-model.number="CR_gas_cr_cap_rate" class="mt-4"
+      <AppTextField label-placeholder="Gas CR Cap Rate, %" v-model.number="CR_gas_cr_cap_rate" class="mt-4"
         :rules="[requiredValidator, numberValidator]" />
     </VCol>
     <VCol cols="12" class="ms-4 pe-4 mt-4">
       <span class="ml-n4 font-weight-bold text-primary">DMO Configuration</span>
-      <VCheckbox v-model="contractValue.dmo_is_weighted" label="DMO is Weighted" />
+      <Checkbox v-model="contractValue.dmo_is_weighted" label="DMO is Weighted" />
       <DmoUI v-model="contractValue.OilDMO" label="Oil" class="ms-4" />
       <DmoUI v-if="prodHasGas()" v-model="contractValue.GasDMO" label="Gas" class="ms-4" />
     </VCol>
