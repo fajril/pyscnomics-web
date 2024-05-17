@@ -96,10 +96,17 @@ const hideTitleAndIcon = configStore.isVerticalNavMini(isHovered)
     <slot name="before-nav-items">
       <div class="vertical-nav-items-shadow" />
     </slot>
-    <slot name="nav-items" :update-is-vertical-nav-scrolled="updateIsVerticalNavScrolled">
+    <slot name="nav-items">
+      <ul class="nav-items nav-items-fixed">
+        <Component :is="resolveNavItemComponent(item)"
+          v-for="(item, index) in navItems.filter(e => !isNullOrUndefined(e.fixed))" :key="index" :item="item" />
+      </ul>
+    </slot>
+    <slot name="after-nav-items" :update-is-vertical-nav-scrolled="updateIsVerticalNavScrolled">
       <PerfectScrollbar :key="configStore.isAppRTL" tag="ul" class="nav-items" :options="{ wheelPropagation: false }"
         @ps-scroll-y="handleNavScroll">
-        <Component :is="resolveNavItemComponent(item)" v-for="(item, index) in navItems" :key="index" :item="item" />
+        <Component :is="resolveNavItemComponent(item)"
+          v-for="(item, index) in navItems.filter(e => isNullOrUndefined(e.fixed))" :key="index" :item="item" />
       </PerfectScrollbar>
     </slot>
   </Component>
@@ -117,6 +124,7 @@ const hideTitleAndIcon = configStore.isVerticalNavMini(isHovered)
     line-height: 1.75rem;
     text-transform: capitalize;
   }
+
 }
 </style>
 
@@ -163,11 +171,24 @@ const hideTitleAndIcon = configStore.isVerticalNavMini(isHovered)
   .nav-items {
     block-size: 100%;
 
+    &.nav-items-fixed {
+      block-size: auto;
+      margin-block-end: 1rem;
+    }
+
     // ℹ️ We no loner needs this overflow styles as perfect scrollbar applies it
     // overflow-x: hidden;
 
     // // ℹ️ We used `overflow-y` instead of `overflow` to mitigate overflow x. Revert back if any issue found.
     // overflow-y: auto;
+  }
+
+  &.scrolled {
+    .nav-items {
+      &.nav-items-fixed {
+        border-block-end: 1px solid rgba(var(--v-border-color), 0.1);
+      }
+    }
   }
 
   .nav-item-title {

@@ -63,7 +63,7 @@
         );
       block-size: 55px;
       inline-size: 100%;
-      inset-block-start: calc(#{variables.$vertical-nav-header-height} - 2px);
+      inset-block-start: calc(#{variables.$vertical-nav-header-height} - 2px + 156px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.15s ease-in-out;

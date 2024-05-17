@@ -17,6 +17,7 @@ import SaveAsProj from './pysc/SaveasProj.vue'
 import ProjInfo from './pysc/projInfo.vue'
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
+const { locale } = useI18n({ useScope: 'global' })
 
 const configStore = useConfigStore()
 
@@ -40,13 +41,14 @@ const appStore = useAppStore()
 const { curSelCase } = storeToRefs(appStore)
 
 const filesGRP = [
-  { name: 'New', title: 'New Project', icon: 'tabler-file' },
-  { name: 'Open', title: 'Open Project', icon: 'tabler-folder-open' },
-  { name: 'Save', title: 'Save Project', icon: 'tabler-device-floppy' },
+  { name: 'New', title: 'New Project', icon: 'tabler-file', i18n: "New" },
+  { name: 'Open', title: 'Open Project', icon: 'tabler-folder-open', i18n: "Open" },
+  { name: 'Save', title: 'Save Project', icon: 'tabler-device-floppy', i18n: "Save" },
+  { name: 'SaveAs', title: 'Save As Project', icon: 'tabler-device-floppy', i18n: "SaveAs" },
   {
-    name: 'Export', title: 'Export', icon: 'tabler-file-export', children: [
-      { name: 'Json', title: 'Json Format', icon: 'tabler-json' },
-      { name: 'Excel', title: 'XLSX Format', icon: 'tabler-file-spreadsheet' },
+    name: 'Export', title: 'Export', icon: 'tabler-file-export', i18n: "Export", children: [
+      { name: 'Json', title: 'Json Format', i18n: "Json Format", icon: 'tabler-json' },
+      { name: 'Excel', title: 'XLSX Format', i18n: "XLSX Format", icon: 'tabler-file-spreadsheet' },
     ]
   },
 ]
@@ -65,7 +67,7 @@ const filesGRP = [
 
         <div class="ms-n3 d-none d-lg-block">
           <span v-if="NavTitle">
-            {{ NavTitle }}
+            {{ $t(NavTitle) }}
           </span>
           <div v-else id="NavHeadL" class="headercl-control" />
         </div>
@@ -78,13 +80,13 @@ const filesGRP = [
         <IconBtn class="ms-n3 d-sm-none">
           <VIcon size="26" icon="tabler-file-filled" />
           <VTooltip activator="parent" open-delay="1000" scroll-strategy="close">
-            <span class="text-capitalize">Files</span>
+            <span class="text-capitalize">{{ locale === 'id' ? 'Menu' : 'Files' }}</span>
           </VTooltip>
 
           <VMenu activator="parent" offset="14px">
             <VList>
               <VListItem v-for="(item) in filesGRP" :key="item.name" :value="item.name" class="text-capitalize"
-                color="primary" :prepend-icon="item.icon" :title="item.title">
+                color="primary" :prepend-icon="item.icon" :title="$t(item.i18n)">
                 <VMenu v-if="item.children" activator="parent" :offset="[14, 20]" location="end">
                   <VList>
                     <VListItem v-for="(child) in item.children" :key="child.name" :value="child.name"
@@ -106,10 +108,9 @@ const filesGRP = [
         <VSpacer />
 
         <ProjInfo />
-        <NavbarThemeSwitcher />
-
         <NavBarI18n v-if="themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length"
           :languages="themeConfig.app.i18n.langConfig" />
+        <NavbarThemeSwitcher />
       </div>
     </template>
 
