@@ -34,7 +34,7 @@ pip install -r requirements.txt
 ```   
 `Run Virtual Machine, using uvicorn`
 ```   
-fastapi-enc\Scripts\uvicorn.exe pyapp:app --host 127.0.0.1 --port 5000 --log-level debug          
+fastapi-enc\Scripts\uvicorn.exe pyapp:app --host 127.0.0.1 --port 5000 --log-level info          
 ```
     
 ### Frontend (VueJS)
