@@ -21,12 +21,13 @@ const dayjs = useDayJs()
   <div>
     <span class="mt-2 ms-n4 font-weight-bold text-primary">{{ props.label }} DMO</span>
     <VCheckbox v-model="dmo.holiday" label="Holiday" />
-    <VTextField label="Period" class="mt-2" v-model.number="dmo.period"
+    <AppTextField label-placeholder="Period" class="mt-2" v-model.number="dmo.period"
       :rules="[requiredValidator, integerValidator]" />
-    <AppDateTimePicker :model-value="dmo.start_production" placeholder="Start of Production"
+    <AppDateTimePicker :model-value="dmo.start_production" label-placeholder="Start of Production"
       @update:model-value="str => dmo.start_production = dayjs(str).utc().valueOf()" class="mt-4" />
-    <VTextField label="Volume, %" v-model.number="dmo_volume" class="mt-4"
+    <AppTextField label-placeholder="Volume, %" v-model.number="dmo_volume" class="mt-4"
       :rules="[requiredValidator, numberValidator]" />
-    <VTextField label="Fee, %" v-model.number="dmo_fee" class="mt-4" :rules="[requiredValidator, numberValidator]" />
+    <AppTextField label-placeholder="Fee, %" v-model.number="dmo_fee" class="mt-4"
+      :rules="[requiredValidator, numberValidator]" />
   </div>
 </template>

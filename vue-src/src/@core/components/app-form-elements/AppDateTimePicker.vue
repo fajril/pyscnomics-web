@@ -39,6 +39,8 @@ const props = defineProps({
     variant: 'outlined',
     color: 'primary',
   }),
+  labelPlaceholder: [String, [], undefined] as PropType<string | [] | undefined>,
+  tooltipContent: [String, Object, undefined] as PropType<string | object | undefined>
 })
 
 const emit = defineEmits<Emit>()
@@ -112,13 +114,23 @@ const elementId = computed(() => {
 
   return _elementIdToken ? `app-picker-field-${_elementIdToken}-${Math.random().toString(36).slice(2, 7)}` : undefined
 })
+
+const tooltipContent = computed(() => {
+  if (props.tooltipContent !== undefined) {
+    if (typeof props.tooltipContent === 'object')
+      return props.tooltipContent["content"]
+    else
+      return props.tooltipContent
+  }
+  return undefined
+})
 </script>
 
 <template>
   <div class="app-picker-field">
     <!-- v-input -->
-    <VLabel v-if="fieldProps.label" class="mb-1 text-body-2 text-high-emphasis" :for="elementId"
-      :text="fieldProps.label" />
+    <VLabel v-if="props.labelPlaceholder === undefined && fieldProps.label" class="mb-1 text-body-2 text-high-emphasis"
+      :for="elementId" :text="$t(fieldProps.label)" />
 
     <VInput v-bind="{ ...inputProps, ...rootAttrs }" :model-value="modelValue" :hide-details="props.hideDetails" :class="[{
       'v-text-field--prefixed': props.prefix,
@@ -128,9 +140,10 @@ const elementId = computed(() => {
       <template #default="{ id, isDirty, isValid, isDisabled, isReadonly }">
         <!-- v-field -->
         <VField v-bind="{ ...fieldProps, label: undefined }" :id="id.value" role="textbox"
-          :label="fieldProps.label ? undefined : props.placeholder" :active="focused || isDirty.value || isCalendarOpen"
-          :focused="focused || isCalendarOpen" :dirty="isDirty.value || props.dirty" :error="isValid.value === false"
-          :disabled="isDisabled.value" @click:clear="onClear">
+          :label="labelPlaceholder ? (Array.isArray(labelPlaceholder) ? $t(labelPlaceholder[0], labelPlaceholder.slice(1)) : $t(labelPlaceholder)) : undefined"
+          :active="focused || isDirty.value || isCalendarOpen" :focused="focused || isCalendarOpen"
+          :dirty="isDirty.value || props.dirty" :error="isValid.value === false" :disabled="isDisabled.value"
+          @click:clear="onClear">
           <template #default="{ props: vFieldProps }">
             <div v-bind="vFieldProps">
               <!-- flat-picker  -->
@@ -151,6 +164,9 @@ const elementId = computed(() => {
     <!-- flat picker for inline props -->
     <FlatPickr v-if="isInlinePicker" v-bind="compAttrs" ref="refFlatPicker" :model-value="modelValue"
       @update:model-value="emitModelValue" @on-open="isCalendarOpen = true" @on-close="isCalendarOpen = false" />
+    <VTooltip v-if="tooltipContent" activator="parent" open-delay="1000" scroll-strategy="close">
+      <span v-html="tooltipContent" />
+    </VTooltip>
   </div>
 </template>
 

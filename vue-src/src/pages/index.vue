@@ -248,7 +248,8 @@ onUnmounted(() => stopCaseID())
       <EcoSummary :is-loading="isLoading" :data="dataSumm" />
     </VCol>
     <VCol cols="12">
-      <h6 class="text-h7 text-disabled">* Monetary: 1 MUS$ = 1,000,000 US$ | Production: 1 M(unit) = 1,000 (unit)</h6>
+      <h6 class="text-h7 text-disabled">* {{ $t('Monetary') }}: 1 MUS$ = 1,000,000 US$ | {{ $t('Production') }}: 1 M(unit) =
+        1,000 (unit)</h6>
     </VCol>
   </VRow>
 </template>

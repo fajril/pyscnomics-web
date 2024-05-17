@@ -91,6 +91,9 @@ const chtOption = computed(() => {
       axisTick: {
         alignWithLabel: true
       },
+      axisLine: {
+        onZero: false,
+      },
       nameTextStyle: {
         color: themeDisabledTextColor,
         verticalAlign: "top",
@@ -117,9 +120,12 @@ const chtOption = computed(() => {
           return value !== undefined ? numbro(value).format({ mantissa: 0, optionalMantissa: true }) : value
         }
       },
+      axisLine: {
+        onZero: false,
+      },
       nameTextStyle: {
         color: themeDisabledTextColor,
-        verticalAlign: "center",
+        verticalAlign: "bottom",
         align: "center",
       },
       nameLocation: "end",

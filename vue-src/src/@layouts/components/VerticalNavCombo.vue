@@ -34,7 +34,7 @@ const resolveNavItemComponent = (item: NavLink | NavSectionTitle | NavSectionCon
           :class="shallRenderIcon ? 'placeholder-icon' : 'title-text'"
           v-bind="{ ...layoutConfig.icons.sectionTitlePlaceholder }">
           <VSelect v-if="!shallRenderIcon" v-model="curSelCase" :items="appStore.caseList" item-props variant="outlined"
-            density="compact" label="Cases" />
+            density="compact" :label="$t('Cases')" />
         </Component>
       </Transition>
     </div>

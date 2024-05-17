@@ -123,7 +123,7 @@ settFunc.value = (tab: number) => RefSettDialogs.value?.ShowSetting(tab)
           {{ alertProps.header ?? "PySCnomicApp" }}
         </p>
         <p class="text-sm">
-          {{ alertProps.text }}
+          {{ isObject(alertProps.text) ? ($t(alertProps.text['name'], alertProps.text['arg'] ?? [])) : alertProps.text }}
         </p>
       </VSnackbar>
       <ScrollToTop />

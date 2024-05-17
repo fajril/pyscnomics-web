@@ -103,11 +103,11 @@ const currentTab = ref(0)
 </script>
 
 <template>
-  <VCard title="Producer" subtitle="Configuration">
+  <VCard :title="$t('Producer')" :subtitle="$t('Configuration')">
     <VCardText>
       <VRow>
         <VCol cols="12" md="4">
-          <AppCardActions action-collapsed title="Produced Fluid">
+          <AppCardActions action-collapsed :title="$t('Produced')">
             <template #before-actions>
               <IconBtn density="compact" color="disabled">
                 <VIcon size="26" icon="tabler-plus" />
@@ -138,14 +138,14 @@ const currentTab = ref(0)
                     </template>
                   </v-expansion-panel-title>
                   <VExpansionPanelText>
-                    <AppTextField placeholder="Number of Production" class="mt-4" v-model.number="item.ProdNumber"
+                    <AppTextField label-placeholder="Number of Production" class="mt-4" v-model.number="item.ProdNumber"
                       @update:model-value="(v) => updateProdNumber(item, index, v)"
                       :rules="[requiredValidator, betweenValidator(item.ProdNumber, 1, 5)]" />
                     <AppTextField v-if="item.Tipe === IndexOfField(ProducerType, ProducerType.Gas)" class="mt-4"
-                      v-model.number="item.GSANumber" placeholder="Number of GSA"
+                      v-model.number="item.GSANumber" label-placeholder="Number of GSA"
                       @update:model-value="(v) => updateGSANumber(item, index, v)"
                       :rules="[requiredValidator, betweenValidator(item.GSANumber, 1, 5)]" />
-                    <AppDateTimePicker :model-value="item.onstream_date" placeholder="Onstream Date"
+                    <AppDateTimePicker :model-value="item.onstream_date" label-placeholder="Onstream Date"
                       @update:model-value="str => item.onstream_date = dayjs(str).utc().valueOf()" class="mt-4" />
                   </VExpansionPanelText>
                 </VExpansionPanel>
@@ -154,11 +154,12 @@ const currentTab = ref(0)
           </AppCardActions>
         </VCol>
         <VCol cols="12" md="8">
-          <AppCardActions action-collapsed :title="`${Object.values(ProducerType)[selProd]} Production & Price`">
+          <AppCardActions action-collapsed
+            :title="`${Object.values(ProducerType)[selProd]} ${$t('Production')} & ${$t('Price')}`">
             <VCardText>
               <VTabs v-model="currentTab">
-                <VTab>Table Entry</VTab>
-                <VTab>Chart</VTab>
+                <VTab>{{ $t('Table Entry') }}</VTab>
+                <VTab>{{ $t('Chart') }}</VTab>
               </VTabs>
 
               <VCardText class="px-1">

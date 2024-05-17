@@ -28,12 +28,15 @@ const selectRow = (e, item) => {
 const isEditorDrawerVisible = ref(false)
 const RefProjEditor = ref<any>(null)
 
-const headers = [
+const { t, locale } = useI18n({ useScope: 'global' })
+const TableProjects = ref()
+
+const headers = computed(() => [
   { title: "", key: "ctrldata", align: 'start', width: 48 },
-  { title: "Name", key: "name", align: 'start' },
-  { title: "Type", key: "type", align: 'start', value: item => Object.values(Pysc.ContractType)[parseInt(item.type)] },
-  { title: "Updated at", key: "updated_at", align: 'center', value: item => dayjs.utc(item.updated_at).local().format("lll") },
-]
+  { title: t("Name"), key: "name", align: 'start' },
+  { title: t("Type"), key: "type", align: 'start', value: item => Object.values(Pysc.ContractType)[parseInt(item.type)] },
+  { title: t("Updated at"), key: "updated_at", align: 'center', value: item => dayjs.utc(item.updated_at).local().format("lll") },
+])
 
 const updateProject = async (param: Pysc.ProjectBase) => {
   isLoading.value = true
@@ -135,10 +138,12 @@ const TabMenuDataClicked = async (key: string, item: any) => {
   }
 }
 
+watch(locale, val => {
+})
 </script>
 
 <template>
-  <VCard title="My Cases" subtitle="List of cases" :loading="isLoading">
+  <VCard :title="$t('My Cases')" :subtitle="$t('List of ', [$t('case')])" :loading="isLoading">
     <template #prepend>
       <div class="mt-n4 me-n2">
         <IconBtn>
@@ -160,7 +165,8 @@ const TabMenuDataClicked = async (key: string, item: any) => {
       </div>
     </template>
     <!-- 👉 Data Table  -->
-    <VDataTableVirtual :headers="headers" :items="appStore.projects" item-value="id" density="compact" class="mb-6">
+    <VDataTableVirtual ref="TableProjects" :headers="headers" :items="appStore.projects" item-value="id"
+      density="compact" class="mb-6">
       <template #item="{ index, item, isSelected, toggleSelect }">
         <tr class="v-data-table__tr v-data-table__tr--clickable"
           :class="{ 'v-data-table__selected': curSelCase === +item.id }" @click.prevent="e => selectRow(e, item)">
@@ -197,7 +203,7 @@ const TabMenuDataClicked = async (key: string, item: any) => {
           <td class="v-data-table__td v-data-table-column--align-start" style="inset-inline-start: 48px;">{{
             item.type === -1 ? 'Multiple Project' : Object.values(Pysc.ContractType)[parseInt(item.type)] }}</td>
           <td class="v-data-table__td v-data-table-column--align-center" style="inset-inline-start: 48px;">
-            {{ dayjs.utc(item.updated_at).local().format("lll") }}</td>
+            {{ dayjs.utc(item.updated_at).local().locale(locale).format("lll") }}</td>
         </tr>
       </template>
     </VDataTableVirtual>

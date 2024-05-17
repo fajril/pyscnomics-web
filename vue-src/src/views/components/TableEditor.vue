@@ -10,6 +10,8 @@ const appStore = useAppStore()
 
 const modelValue = defineModel<Object[]>({ required: true })
 
+const { locale } = useI18n({ useScope: 'global' })
+
 interface Props {
   columns: ExcelColumnType
   colAutoWidth?: 'none' | 'last' | 'all'
@@ -74,7 +76,7 @@ watch([modelValue, columnnSett], ([val1, val2]) => {
   tblhot.value?.hotInstance.updateSettings(hotSettings.value)
 }, { deep: true })
 
-
+watch(locale, val => tblhot.value?.hotInstance.updateSettings(hotSettings.value))
 </script>
 
 <template>

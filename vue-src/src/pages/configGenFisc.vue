@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
+import { getCtrType } from '@/utils/pysc/pyscType';
 import FiscalConfig from '@/views/pages/config/fiscalconf.vue';
 import GenConfig from '@/views/pages/config/genconf.vue';
-
 definePage({
   name: 'pysc-conf',
   path: '/pysc-conf',
   meta: {
-    title: "Configuration",
+    title: "GenFisTitle",
   },
 })
 
@@ -22,18 +22,18 @@ const dataGConf = computed(() => PyscConf.dataGConf)
 <template>
   <VRow no-gutters>
     <VCol cols="12">
-      <VCard title="General and Fiscal" subtitle="Configuration">
+      <VCard :title="$t('GenFisTitle')" :subtitle="$t('Configuration')">
         <VCardText>
           <VRow>
             <VCol cols="12" md="6">
-              <AppCardActions action-collapsed title="General">
+              <AppCardActions action-collapsed :title="$t('General')">
                 <VCardText>
                   <GenConfig />
                 </VCardText>
               </AppCardActions>
             </VCol>
             <VCol v-if="dataGConf.type_of_contract < 3" cols="12" md="6">
-              <AppCardActions action-collapsed title="Fiscal">
+              <AppCardActions action-collapsed :title="$t('Fiscal')">
                 <template #before-actions>
                   <IconBtn>
                     <VIcon size="20" icon="tabler-settings" @click="appStore.showSetting(0)" />
@@ -49,7 +49,8 @@ const dataGConf = computed(() => PyscConf.dataGConf)
           </VRow>
           <VRow v-if="dataGConf.type_of_contract >= 3">
             <VCol cols="12" md="6">
-              <AppCardActions action-collapsed title="Fiscal - 1st Contract">
+              <AppCardActions action-collapsed
+                :title="$t('Fiscal') + ' -' + getCtrType(dataGConf.type_of_contract, 0, {})">
                 <template #before-actions>
                   <IconBtn>
                     <VIcon size="20" icon="tabler-settings" @click="appStore.showSetting(0)" />
@@ -63,7 +64,8 @@ const dataGConf = computed(() => PyscConf.dataGConf)
               </AppCardActions>
             </VCol>
             <VCol cols="12" md="6">
-              <AppCardActions action-collapsed title="Fiscal - 2nd Contract">
+              <AppCardActions action-collapsed
+                :title="$t('Fiscal') + ' -' + getCtrType(dataGConf.type_of_contract, 1, {})">
                 <template #before-actions>
                   <IconBtn>
                     <VIcon size="20" icon="tabler-settings" @click="appStore.showSetting(0)" />

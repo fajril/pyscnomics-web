@@ -282,15 +282,22 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       let lifting = {}
       prod.forEach((value, index) => {
         for (var i = 0; i < value.ProdNumber; i++) {
-          //OIL
+          //Filtering data is has values
           const prod_price: Pysc.prodPriceBase[] = JSON.parse(JSON.stringify(value.prod_price[i])).filter(row => {
             if (value.Tipe === 0)
-              return (!isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price)) ||
-                (!isEmpty(row.year) && !isEmpty(row.condensate_sales) && !isEmpty(row.condensate_price))
+              return (!isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price) &&
+                row.sales > 0 && !isNaN(+row.sales) &&
+                row.price > 0 && !isNaN(+row.price)) ||
+                (!isEmpty(row.year) && !isEmpty(row.condensate_sales) && !isEmpty(row.condensate_price) &&
+                  row.condensate_sales > 0 && !isNaN(+row.condensate_sales) &&
+                  row.condensate_price > 0 && !isNaN(+row.condensate_price))
             else if (value.Tipe === 1)
-              return !isEmpty(row.year) && !isEmpty(row.production)
+              return !isEmpty(row.year) && !isEmpty(row.production) &&
+                row.production > 0 && !isNaN(+row.production)
             else
-              return !isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price)
+              return !isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price) &&
+                row.sales > 0 && !isNaN(+row.sales) &&
+                row.price > 0 && !isNaN(+row.price)
           })
           prod_price.sort((a, b) => a.year - b.year)
           if (isTransistion) {
@@ -334,6 +341,39 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
                 } : undefined,
               }
             }
+          } else if (value.Tipe === 0) {
+            const oilData = prod_price.filter(row => !isEmpty(row.sales) && !isEmpty(row.price) &&
+              row.sales > 0 && !isNaN(+row.sales) &&
+              row.price > 0 && !isNaN(+row.price))
+            const condsData = prod_price.filter(row => !isEmpty(row.condensate_sales) && !isEmpty(row.condensate_price) &&
+              row.condensate_sales > 0 && !isNaN(+row.condensate_sales) &&
+              row.condensate_price > 0 && !isNaN(+row.condensate_price))
+            if (oilData.length) {
+              lifting = {
+                ...lifting,
+                [`${Object.values(ProducerType)[value.Tipe]}${value.ProdNumber ? (' ' + (i + 1)) : ''}`]: oilData.length ? {
+                  start_year: (isTransistion && icontract === 1 ? start2Y : startY),
+                  end_year: (isTransistion && icontract === 1 ? end2Y : endY),
+                  lifting_rate: oilData.map(v => v.sales),
+                  price: oilData.map(v => v.price),
+                  prod_year: oilData.map(v => v.year),
+                  fluid_type: Object.values(ProducerType)[value.Tipe],
+                } : undefined,
+              }
+            }
+            if (condsData.length) {
+              lifting = {
+                ...lifting,
+                [`Condensate${value.ProdNumber ? (' ' + (i + 1)) : ''}`]: condsData.length ? {
+                  start_year: (isTransistion && icontract === 1 ? start2Y : startY),
+                  end_year: (isTransistion && icontract === 1 ? end2Y : endY),
+                  condensate_rate: condsData.map(v => v.condensate_sales),
+                  price: condsData.map(v => v.condensate_price),
+                  prod_year: condsData.map(v => v.year),
+                  fluid_type: Object.values(ProducerType)[value.Tipe],
+                } : undefined,
+              }
+            }
           } else {
             lifting = {
               ...lifting,
@@ -345,9 +385,6 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
                 prod_year: prod_price.map(v => v.year),
                 fluid_type: Object.values(ProducerType)[value.Tipe],
               } : undefined,
-            }
-            if (value.Tipe === 0 && prod_price.map(v => v.condensate_sales).filter(v => !isNaN(+v)).length) {
-
             }
           }
         }

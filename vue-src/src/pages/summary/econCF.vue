@@ -256,11 +256,11 @@ watch(currentTab, val => {
 </script>
 
 <template>
-  <VCard :Loading="isLoading" title="Cashflow" subtitle="Summary">
+  <VCard :Loading="isLoading" :title="$t('Cashflow')" :subtitle="$t('Summary')">
     <VCardText>
       <VTabs v-model="currentTab">
-        <VTab>Table</VTab>
-        <VTab>Chart</VTab>
+        <VTab>{{ $t('Table') }}</VTab>
+        <VTab>{{ $t('Chart') }}</VTab>
       </VTabs>
       <VCardText class="px-1">
         <VWindow v-model="currentTab">

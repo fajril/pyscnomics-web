@@ -84,6 +84,9 @@ const chtOption = computed(() => {
       axisTick: {
         alignWithLabel: true
       },
+      axisLine: {
+        onZero: false,
+      },
       nameTextStyle: {
         color: themeDisabledTextColor,
         verticalAlign: "top",
@@ -102,6 +105,9 @@ const chtOption = computed(() => {
       // minInterval: 200000,
       // maxInterval: 200000,
       // splitNumber: 5,
+      axisLine: {
+        onZero: false,
+      },
       name: 'Cum. Cashflow, MUSD',
       splitLine: { show: true, lineStyle: { color: themeBorderColor } },
       axisLabel: {
@@ -113,10 +119,9 @@ const chtOption = computed(() => {
       nameTextStyle: {
         color: themeDisabledTextColor,
         verticalAlign: "bottom",
-        align: "center",
-        padding: 62,
+        align: "left",
       },
-      nameLocation: "middle",
+      nameLocation: "end",
     },
     {
       type: 'value',
@@ -127,6 +132,9 @@ const chtOption = computed(() => {
       // splitNumber: 5,
       // minInterval: 200000,
       // maxInterval: 200000,
+      axisLine: {
+        onZero: false,
+      },
       splitLine: { show: false, lineStyle: { color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
@@ -137,10 +145,9 @@ const chtOption = computed(() => {
       nameTextStyle: {
         color: themeDisabledTextColor,
         verticalAlign: "bottom",
-        align: "center",
-        padding: -74,
+        align: "right",
       },
-      nameLocation: "middle",
+      nameLocation: "end",
     }],
     series: [
       {

@@ -19,7 +19,7 @@ const ExportTo = (value) => {
     <VIcon icon="tabler-file-export" size="26" />
 
     <VTooltip activator="parent" open-delay="500" scroll-strategy="close">
-      <span class="text-capitalize">Export</span>
+      <span class="text-capitalize">{{ $t('Export') }}</span>
     </VTooltip>
     <VMenu activator="parent" offset="14px">
       <VList>

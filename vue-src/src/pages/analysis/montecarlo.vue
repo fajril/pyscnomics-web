@@ -219,21 +219,21 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <VCard :loading="isLoading" title="Uncertainity" subtitle="Analysis">
+  <VCard :loading="isLoading" :title="$t('Uncertainty')" :subtitle="$t('Analysis')">
     <VCardText v-if="MonteStore.IsOnCalc" class="py-0">
       <VProgressLinear v-model="progress" striped color="rgba(var(--v-theme-success), 0.6)" height="5"
         bg-color="background" />
     </VCardText>
     <VCardText>
-      <AppCardActions ref="cardParams" action-collapsed title="Parameter" compact-header
+      <AppCardActions ref="cardParams" action-collapsed :title="$t('Parameter')" compact-header
         :disabled="MonteStore.IsOnCalc">
         <VCardText>
           <VRow>
             <VCol cols="12" class="d-flex align-center justify-content-start">
-              <VTextField v-model.number="monteCfg.numsim" label="Number of simulation" variant="outlined"
-                style="max-inline-size: 200px;" :rules="[requiredValidator, numberValidator]" />
+              <AppTextField v-model.number="monteCfg.numsim" :label-placeholder="$t('Number of simulation')"
+                variant="outlined" style="max-inline-size: 200px;" :rules="[requiredValidator, numberValidator]" />
               <VBtn class="ms-4" :disabled="!isValid" @click.prevent="Calc">
-                Run
+                {{ $t('Run') }}
               </VBtn>
             </VCol>
             <VCol cols="12">
@@ -244,7 +244,7 @@ onUnmounted(() => {
       </AppCardActions>
     </VCardText>
     <VCardText>
-      <AppCardActions ref="cardResult" action-collapsed title="Result" compact-header>
+      <AppCardActions ref="cardResult" action-collapsed :title="$t('Result')" compact-header>
         <VCardText class="px-2">
           <VExpansionPanels multiple v-model="selPanel">
             <VExpansionPanel class="custom-expan-monte-panel"
@@ -257,11 +257,11 @@ onUnmounted(() => {
               </v-expansion-panel-title>
               <VExpansionPanelText>
                 <VRow>
-                  <VCol cols="12" md="4">
+                  <VCol cols="12" md="5">
                     <MonteResTable :has-gas="PyscConf.prodHasGas()" :data-table="ResultTable[item.name]"
                       :parameter="ResultParams" />
                   </VCol>
-                  <VCol cols="12" md="8">
+                  <VCol cols="12" md="7">
                     <MonteResChart :has-gas="PyscConf.prodHasGas()" :data-chart="ResultTable[item.name]"
                       :title="item.name"
                       :unit="item.value === 1 ? '%' : (item.value === 3 ? 'Year' : (item.value != 2 ? 'MUSD' : ''))" />

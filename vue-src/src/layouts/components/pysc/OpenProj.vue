@@ -63,7 +63,7 @@ const continueOpen = () => {
     <VIcon icon="tabler-folder-open" size="26" />
 
     <VTooltip activator="parent" open-delay="500" scroll-strategy="close">
-      <span class="text-capitalize">Open Project</span>
+      <span class="text-capitalize">{{ $t("Open") }}</span>
     </VTooltip>
   </IconBtn>
   <dirDialogs ref="SelLocRef" @update:path="updateSelPath" />
@@ -72,17 +72,17 @@ const continueOpen = () => {
     <DialogCloseBtn @click="isDialogConfirmSave = !isDialogConfirmSave" />
 
     <!-- Dialog Content -->
-    <VCard title="Confirmation">
+    <VCard :title="$t('Confirmation')">
       <VCardText>
-        The data has changed, do you want to save it first?
+        {{ $t("DataChg") }}
       </VCardText>
 
       <VCardText class="d-flex justify-end gap-3 flex-wrap">
         <VBtn color="secondary" variant="tonal" @click="continueOpen">
-          No
+          {{ $t("No") }}
         </VBtn>
         <VBtn @click="saveCurProject">
-          Yes
+          {{ $t("Yes") }}
         </VBtn>
       </VCardText>
     </VCard>

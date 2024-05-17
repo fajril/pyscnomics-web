@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import 'dayjs/locale/id';
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import dayOfYear from "dayjs/plugin/dayOfYear";
 import LocalizedFormat from "dayjs/plugin/localizedFormat";
@@ -28,6 +29,23 @@ numbro.setDefaults({
 export const useNumbro = () => {
   return numbro;
 };
+
+export const getCtrType = (ctrType: number, mode: number, opt: { nameOnly?: boolean, bracket?: boolean } | undefined = undefined) => {
+  const { locale } = useI18n({ useScope: 'global' })
+  if (mode === 0) {
+    if ([1, 3, 4].includes(ctrType)) return (opt?.bracket ? '(' : '') + (opt?.nameOnly ? " CR" :
+      (locale.value === 'id' ? ` CR ${ctrType === 3 ? '1 ' : ''}` : ` ${ctrType === 3 ? '1st ' : ''}CR`)) + (opt?.bracket ? ')' : '')
+    else if ([2, 5, 6].includes(ctrType)) return (opt?.bracket ? '(' : '') + (opt?.nameOnly ? " GS" :
+      (locale.value === 'id' ? ` GS ${ctrType === 3 ? '1 ' : ''}` : ` ${ctrType === 3 ? '1st ' : ''}GS`)) + (opt?.bracket ? ')' : '')
+    else return ""
+  } else {
+    if ([3, 6].includes(ctrType)) return (opt?.bracket ? '(' : '') + (opt?.nameOnly ? " CR" :
+      (locale.value === 'id' ? ` CR ${ctrType === 3 ? '2 ' : ''}` : ` ${ctrType === 3 ? '2nd ' : ''}CR`)) + (opt?.bracket ? ')' : '')
+    else if ([4, 5].includes(ctrType)) return (opt?.bracket ? '(' : '') + (opt?.nameOnly ? " GS" :
+      (locale.value === 'id' ? ` GS ${ctrType === 3 ? '2 ' : ''}` : ` ${ctrType === 3 ? '2nd ' : ''}GS`)) + (opt?.bracket ? ')' : '')
+    else return ""
+  }
+}
 
 export const toUTCUnix = (val): number => {
   return dayjs(val).utc().valueOf();

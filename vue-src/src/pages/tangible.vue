@@ -86,9 +86,9 @@ onUnmounted(() => stopCaseID())
 </script>
 
 <template>
-  <VCard title="Tangible" subtitle="Cost">
+  <VCard title="Tangible" :subtitle="$t('Cost')">
     <VCardText>
-      <AppCardActions action-collapsed title="Table Entry" compact-header>
+      <AppCardActions action-collapsed :title="$t('Table Entry')" compact-header>
         <VCardText>
           <hot-table ref="refTableTangible" :settings="mainSetting" />
         </VCardText>

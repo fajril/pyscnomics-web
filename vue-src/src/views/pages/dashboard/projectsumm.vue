@@ -9,6 +9,7 @@ interface Props {
 }
 const props = defineProps<Props>()
 
+const { locale } = useI18n({ useScope: 'global' })
 const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
 const numbro = Pysc.useNumbro()
@@ -41,7 +42,8 @@ onMounted(() => {
 
 
 <template>
-  <VCard :Loading="$props.isLoading" title="Executive Summary" :subtitle="'Summary of ' + (curSelCaseName ?? 'case')">
+  <VCard :Loading="$props.isLoading" title="Executive Summary"
+    :subtitle="$t('Summary of ', [$t(curSelCaseName ?? 'case')])">
     <VList v-model:opened="opened" density="compact">
       <div v-for="(item, index) in $props.data">
         <VListGroup v-if="item.grp" :value="item.grp" border>

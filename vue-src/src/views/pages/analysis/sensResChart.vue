@@ -73,7 +73,8 @@ const chtOption = computed(() => {
     },
     xAxis: {
       name: 'Sensitivity',
-      data: [],
+      type: 'value',
+      // data: [],
       axisTick: {
         alignWithLabel: true
       },
@@ -84,11 +85,14 @@ const chtOption = computed(() => {
         padding: 10
       },
       nameLocation: "middle",
+      axisLine: {
+        onZero: false,
+      },
       axisLabel: {
         color: themePrimaryTextColor,
-        // formatter: (value, index) => {
-        //   return value !== undefined ? numbro(value).format({ output: 'percent', optionalMantissa: true }) : value
-        // }
+        formatter: (value, index) => {
+          return value !== undefined ? numbro(value).format({ output: 'percent', optionalMantissa: true }) : value
+        }
       },
       splitLine: { show: true, lineStyle: { color: themeBorderColor } },
 
@@ -103,9 +107,15 @@ const chtOption = computed(() => {
           return value !== undefined ? numbro(value).format({ output: props.unit === '%' ? 'percent' : 'number', optionalMantissa: true }) : value
         }
       },
+      axisLine: {
+        onZero: false,
+      },
+      axisTick: {
+        alignWithLabel: true
+      },
       nameTextStyle: {
         color: themeDisabledTextColor,
-        verticalAlign: "center",
+        verticalAlign: "bottom",
         align: "center",
       },
       nameLocation: "end",
@@ -150,11 +160,13 @@ const chtOption = computed(() => {
       symbol: 'none',
     })
   }
-  Opt.xAxis.data.splice(0, Opt.xAxis.data.length, ...props.dataChart.map(row =>
-    numbro(-(1 - row[0])).format({ output: 'percent', mantissa: 1, optionalMantissa: true })
-  ))
+  // Opt.xAxis.data.splice(0, Opt.xAxis.data.length, ...props.dataChart.map(row =>
+  //   numbro(-(1 - row[0])).format({ output: 'percent', mantissa: 1, optionalMantissa: true })
+  // ))
   Opt.series.forEach((v, index) => {
-    v.data.splice(0, v.data.length, ...props.dataChart.map(row => row[index + 1]))
+    v.data.splice(0, v.data.length, ...props.dataChart.map(row => [
+      -(1 - row[0]),
+      row[index + 1]]))
   })
 
   return Opt

@@ -6,7 +6,7 @@ import * as lzs from 'lz-string';
 
 export interface tAlert {
   header?: string | null
-  text: string
+  text: string | object
   isalert?: boolean | false
 }
 

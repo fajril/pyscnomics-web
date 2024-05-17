@@ -176,7 +176,7 @@ useResizeObserver(refContainer, (entries) => {
 </script>
 
 <template>
-  <AppCardActions action-collapsed title="Chart View" compact-header>
+  <AppCardActions action-collapsed :title="$t('Chart View')" compact-header>
     <VRow no-gutter>
       <VCol ref="refContainer" cols="12">
         <v-chart ref="chartCost" class="cost-chart" :option="chartDataConfig" />

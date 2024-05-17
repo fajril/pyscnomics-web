@@ -34,7 +34,7 @@ const SaveProj = () => {
     <VIcon icon="tabler-device-floppy" size="26" />
 
     <VTooltip activator="parent" open-delay="500" scroll-strategy="close">
-      <span class="text-capitalize">Save Project</span>
+      <span class="text-capitalize">{{ $t('Save') }}</span>
     </VTooltip>
   </IconBtn>
   <dirDialogs ref="SelLocRef" @update:path="updateSelPath" />

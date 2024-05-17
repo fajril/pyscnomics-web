@@ -299,7 +299,7 @@ export const useDataStore = () => {
       dataLoaded = extractState === true
       if (dataLoaded)
         appStore.showAlert({
-          text: "Data loaded successfully",
+          text: { name: "Data loaded successfully" },
           isalert: false
         })
       else throw extractState
@@ -325,6 +325,7 @@ export const useDataStore = () => {
   }
 
   const saveProject = async (path: string) => {
+
     let validSave = false
     const curWS = !isEmpty(appStore.curWS) ? appStore.curWS : ("D" + Math.random().toString(36).slice(2))
     appStore.watcherSelCase.pause()
@@ -350,7 +351,7 @@ export const useDataStore = () => {
       if (wrtproject.state !== true) throw "save data failed"
 
       appStore.showAlert({
-        text: `Project saved to ${path}`,
+        text: { name: 'Project saved to', arg: [path] },
         isalert: false
       })
 
@@ -384,6 +385,7 @@ export const useDataStore = () => {
   }
 
   const importFrPySC = async (pathfile: string | null, caseLst: number[] = []) => {
+
     //chk
     const curWS = !isEmpty(appStore.curWS) ? appStore.curWS : ("D" + Math.random().toString(36).slice(2))
     let dataLoaded = false
@@ -414,7 +416,7 @@ export const useDataStore = () => {
       dataLoaded = true
 
       appStore.showAlert({
-        text: "Data imported successfully",
+        text: { name: "Data imported successfully" },
         isalert: false
       })
     } catch (err) {

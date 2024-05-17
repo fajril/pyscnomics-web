@@ -26,11 +26,18 @@ const { sensConfig } = storeToRefs(SensStore)
 
 const refTableSensCfg = ref()
 
+const { t, locale } = useI18n({ useScope: 'global' })
+
 
 const tableSensConfig = computed(() => {
   const Opt = {
     data: [['Oil Price, <small>USD/BBL</small>', null, null, null], ['Opex, <small>MUSD</small>', null, null, null], ['Capex, <small>MUSD</small>', null, null, null], ['Lifting, <small>MUSD</small>', null, null, null]],
-    colHeaders: ['Parameter', 'Min', 'Base', 'Max'],
+    colHeaders: (index) => {
+      if (index == 0) return t('Parameter')
+      else if (index == 1) return t('Min')
+      else if (index == 2) return t('Base')
+      else return t('Max')
+    },
     columns: [
       { renderer: 'html' },
       { type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 3, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
@@ -135,6 +142,7 @@ const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   nextTick(() => calcSens())
 })
 
+watch(locale, val => refTableSensCfg.value?.hotInstance.updateSettings(tableSensConfig.value))
 onMounted(() => {
   CallableFunc()
 })
@@ -146,7 +154,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <VCard :loading="isLoading" title="Sensitivity" subtitle="Analysis">
+  <VCard :loading="isLoading" :title="$t('Sensitivity')" :subtitle="$t('Analysis')">
     <VCardText>
       <AppCardActions action-collapsed title="Parameter" compact-header>
         <VCardText>
@@ -154,24 +162,24 @@ onUnmounted(() => {
             <VCol cols="12" md="4">
               <VRow>
                 <VCol cols="12" class="ms-4 pe-8">
-                  <div class="ml-n4 font-weight-bold text-primary mb-4">Sensitivity Configuration</div>
-                  <VTextField v-model.number="sensConfig[0]" label="Min, %" variant="outlined"
+                  <div class="ml-n4 font-weight-bold text-primary mb-4">{{ $t('Sensitivity Configuration') }}</div>
+                  <AppTextField v-model.number="sensConfig[0]" :label-placeholder="$t('Min', ['%'])" variant="outlined"
                     :rules="[requiredValidator, numberValidator]" />
                 </VCol>
                 <VCol cols="12" class="ms-4 pe-8">
-                  <VTextField v-model.number="sensConfig[1]" label="Max, %" variant="outlined"
+                  <AppTextField v-model.number="sensConfig[1]" :label-placeholder="$t('Max', ['%'])" variant="outlined"
                     :rules="[requiredValidator, numberValidator]" />
                 </VCol>
               </VRow>
             </VCol>
             <VCol cols="12" md="8">
-              <div class="ml-n4 font-weight-bold text-primary mb-2">Sensitivity Parameter</div>
+              <div class="ml-n4 font-weight-bold text-primary mb-2">{{ $t('Sensitivity Parameter') }}</div>
               <hot-table ref="refTableSensCfg" :settings="tableSensConfig" class="not_to_dimmed" />
             </VCol>
           </VRow>
         </VCardText>
       </AppCardActions>
-      <AppCardActions class="mt-4" action-collapsed title="Result" compact-header>
+      <AppCardActions class="mt-4" action-collapsed :title="$t('Result')" compact-header>
         <VCardText class="px-2">
           <VExpansionPanels multiple v-model="selPanel">
             <VExpansionPanel class="custom-expan-panel"
