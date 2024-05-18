@@ -37,16 +37,17 @@ const ShowInfo = async () => {
         throw { status: response.status, error: response._data.detail }
       },
     })
-    fileInfo.value.path = result.filepath
-    fileInfo.value.engine = result.engine
-    fileInfo.value.pythonHome = result.python.home
-    fileInfo.value.pythonPath = result.python.path
-    fileInfo.value.pythonVer = result.python.version
+    fileInfo.value.path = result.filepath.replace("\n", '')
+    fileInfo.value.engine = result.engine.replace("\n", '')
+    fileInfo.value.pythonHome = result.python.home.replace("\n", '')
+    fileInfo.value.pythonPath = result.python.path.replace("\n", '')
+    fileInfo.value.pythonVer = result.python.version.replace("\n", '')
   } catch (error) {
     console.log(error)
   }
   isLoading.value = false
 }
+const { copy, copied } = useClipboard({ source: computed(() => fileInfo.value.pythonPath) })
 
 </script>
 
@@ -70,7 +71,14 @@ const ShowInfo = async () => {
             </div>
 
           </template>
-          <div>
+          <div class="d-flex">
+            <IconBtn v-if="key === 'pythonPath'" class="me-2"
+              color="rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity))" @click="() => copy()" size="xs">
+              <VIcon icon="tabler-copy" size="16" :color="copied ? 'success' : 'muted'" />
+              <VTooltip activator="parent" scroll-strategy="close">
+                <span class="text-capitalize">{{ copied ? 'Copied' : 'Copy to Clipboard' }}</span>
+              </VTooltip>
+            </IconBtn>
             <span class="text-start text-nowrap text-no-wrap">{{ Object.values(fileInfo)[index] }}</span>
           </div>
         </VListItem>
