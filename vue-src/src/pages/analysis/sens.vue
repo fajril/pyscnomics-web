@@ -91,7 +91,7 @@ const calcSens = async () => {
   isLoading.value = true
   try {
     const SensJson = {
-      config: { min: sensConfig.value[0] / 100, max: sensConfig.value[0] / 100 },
+      config: { min: sensConfig.value[0] / 100, max: sensConfig.value[1] / 100 },
       parameter: ["Oil Price", "OPEX", "CAPEX", "Lifting"],
       contract: PyscConf.makeJSON(appStore.curSelCase)
     }
