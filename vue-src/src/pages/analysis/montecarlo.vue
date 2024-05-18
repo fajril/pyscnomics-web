@@ -88,6 +88,13 @@ const tableMonteConfig = computed(() => {
       { data: 'max', type: 'numeric', validator: 'numeric', allowInvalid: false, numericFormat: { pattern: { thousandSeparated: true, mantissa: 3, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
       { data: 'stddev', type: 'numeric', validator: 'numeric', allowInvalid: false, numericFormat: { pattern: { thousandSeparated: true, mantissa: 3, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
     ],
+    cell: [
+      { col: 0, row: 0, className: 'not_to_dimmed' },
+      { col: 0, row: 1, className: 'not_to_dimmed' },
+      { col: 0, row: 2, className: 'not_to_dimmed' },
+      { col: 0, row: 3, className: 'not_to_dimmed' },
+      { col: 0, row: 4, className: 'not_to_dimmed' },
+    ],
     afterValidate(isValid, value, row, prop) {
       if (!isValid) {
         appStore.showAlert({
@@ -130,7 +137,7 @@ function ValidateData() {
   dataTable.value.forEach(el => {
     if (math.isNaN(+el.min) || el.min === null || el.min >= el.base ||
       math.isNaN(+el.max) || el.max === null || el.max <= el.base || math.isNaN(+el.stddev) || el.stddev === null ||
-      !(typeof el.dist === 'string' && ['uniform', 'triangular', 'normal'].includes(el.dist.toLowerCase())))
+      !(typeof el.dist === 'string' && Object.values(MonteDistType).map(e => e.toLowerCase()).includes(el.dist.toLowerCase())))
       valid = false
   })
   return valid
@@ -280,6 +287,10 @@ onUnmounted(() => {
 .custom-expan-monte-panel>.v-expansion-panel-title--active>.v-expansion-panel-title__overlay,
 .v-expansion-panel-title[aria-haspopup="menu"][aria-expanded="true"]>.v-expansion-panel-title__overlay {
   background-color: transparent !important;
+}
+
+td.not_to_dimmed {
+  color: inherit !important
 }
 
 .not_to_dimmed {
