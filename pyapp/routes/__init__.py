@@ -4,6 +4,7 @@ import logging
 import os
 import pickle
 import random
+import select
 import shutil
 import string
 import struct
@@ -42,6 +43,7 @@ from ..database.projdb import make_proj_db_and_tables
 from ..models.project import Project
 from ..modules.lzstring import LZString
 from ..modules.pyscpack import pyscPacker
+from ..modules.summaries import Summaries
 
 log = logging.getLogger("uvicorn")
 
@@ -98,7 +100,7 @@ async def fileinfo(path: str | None, wspath: str):
         # get environtment
         FasAPIEnvCfg = Path(
             str(Path(__file__).parent.parent.parent),
-            "fastapi-env/pyvenv.cfg",  # "velz-vue-env/pyvenv.cfg"
+            "velz-vue-env/pyvenv.cfg",  # "fastapi-env/pyvenv.cfg"
         )
         retValue = {
             "filepath": "Unsaved file (newfile)" if pathFile is None else pathFile,
@@ -504,208 +506,27 @@ async def closeddata(tmppath: str):
 async def calc_ext_summ(type: int, data: str):
     dataJson = base64.b64decode(data).decode("utf-8")
     json_dict: dict = json.loads(dataJson)
-    crtable = None
-    DYear = []
-    ProdO = []
-    CummProdO = []
-    ProdG = []
-    CummProdG = []
-    revenue = []
-    Investment = []
-    Expenses = []
-    tax = []
-    pie = {"gs": 0, "ncs": 0, "CR": 0, "DMO": 0, "Tax": 0}
-    try:
-        if type == 1:
-            crtable = get_contract_table(data=json_dict, contract_type="Cost Recovery")
-        elif type == 2:
-            crtable = get_contract_table(data=json_dict, contract_type="Gross Split")
-        elif type >= 3:
-            crtable = get_contract_table(data=json_dict, contract_type="Transition")
-        # get get
-        for i in range(2 if type >= 3 else 1):
-            icrTable = crtable if type < 3 else crtable[f"contract_{i+1}"]
-            # log.info(icrTable["oil"].keys())
-            Olifting = icrTable["oil"][
-                (
-                    "lifting"
-                    if type == 2
-                    or (type in [4, 5] and i == 1)
-                    or (type in [5, 6] and i == 0)
-                    else "Lifting"
-                )
-            ]
-            Glifting = icrTable["gas"]["Lifting"]
-            DYear = list(Olifting.keys())
-            ProdO = (
-                (np.array(ProdO) + np.array(list(Olifting.values()))).tolist()
-                if type >= 3 and i == 1
-                else list(Olifting.values())
-            )
-            CummProdO = np.cumsum(np.array(ProdO)).tolist()
-            ProdG = list(Glifting.values())
-            CummProdG = np.cumsum(np.array(ProdG)).tolist()
-            irevenue = (
-                np.array(list(icrTable["oil"]["Revenue"].values()))
-                + np.array(list(icrTable["gas"]["Revenue"].values()))
-            ).tolist()
-            revenue = (
-                irevenue
-                if i == 0
-                else (np.array(revenue) + np.array(irevenue)).tolist()
-            )
-            iInvestment = (
-                np.array(list(icrTable["oil"]["Depreciable"].values()))
-                + np.array(list(icrTable["oil"]["Intangible"].values()))
-                + np.array(list(icrTable["gas"]["Depreciable"].values()))
-                + np.array(list(icrTable["gas"]["Intangible"].values()))
-            ).tolist()
-            Investment = (
-                iInvestment
-                if i == 0
-                else (np.array(Investment) + np.array(iInvestment)).tolist()
-            )
-            iExpenses = (
-                np.array(Investment)
-                + np.array(list(icrTable["oil"]["Opex"].values()))
-                + np.array(list(icrTable["gas"]["Opex"].values()))
-                # np.array(list(crtable["oil"]["Total_Expenses"].values()))
-                # + np.array(list(crtable["gas"]["Total_Expenses"].values()))
-                # if type == 2
-                # else (
-                #     # np.array(list(crtable["oil"]["Opex"].values()))
-                #     # + np.array(list(crtable["gas"]["Opex"].values()))
-                #     # + np.array(list(crtable["oil"]["ASR"].values()))
-                #     # + np.array(list(crtable["gas"]["ASR"].values()))
-                # )
-            ).tolist()
-            Expenses = (
-                iExpenses
-                if i == 0
-                else (np.array(Expenses) + np.array(iExpenses)).tolist()
-            )
-            itax = (
-                np.array(
-                    list(
-                        icrTable["oil"][
-                            (
-                                "Tax_Payment"
-                                if (type in [1, 3, 4] and i == 0)
-                                or (type in [3, 6] and i == 0)
-                                else "Tax"
-                            )
-                        ].values()
-                    )
-                )
-                + np.array(
-                    list(
-                        icrTable["gas"][
-                            (
-                                "Tax_Payment"
-                                if (type in [1, 3, 4] and i == 0)
-                                or (type in [3, 6] and i == 0)
-                                else "Tax"
-                            )
-                        ].values()
-                    )
-                )
-            ).tolist()
-            tax = itax if i == 0 else (np.array(tax) + np.array(itax)).tolist()
 
-            # log.info(crtable["oil"].keys())
-            # log.info(crtable["gas"].keys())
-            # log.info(crtable["consolidated"].keys())
-            pie["gs"] += (
-                np.array(list(icrTable["oil"]["Government_Share"].values())).sum()
-                + np.array(list(icrTable["gas"]["Government_Share"].values())).sum()
-            )
-            pie["ncs"] += (
-                np.array(
-                    list(
-                        icrTable["oil"][
-                            (
-                                "Net_CTR_Share"
-                                if (type in [4, 5] and i == 1)
-                                or (type in [2, 5, 6] and i == 0)
-                                else "Contractor_Net_Share"
-                            )
-                            # "Contractor_Share" if type == 2 else "Contractor_Share"
-                        ].values()
-                    )
-                ).sum()
-                + np.array(
-                    list(
-                        icrTable["gas"][
-                            # "Net_CTR_Share" if type == 2 else "Contractor_Net_Share"
-                            (
-                                "Contractor_Share"
-                                if (type in [4, 5] and i == 1)
-                                or (type in [2, 5, 6] and i == 0)
-                                else "Contractor_Share"
-                            )
-                        ].values()
-                    )
-                ).sum()
-            )
-            pie["CR"] += (
-                0
-                if (type in [4, 5] and i == 1) or (type in [2, 5, 6] and i == 0)
-                else (
-                    np.array(list(icrTable["oil"]["Cost_Recovery"].values())).sum()
-                    + np.array(list(icrTable["gas"]["Cost_Recovery"].values())).sum()
-                )
-            )
-            pie["DMO"] += (
-                np.array(list(icrTable["oil"]["DMO_Fee"].values())).sum()
-                + np.array(list(icrTable["gas"]["DMO_Fee"].values())).sum()
-            )
-            pie["Tax"] += (
-                np.array(list(icrTable["oil"]["Taxable_Income"].values())).sum()
-                + np.array(list(icrTable["gas"]["Taxable_Income"].values())).sum()
-            )
+    sumCalc = Summaries(type, json_dict)
+    try:
+        return {
+            "card": {
+                "year": sumCalc.Year,
+                "Oil": sumCalc.getOil(),
+                "Gas": sumCalc.getGas(),
+                "Revenue": sumCalc.getRevenue(),
+                "Investment": sumCalc.getInvesment(),
+                "Expenses": sumCalc.getExpenses(),
+                "Tax": sumCalc.getTax(),
+                "pie": sumCalc.getPie(),
+            },
+            "summary": sumCalc.summary,
+        }
     except Exception as err:
-        icrTable = None
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
         )
-
-    return {
-        "card": {
-            "year": DYear,
-            "Oil": {"table": [ProdO, CummProdO], "sum": np.array(ProdO).sum()},
-            "Gas": {"table": [ProdG, CummProdG], "sum": np.array(ProdG).sum()},
-            "Revenue": {
-                "table": [revenue, np.cumsum(np.array(revenue)).tolist()],
-                "sum": np.array(revenue).sum(),
-            },
-            "Investment": {
-                "table": [Investment, np.cumsum(np.array(Investment)).tolist()],
-                "sum": np.array(Investment).sum(),
-            },
-            "Expenses": {
-                "table": [Expenses, np.cumsum(np.array(Expenses)).tolist()],
-                "sum": np.array(Expenses).sum(),
-            },
-            "Tax": {
-                "table": [tax, np.cumsum(np.array(tax)).tolist()],
-                "sum": np.array(tax).sum(),
-            },
-            "pie": {
-                "table": pie,
-                "sum": pie["gs"] + pie["ncs"] + pie["CR"] + pie["DMO"] + pie["Tax"],
-            },
-        },
-        "summary": (
-            get_costrecovery(data=json_dict)[0]
-            if type == 1
-            else (
-                get_grosssplit(data=json_dict)[0]
-                if type == 2
-                else get_transition(data=json_dict)[0] if type >= 3 else []
-            )
-        ),
-    }
 
 
 @routerapi.get("/calc_cf")
