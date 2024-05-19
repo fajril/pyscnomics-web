@@ -100,7 +100,7 @@ async def fileinfo(path: str | None, wspath: str):
         # get environtment
         FasAPIEnvCfg = Path(
             str(Path(__file__).parent.parent.parent),
-            "velz-vue-env/pyvenv.cfg",  # "fastapi-env/pyvenv.cfg"
+            "fastapi-env/pyvenv.cfg",  # "velz-vue-env/pyvenv.cfg"
         )
         retValue = {
             "filepath": "Unsaved file (newfile)" if pathFile is None else pathFile,
