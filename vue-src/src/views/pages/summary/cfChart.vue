@@ -157,42 +157,42 @@ const chtOption = computed(() => {
         data: [],
         symbol: 'none',
       },
-      {
-        name: "Gov. Cumm. Cashflow",
-        type: "line",
-        yAxisIndex: 0,
-        data: [],
-        symbol: 'none',
-      },
+      // {
+      //   name: "Gov. Cumm. Cashflow",
+      //   type: "line",
+      //   yAxisIndex: 0,
+      //   data: [],
+      //   symbol: 'none',
+      // },
       {
         name: "Contr. Cashflow",
         type: "bar",
         yAxisIndex: 1,
         data: [],
       },
-      {
-        name: "Gov. Cashflow",
-        type: "bar",
-        yAxisIndex: 1,
-        data: [],
-      }
+      // {
+      //   name: "Gov. Cashflow",
+      //   type: "bar",
+      //   yAxisIndex: 1,
+      //   data: [],
+      // }
     ]
   }
   const lenData = props.dataChart.data.length
   const contCF_col = props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1)
   const contcumCF_col = props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1)
 
-  const GovTake_col = props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1)
-  const Tangible_col = props.dataChart.data.map(v => v.slice(4)[0]).slice(0, lenData - 1)
-  const NonCap_col = props.dataChart.data.map(v => v.slice(props.contractType === 'CR' || props.type === 'Cons' ? 9 : 15)[0]).slice(0, lenData - 1)
+  // const GovTake_col = props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1)
+  // const Tangible_col = props.dataChart.data.map(v => v.slice(4)[0]).slice(0, lenData - 1)
+  // const NonCap_col = props.dataChart.data.map(v => v.slice(props.contractType === 'CR' || props.type === 'Cons' ? 9 : 15)[0]).slice(0, lenData - 1)
 
-  const govCF_col = math.subtract(GovTake_col, math.add(Tangible_col, NonCap_col))
-  const govcumCF_col = math.cumsum(govCF_col)
+  // const govCF_col = math.subtract(GovTake_col, math.add(Tangible_col, NonCap_col))
+  // const govcumCF_col = math.cumsum(govCF_col)
 
   //calc min/max
-  const allcol = [...contCF_col, ...contcumCF_col, ...govCF_col, ...govcumCF_col]
-  let vmin = allcol.length ? math.min([...contCF_col, ...contcumCF_col, ...govCF_col, ...govcumCF_col]) : 0
-  let vmax = allcol.length ? math.max([...contCF_col, ...contcumCF_col, ...govCF_col, ...govcumCF_col]) : 0
+  const allcol = [...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]
+  let vmin = allcol.length ? math.min([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
+  let vmax = allcol.length ? math.max([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
 
   const txMin = numbro(math.abs(vmin)).format({ average: true, mantissa: 1 })
   const txMax = numbro(math.abs(vmax)).format({ average: true, mantissa: 1 })
@@ -221,9 +221,9 @@ const chtOption = computed(() => {
     a.max = vmax
   })
   Opt.series[0].data = contcumCF_col
-  Opt.series[1].data = govcumCF_col
-  Opt.series[2].data = contCF_col
-  Opt.series[3].data = govCF_col
+  // Opt.series[1].data = govcumCF_col
+  Opt.series[1].data = contCF_col
+  // Opt.series[3].data = govCF_col
 
   return Opt
 })
