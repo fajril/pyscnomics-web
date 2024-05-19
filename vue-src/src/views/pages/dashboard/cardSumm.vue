@@ -20,6 +20,7 @@ interface Props {
   chart?: number
   mode?: number
   table: object
+  ctrType?: number
 }
 
 use([
@@ -32,8 +33,14 @@ use([
 ]);
 
 const props = withDefaults(defineProps<Props>(), {
-  subtitle: undefined
+  subtitle: undefined,
+  ctrType: -1
 })
+
+interface Emit {
+  (e: 'show-detail', value: any): void
+}
+const emit = defineEmits<Emit>()
 
 const datacht = computed(() => props.table)
 const refChartContainer = ref()
@@ -43,8 +50,12 @@ onMounted(() => {
   useResizeObserver(refChartContainer, (entries) => {
     const entry = entries[0]
     const { width, height } = entry.contentRect
-    nextTick(() => chartCard.value?.resize())
+    nextTick(() => {
+      chartCard.value?.resize()
+    })
   })
+  if (props.chart === 5)
+    chartCard.value?.chart.on("click", (params) => emit('show-detail', params))
 })
 
 const vuetifyTheme = useTheme()
@@ -89,7 +100,7 @@ const cardChartOpt = computed(() => {
       valueFormatter: (value) => {
         if (value !== undefined) {
           const val = value / (props.table.sum ?? 1)
-          return (numbro(value * 1e6).format({ average: true, mantissa: 2, optionalMantissa: true }).toUpperCase() + ` (${numbro(val).format({ output: 'percent', mantissa: 2, optionalMantissa: true })})`)
+          return (numbro(value * 1e6).format({ average: true, mantissa: 2 }).toUpperCase() + ` (${numbro(val).format({ output: 'percent', mantissa: 2 })})`)
         } else
           return ""
       }
@@ -105,6 +116,13 @@ const cardChartOpt = computed(() => {
         show: true,
         length: 10,
         length2: 5
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
+        }
       }
 
     }] : [
@@ -123,13 +141,13 @@ const cardChartOpt = computed(() => {
       },
     ]
   }
-  // console.log(props.table)
-
   if (props.chart === 5) {
 
-    Opt.series[0].data.splice(0, Opt.series[0].data.length, ...Object.keys(props.table.d).map(key => ({ name: key.toUpperCase(), usd: props.table.d[key], value: props.table.d[key] })))
-    // console.log(Opt.series[0].data)
-    // / (props.table.sum ?? 1)
+    Opt.series[0].data.splice(0, Opt.series[0].data.length,
+      ...Object.keys(props.table.d).map(key => ({
+        name: key === "CR" ? ([1, 3].includes(props.ctrType) ? "CR" : "DC") : key,
+        usd: props.table.d[key].value, value: props.table.d[key].value
+      })))
 
   } else {
     Opt.xAxis.data.splice(0, Opt.xAxis.data.length, ...props.table.y)
@@ -141,45 +159,6 @@ const cardChartOpt = computed(() => {
 
   return Opt
 })
-
-
-
-// const series = [
-//   [
-//     {
-//       name: props.mode === 0 ? 'Oil' : 'Gas',
-//       data: props.table.d,
-//     },
-//   ],
-//   [
-//     {
-//       name: 'Revenue',
-//       data: props.table.d,
-//     },
-//   ],
-//   [
-//     {
-//       name: 'Investment',
-//       data: props.table.d,
-//     },
-//   ],
-//   [
-//     {
-//       data: props.table.d,
-//     },
-//   ],
-//   [
-//     {
-//       data: props.table.d,
-//     },
-//   ],
-// ]
-
-// watch(datacht, val => {
-//   const ser = series[props.chart]
-//   ser[0].data = props.table.d
-//   nextTick(() => chtCard.value?.chart.updateSeries(ser))
-// }, { deep: true })
 
 </script>
 

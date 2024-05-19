@@ -4,8 +4,10 @@ import { usePyscConfStore } from '@/stores/genfisStore';
 import { useNumbro } from "@/utils/pysc/pyscType";
 import { useDataStore } from '@/utils/pysc/useDataStore';
 import CardSumm from '@/views/pages/dashboard/cardSumm.vue';
+import CardSummFull from '@/views/pages/dashboard/cardSummFull.vue';
 import Project from '@/views/pages/dashboard/projectlist.vue';
 import EcoSummary from '@/views/pages/dashboard/projectsumm.vue';
+import * as math from 'mathjs';
 
 const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
@@ -90,13 +92,13 @@ const dataCard = ref({
   "Investment": { "table": [], "sum": 0 },
   "Expenses": { "table": [], "sum": 0 },
   "Tax": { "table": [], "sum": 0 },
-  "pie": { "table": { "gs": 0, "ncs": 0, "CR": 0, "DMO": 0, "Tax": 0 }, "sum": 0 },
+  "pie": { "data": { "GoS": { table: [], value: 0.0 }, "NCS": { table: [], value: 0.0 }, "CR": { table: [], value: 0.0 }, "DMO": { table: [], value: 0.0 }, "Tax": { table: [], value: 0.0 } }, "sum": 0 },
 })
 
 const prettyFmt = (val: number | null | undefined, type: 'currency' | 'unit' | 'percent' = 'currency') => {
   const decDot = Intl.NumberFormat().formatToParts(1.1).find(e => e.type === 'decimal').value
   if (typeof val === 'number') {
-    const valstr = numbro(val * (type === 'currency' ? 1000000 : 1)).format({ average: type === 'currency', trimMantissa: true, mantissa: type === 'unit' ? 1 : 2 })
+    const valstr = numbro(val * (type === 'currency' ? 1000000 : 1)).format({ average: type === 'currency', mantissa: type === 'unit' ? 1 : 2 })
     const valArr = valstr.split(decDot)
     if (valArr.length > 1) {
       if (valArr[1].indexOf(" ") != -1)
@@ -122,7 +124,7 @@ const loadSummary = async () => {
     "Investment": { "table": [], "sum": 0 },
     "Expenses": { "table": [], "sum": 0 },
     "Tax": { "table": [], "sum": 0 },
-    "pie": { "table": { "gs": 0, "ncs": 0, "CR": 0, "DMO": 0, "Tax": 0 }, "sum": 0 },
+    "pie": { "data": { "GoS": { table: [], value: 0.0 }, "NCS": { table: [], value: 0.0 }, "CR": { table: [], value: 0.0 }, "DMO": { table: [], value: 0.0 }, "TAX": { table: [], value: 0.0 } }, "sum": 0 },
   }
 
   try {
@@ -137,8 +139,6 @@ const loadSummary = async () => {
       })
 
     if (!(isObject(result) && !isEmpty(result))) throw "Error Calculation"
-
-    // console.log(result)
 
     dataCard.value = JSON.parse(JSON.stringify(result.card))
 
@@ -193,6 +193,31 @@ const loadSummary = async () => {
   isLoading.value = false
 }
 
+const cardSumFull = ref()
+
+const showFull = (chart: number, mode: number | undefined = undefined) => {
+  cardSumFull.value?.showSummCardDialog(chart, mode, {
+    x: dataCard.value.year,
+    d: chart === 0 ? (mode === 0 ? dataCard.value.Oil : dataCard.value.Gas) : (chart === 1 ? dataCard.value.Revenue : (chart === 2 ? dataCard.value.Investment : chart === 3 ? dataCard.value.Expenses : dataCard.value.Tax))
+  })
+}
+
+const showPieElement = (params: any) => {
+  const pieData = dataCard.value.pie.data[Object.keys(dataCard.value.pie.data)[params.dataIndex]]
+  const dataChtF = {
+    ctrType: PyscConf.dataGConf.type_of_contract,
+    x: dataCard.value.year,
+    d: {
+      table: [
+        pieData.table,
+        math.cumsum(pieData.table)
+      ],
+      sum: pieData.value,
+    }
+  }
+  cardSumFull.value?.showSummCardDialog(5, params.dataIndex, dataChtF)
+}
+
 const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   console.log("client trigger")
   loadSummary()
@@ -211,36 +236,37 @@ onUnmounted(() => stopCaseID())
         <VCol cols="8">
           <VRow>
             <VCol cols="4">
-              <CardSumm title="Oil" subtitle="MMSTB" :chart="0" :mode="0"
+              <CardSumm title="Oil" subtitle="MMSTB" :chart="0" :mode="0" @click="() => showFull(0, 0)"
                 :table="{ y: dataCard.year, d: dataCard.Oil.table }" :value="prettyFmt(dataCard.Oil.sum, 'unit')" />
             </VCol>
             <VCol v-if="PyscConf.prodHasGas()" cols="2">
-              <CardSumm title="Gas" subtitle="TBTU" :chart="0" :mode="1"
+              <CardSumm title="Gas" subtitle="TBTU" :chart="0" :mode="1" @click="() => showFull(0, 1)"
                 :table="{ y: dataCard.year, d: dataCard.Gas.table }" :value="prettyFmt(dataCard.Gas.sum, 'unit')" />
             </VCol>
             <VCol cols="4">
-              <CardSumm title="Revenue" subtitle="US$" :chart="1"
+              <CardSumm title="Revenue" subtitle="US$" :chart="1" @click="() => showFull(1)"
                 :table="{ y: dataCard.year, d: dataCard.Revenue.table }" :value="prettyFmt(dataCard.Revenue.sum)" />
             </VCol>
             <VCol cols="4">
-              <CardSumm title="Capex" subtitle="US$" :chart="2"
+              <CardSumm title="Capex" subtitle="US$" :chart="2" @click="() => showFull(2)"
                 :table="{ y: dataCard.year, d: dataCard.Investment.table }"
                 :value="prettyFmt(dataCard.Investment.sum)" />
             </VCol>
             <VCol cols="4">
-              <CardSumm title="Expenditures" subtitle="US$" :chart="3"
+              <CardSumm title="Expenditures" subtitle="US$" :chart="3" @click="() => showFull(3)"
                 :table="{ y: dataCard.year, d: dataCard.Expenses.table }" :value="prettyFmt(dataCard.Expenses.sum)" />
             </VCol>
             <VCol cols="4">
               <CardSumm title="Tax" subtitle="US$" :chart="4" :table="{ y: dataCard.year, d: dataCard.Tax.table }"
-                :value="prettyFmt(dataCard.Tax.sum)" />
+                @click="() => showFull(4)" :value="prettyFmt(dataCard.Tax.sum)" />
             </VCol>
           </VRow>
         </VCol>
         <VCol cols="4">
           <CardSumm title="Revenue Distribution" subtitle="US$" :chart="5"
-            :table="{ y: dataCard.year, d: dataCard.pie.table, sum: dataCard.pie.sum }"
-            :value="prettyFmt(dataCard.pie.sum)" />
+            :ctrType="PyscConf.dataGConf.type_of_contract"
+            :table="{ y: dataCard.year, d: dataCard.pie.data, sum: dataCard.pie.sum }"
+            :value="prettyFmt(dataCard.pie.sum)" @show-detail="showPieElement" />
         </VCol>
       </VRow>
     </VCol>
@@ -248,10 +274,12 @@ onUnmounted(() => stopCaseID())
       <EcoSummary :is-loading="isLoading" :data="dataSumm" />
     </VCol>
     <VCol cols="12">
-      <h6 class="text-h7 text-disabled">* {{ $t('Monetary') }}: 1 MUS$ = 1,000,000 US$ | {{ $t('Production') }}: 1 M(unit) =
+      <h6 class="text-h7 text-disabled">* {{ $t('Monetary') }}: 1 MUS$ = 1,000,000 US$ | {{ $t('Production') }}: 1
+        M(unit) =
         1,000 (unit)</h6>
     </VCol>
   </VRow>
+  <CardSummFull ref="cardSumFull" />
 </template>
 
 <style lang="scss">
