@@ -172,7 +172,7 @@ const showSummCardDialog = (chart: number, mode: number | undefined, data: objec
     cardChartOpt.value.series[0].color = undefined
     cardChartOpt.value.series[1].color = undefined
   } else {
-    const lbl = (chart === 1 ? 'Revenue' : (chart === 2 ? 'Capex' : (chart === 2 ? 'Expenditures' : 'Tax')))
+    const lbl = (chart === 1 ? 'Revenue' : (chart === 2 ? 'Capex' : (chart === 3 ? 'Expenditures' : (chart === 4 ? 'Tax' : "Contractor CashFlow"))))
     chartCardTitle.value = `${lbl}:  ${numbro(data.d.sum * 1e6).format({ average: true, mantissa: 3 }).toUpperCase()} USD`
     cardChartOpt.value.yAxis[0].name = `${lbl}, MUSD`
     cardChartOpt.value.yAxis[1].name = `Cum. ${lbl}, MUSD`
