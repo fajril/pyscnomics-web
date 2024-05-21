@@ -75,6 +75,7 @@ const chtOption = computed(() => {
       name: 'Sensitivity',
       type: 'value',
       // data: [],
+      scale: true,
       axisTick: {
         alignWithLabel: true
       },
@@ -101,6 +102,7 @@ const chtOption = computed(() => {
       type: 'value',
       name: `${props.unit}`,
       splitLine: { show: true, lineStyle: { color: themeBorderColor } },
+      scale: true,
       axisLabel: {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
