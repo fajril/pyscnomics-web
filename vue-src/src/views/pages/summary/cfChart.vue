@@ -93,15 +93,17 @@ const chtOption = computed(() => {
         align: "center",
         padding: 10
       },
+      scale: true,
       nameLocation: "middle",
-      axisLabel: { color: themePrimaryTextColor },
-      splitLine: { show: true, lineStyle: { color: themeBorderColor } },
+      axisLabel: { color: themePrimaryTextColor, align: 'center', },
+      splitLine: { show: false, lineStyle: { color: themeBorderColor } },
 
     },
     yAxis: [{
       type: 'value',
-      min: -10,
-      max: 250,
+      min: undefined,
+      max: undefined,
+      minInterval: undefined,
       // minInterval: 200000,
       // maxInterval: 200000,
       // splitNumber: 5,
@@ -122,20 +124,22 @@ const chtOption = computed(() => {
         align: "left",
       },
       nameLocation: "end",
+      axisTick: { show: true, },
     },
     {
       type: 'value',
       position: 'right',
       name: 'Cashflow, MUSD',
-      min: -10,
-      max: 250,
+      min: undefined,
+      max: undefined,
+      minInterval: undefined,
       // splitNumber: 5,
       // minInterval: 200000,
       // maxInterval: 200000,
       axisLine: {
         onZero: false,
       },
-      splitLine: { show: false, lineStyle: { color: themeBorderColor } },
+      splitLine: { show: true, lineStyle: { type: 'dotted', color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
@@ -148,6 +152,7 @@ const chtOption = computed(() => {
         align: "right",
       },
       nameLocation: "end",
+      axisTick: { show: true, },
     }],
     series: [
       {
@@ -182,6 +187,21 @@ const chtOption = computed(() => {
   const contCF_col = props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1)
   const contcumCF_col = props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1)
 
+  let interV = [contcumCF_col.length ? (math.max(contcumCF_col) - math.min(contcumCF_col)) / 4 : 0, contCF_col.length ? (math.max(contCF_col) - math.min(contCF_col)) / 4 : 0]
+  interV.forEach((el, index) => {
+    const txInterV = numbro(math.abs(el)).format({ average: true, mantissa: 1 })
+    if (txInterV.indexOf('k') !== -1)
+      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" k"))) * 1000
+    else if (txInterV.indexOf('m') !== -1)
+      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" m"))) * 1e6
+    else if (txInterV.indexOf('b') !== -1)
+      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" b"))) * 1e9
+    else if (txInterV.indexOf('t') !== -1)
+      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" t"))) * 1e12
+  })
+  Opt.yAxis[0].minInterval = interV[0]
+  Opt.yAxis[1].minInterval = interV[1]
+
   // const GovTake_col = props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1)
   // const Tangible_col = props.dataChart.data.map(v => v.slice(4)[0]).slice(0, lenData - 1)
   // const NonCap_col = props.dataChart.data.map(v => v.slice(props.contractType === 'CR' || props.type === 'Cons' ? 9 : 15)[0]).slice(0, lenData - 1)
@@ -190,36 +210,36 @@ const chtOption = computed(() => {
   // const govcumCF_col = math.cumsum(govCF_col)
 
   //calc min/max
-  const allcol = [...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]
-  let vmin = allcol.length ? math.min([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
-  let vmax = allcol.length ? math.max([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
+  // const allcol = [...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]
+  // let vmin = allcol.length ? math.min([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
+  // let vmax = allcol.length ? math.max([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
 
-  const txMin = numbro(math.abs(vmin)).format({ average: true, mantissa: 1 })
-  const txMax = numbro(math.abs(vmax)).format({ average: true, mantissa: 1 })
-  if (txMin.indexOf('k') !== -1)
-    vmin = (+txMin.slice(0, txMin.indexOf(" k")) + 0.1) * 1000 * (vmin < 0 ? -1 : 1)
-  else if (txMin.indexOf('m') !== -1)
-    vmin = (+txMin.slice(0, txMin.indexOf(" m")) + 0.1) * 1e6 * (vmin < 0 ? -1 : 1)
-  else if (txMin.indexOf('b') !== -1)
-    vmin = (+txMin.slice(0, txMin.indexOf(" b")) + 0.1) * 1e9 * (vmin < 0 ? -1 : 1)
-  else if (txMin.indexOf('t') !== -1)
-    vmin = (+txMin.slice(0, txMin.indexOf(" t")) + 0.1) * 1e12 * (vmin < 0 ? -1 : 1)
+  // const txMin = numbro(math.abs(vmin)).format({ average: true, mantissa: 1 })
+  // const txMax = numbro(math.abs(vmax)).format({ average: true, mantissa: 1 })
+  // if (txMin.indexOf('k') !== -1)
+  //   vmin = (+txMin.slice(0, txMin.indexOf(" k")) + 0.1) * 1000 * (vmin < 0 ? -1 : 1)
+  // else if (txMin.indexOf('m') !== -1)
+  //   vmin = (+txMin.slice(0, txMin.indexOf(" m")) + 0.1) * 1e6 * (vmin < 0 ? -1 : 1)
+  // else if (txMin.indexOf('b') !== -1)
+  //   vmin = (+txMin.slice(0, txMin.indexOf(" b")) + 0.1) * 1e9 * (vmin < 0 ? -1 : 1)
+  // else if (txMin.indexOf('t') !== -1)
+  //   vmin = (+txMin.slice(0, txMin.indexOf(" t")) + 0.1) * 1e12 * (vmin < 0 ? -1 : 1)
 
-  if (txMax.indexOf('k') !== -1)
-    vmax = (+txMax.slice(0, txMax.indexOf(" k")) + 0.1) * 1000 * (vmax < 0 ? -1 : 1)
-  else if (txMax.indexOf('m') !== -1)
-    vmax = (+txMax.slice(0, txMax.indexOf(" m")) + 0.1) * 1e6 * (vmax < 0 ? -1 : 1)
-  else if (txMax.indexOf('b') !== -1)
-    vmax = (+txMax.slice(0, txMax.indexOf(" b")) + 0.1) * 1e9 * (vmax < 0 ? -1 : 1)
-  else if (txMax.indexOf('t') !== -1)
-    vmax = (+txMax.slice(0, txMax.indexOf(" t")) + 0.1) * 1e12 * (vmax < 0 ? -1 : 1)
+  // if (txMax.indexOf('k') !== -1)
+  //   vmax = (+txMax.slice(0, txMax.indexOf(" k")) + 0.1) * 1000 * (vmax < 0 ? -1 : 1)
+  // else if (txMax.indexOf('m') !== -1)
+  //   vmax = (+txMax.slice(0, txMax.indexOf(" m")) + 0.1) * 1e6 * (vmax < 0 ? -1 : 1)
+  // else if (txMax.indexOf('b') !== -1)
+  //   vmax = (+txMax.slice(0, txMax.indexOf(" b")) + 0.1) * 1e9 * (vmax < 0 ? -1 : 1)
+  // else if (txMax.indexOf('t') !== -1)
+  //   vmax = (+txMax.slice(0, txMax.indexOf(" t")) + 0.1) * 1e12 * (vmax < 0 ? -1 : 1)
 
   Opt.xAxis.data = props.dataChart.data.map(v => v[0]).slice(0, lenData - 1)
 
-  Opt.yAxis.forEach(a => {
-    a.min = vmin
-    a.max = vmax
-  })
+  // Opt.yAxis.forEach(a => {
+  //   a.min = vmin
+  //   a.max = vmax
+  // })
   Opt.series[0].data = contcumCF_col
   // Opt.series[1].data = govcumCF_col
   Opt.series[1].data = contCF_col

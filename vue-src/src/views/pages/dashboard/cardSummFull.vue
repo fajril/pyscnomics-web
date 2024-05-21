@@ -61,6 +61,9 @@ const cardChartOpt = computed(() => {
       axisTick: {
         alignWithLabel: true,
       },
+      axisLine: {
+        onZero: false,
+      },
       nameTextStyle: {
         color: themeDisabledTextColor,
         verticalAlign: "top",
@@ -83,6 +86,8 @@ const cardChartOpt = computed(() => {
       interval: undefined,
       min: undefined,
       max: undefined,
+      minInterval: undefined,
+      splitNumber: 4,
       splitLine: { show: true, lineStyle: { color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
@@ -97,6 +102,9 @@ const cardChartOpt = computed(() => {
       },
       nameLocation: "end",
       axisTick: { show: true, },
+      axisLine: {
+        onZero: false,
+      },
     },
     {
       type: 'value',
@@ -105,6 +113,7 @@ const cardChartOpt = computed(() => {
       interval: undefined,
       min: undefined,
       max: undefined,
+      minInterval: undefined,
       axisTick: { show: true, },
       splitLine: { show: false, lineStyle: { type: 'dotted', color: themeBorderColor } },
       axisLabel: {
@@ -112,6 +121,9 @@ const cardChartOpt = computed(() => {
         formatter: (value, index) => {
           return value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value
         }
+      },
+      axisLine: {
+        onZero: false,
       },
       nameTextStyle: {
         color: themeDisabledTextColor,
@@ -158,7 +170,9 @@ const showSummCardDialog = (chart: number, mode: number | undefined, data: objec
     el.interval = undefined
     el.max = undefined
     el.min = undefined
+    el.minInterval = undefined
   })
+  cardChartOpt.value.yAxis[1].splitLine.show = false
 
   if (chart === 0) {
     chartCardTitle.value = `${mode === 0 ? 'Oil' : 'Gas'}:  ${numbro(data.d.sum).format({ average: false, mantissa: 3 })} ${mode === 0 ? 'MMSTB' : 'TBTU'}`
@@ -187,52 +201,45 @@ const showSummCardDialog = (chart: number, mode: number | undefined, data: objec
     cardChartOpt.value.series[0].color = undefined
     cardChartOpt.value.series[1].color = undefined
   }
-  if (chart === 6) {
-    const allcol = [...data.d.table[0], ...data.d.table[1]]
-    let vmin = allcol.length ? math.min(allcol) : 0
-    let vmax = allcol.length ? math.max(allcol) : 0
+  if (data.d.table.length === 2 && data.d.table[0].length && data.d.table[1].length) {
 
-    const txMin = numbro(math.abs(vmin)).format({ average: true, mantissa: 1 })
-    const txMax = numbro(math.abs(vmax)).format({ average: true, mantissa: 1 })
-    if (txMin.indexOf('k') !== -1)
-      vmin = (+txMin.slice(0, txMin.indexOf(" k")) + 0.1) * 1000 * (vmin < 0 ? -1 : 1)
-    else if (txMin.indexOf('m') !== -1)
-      vmin = (+txMin.slice(0, txMin.indexOf(" m")) + 0.1) * 1e6 * (vmin < 0 ? -1 : 1)
-    else if (txMin.indexOf('b') !== -1)
-      vmin = (+txMin.slice(0, txMin.indexOf(" b")) + 0.1) * 1e9 * (vmin < 0 ? -1 : 1)
-    else if (txMin.indexOf('t') !== -1)
-      vmin = (+txMin.slice(0, txMin.indexOf(" t")) + 0.1) * 1e12 * (vmin < 0 ? -1 : 1)
+    if (math.min(data.d.table[0]) === 0) {
+      let interV = [(math.max(data.d.table[0]) - math.min(data.d.table[0])) / 4, (math.max(data.d.table[1]) - math.min(data.d.table[1])) / 4]
+      interV.forEach((el, index) => {
+        const txInterV = numbro(math.abs(el)).format({ average: true, mantissa: 1 })
+        if (txInterV.indexOf('k') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" k"))) * 1000
+        else if (txInterV.indexOf('m') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" m"))) * 1e6
+        else if (txInterV.indexOf('b') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" b"))) * 1e9
+        else if (txInterV.indexOf('t') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" t"))) * 1e12
+      })
+      cardChartOpt.value.yAxis[0].max = interV[0] * 5
+      cardChartOpt.value.yAxis[0].interval = interV[0]
+      cardChartOpt.value.yAxis[1].max = interV[1] * 5
+      cardChartOpt.value.yAxis[1].interval = interV[1]
+    } else {
+      let interV = [(math.max(data.d.table[0]) - math.min(data.d.table[0])) / 4, (math.max(data.d.table[1]) - math.min(data.d.table[1])) / 4]
+      interV.forEach((el, index) => {
+        const txInterV = numbro(math.abs(el)).format({ average: true, mantissa: 1 })
+        if (txInterV.indexOf('k') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" k"))) * 1000
+        else if (txInterV.indexOf('m') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" m"))) * 1e6
+        else if (txInterV.indexOf('b') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" b"))) * 1e9
+        else if (txInterV.indexOf('t') !== -1)
+          interV[index] = (+txInterV.slice(0, txInterV.indexOf(" t"))) * 1e12
+      })
+      cardChartOpt.value.yAxis[0].minInterval = interV[0]
+      cardChartOpt.value.yAxis[1].minInterval = interV[1]
 
-    if (txMax.indexOf('k') !== -1)
-      vmax = (+txMax.slice(0, txMax.indexOf(" k")) + 0.1) * 1000 * (vmax < 0 ? -1 : 1)
-    else if (txMax.indexOf('m') !== -1)
-      vmax = (+txMax.slice(0, txMax.indexOf(" m")) + 0.1) * 1e6 * (vmax < 0 ? -1 : 1)
-    else if (txMax.indexOf('b') !== -1)
-      vmax = (+txMax.slice(0, txMax.indexOf(" b")) + 0.1) * 1e9 * (vmax < 0 ? -1 : 1)
-    else if (txMax.indexOf('t') !== -1)
-      vmax = (+txMax.slice(0, txMax.indexOf(" t")) + 0.1) * 1e12 * (vmax < 0 ? -1 : 1)
-    cardChartOpt.value.yAxis[0].min = vmin
-    cardChartOpt.value.yAxis[0].max = vmax
-    cardChartOpt.value.yAxis[1].max = vmax
-    cardChartOpt.value.yAxis[1].min = vmin
-  } else {
-    let interV = [(math.max(data.d.table[0]) - math.min(data.d.table[0])) / 4, (math.max(data.d.table[1]) - math.min(data.d.table[1])) / 4]
-    interV.forEach((el, index) => {
-      const txInterV = numbro(math.abs(el)).format({ average: true, mantissa: 1 })
-      if (txInterV.indexOf('k') !== -1)
-        interV[index] = (+txInterV.slice(0, txInterV.indexOf(" k"))) * 1000 * (el < 0 ? -1 : 1)
-      else if (txInterV.indexOf('m') !== -1)
-        interV[index] = (+txInterV.slice(0, txInterV.indexOf(" m"))) * 1e6 * (el < 0 ? -1 : 1)
-      else if (txInterV.indexOf('b') !== -1)
-        interV[index] = (+txInterV.slice(0, txInterV.indexOf(" b"))) * 1e9 * (el < 0 ? -1 : 1)
-      else if (txInterV.indexOf('t') !== -1)
-        interV[index] = (+txInterV.slice(0, txInterV.indexOf(" t"))) * 1e12 * (el < 0 ? -1 : 1)
-    })
-    cardChartOpt.value.yAxis[0].interval = interV[0]
-    cardChartOpt.value.yAxis[0].max = interV[0] * 5
-    cardChartOpt.value.yAxis[1].interval = interV[1]
-    cardChartOpt.value.yAxis[1].max = interV[1] * 5
+      cardChartOpt.value.yAxis[1].splitLine.show = true
+    }
   }
+
   cardChartOpt.value.xAxis.data.splice(0, cardChartOpt.value.xAxis.data.length, ...data.x)
   cardChartOpt.value.series[0].data.splice(0, cardChartOpt.value.series[0].data.length,
     ...data.d.table[0])
