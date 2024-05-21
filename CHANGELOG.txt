@@ -2,7 +2,7 @@
 update webapp:
 - fix axis scale (sensitivity chart)
 - fix axis scale (montecarlo chart)
-- upd dashboard, add CF card chart (switch to chard gas if exists), fix chart index (exp./tax)
+- upd dashboard, add CF card chart (switch to card gas if exists), fix chart index (exp./tax)
 - upd summaries.py, add cf data
 - upd id lang
 
