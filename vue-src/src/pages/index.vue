@@ -92,6 +92,7 @@ const dataCard = ref({
   "Investment": { "table": [], "sum": 0 },
   "Expenses": { "table": [], "sum": 0 },
   "Tax": { "table": [], "sum": 0 },
+  "CashFlow": { "table": [], "sum": 0 },
   "pie": { "data": { "GoS": { table: [], value: 0.0 }, "NCS": { table: [], value: 0.0 }, "CR": { table: [], value: 0.0 }, "DMO": { table: [], value: 0.0 }, "Tax": { table: [], value: 0.0 } }, "sum": 0 },
 })
 
@@ -124,6 +125,7 @@ const loadSummary = async () => {
     "Investment": { "table": [], "sum": 0 },
     "Expenses": { "table": [], "sum": 0 },
     "Tax": { "table": [], "sum": 0 },
+    "CashFlow": { "table": [], "sum": 0 },
     "pie": { "data": { "GoS": { table: [], value: 0.0 }, "NCS": { table: [], value: 0.0 }, "CR": { table: [], value: 0.0 }, "DMO": { table: [], value: 0.0 }, "TAX": { table: [], value: 0.0 } }, "sum": 0 },
   }
 
@@ -198,7 +200,7 @@ const cardSumFull = ref()
 const showFull = (chart: number, mode: number | undefined = undefined) => {
   cardSumFull.value?.showSummCardDialog(chart, mode, {
     x: dataCard.value.year,
-    d: chart === 0 ? (mode === 0 ? dataCard.value.Oil : dataCard.value.Gas) : (chart === 1 ? dataCard.value.Revenue : (chart === 2 ? dataCard.value.Investment : chart === 3 ? dataCard.value.Expenses : dataCard.value.Tax))
+    d: chart === 0 ? (mode === 0 ? dataCard.value.Oil : dataCard.value.Gas) : (chart === 1 ? dataCard.value.Revenue : (chart === 2 ? dataCard.value.Investment : chart === 3 ? dataCard.value.Expenses : chart === 4 ? dataCard.value.Tax : dataCard.value.CashFlow))
   })
 }
 
@@ -259,6 +261,11 @@ onUnmounted(() => stopCaseID())
             <VCol cols="4">
               <CardSumm title="Tax" subtitle="US$" :chart="4" :table="{ y: dataCard.year, d: dataCard.Tax.table }"
                 @click="() => showFull(4)" :value="prettyFmt(dataCard.Tax.sum)" />
+            </VCol>
+            <VCol v-if="!PyscConf.prodHasGas()" cols="4">
+              <CardSumm title="Ctr. CashFlow" subtitle="US$" :chart="6"
+                :table="{ y: dataCard.year, d: dataCard.CashFlow.table }" @click="() => showFull(6)"
+                :value="prettyFmt(dataCard.CashFlow.sum)" />
             </VCol>
           </VRow>
         </VCol>
