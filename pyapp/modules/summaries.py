@@ -114,6 +114,20 @@ class Summaries:
             "sum": np.sum(tax),
         }
 
+    def getCashFlow(self):
+        cf = (
+            self.contract._consolidated_cashflow
+            if self.ctrType < 3
+            else (
+                self.contract._contract1_transitioned._consolidated_cashflow
+                + self.contract._contract2_transitioned._consolidated_cashflow
+            )
+        )
+        return {
+            "table": [cf.tolist(), np.cumsum(cf).tolist()],
+            "sum": np.sum(cf),
+        }
+
     def getPie(self):
         sumAll = [0]
 
