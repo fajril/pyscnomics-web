@@ -1,0 +1,108 @@
+2024-5-19:
+update webapp:
+- upd dashboard, add card full chart, clickable Card chart,  clickable Pie chart element
+- add class summaries.py, fix calc. summaries
+- upd CF Chart, remove Gov.CF
+- upd id lang
+- upd sensitivity, min/max base on entries
+- upd fileinfo Card, add copy path btn
+- hide console warn (missing, fallback)
+
+--------------------------------------------------------------------------------------
+2024-5-17:
+update webapp:
+- fix issue, unsave pre-tax split (CR)
+- fix issue for condensate json generator
+- add fileinfo card (fileinfo ribbon)
+- upd sidebar: dashboard+project fixed position
+- add tooltip for all entries
+- add language ribbon 
+
+--------------------------------------------------------------------------------------
+2024-5-15:
+update webapp:
+- major update filesystem, memindahkan penggunaan browser storage (bls) ke local drive (=path "~tmp"), bls hanya menyimpan case active.
+- chg file ext. to ".psc"
+
+update workbook vba macro:
+- update module "Save_Print_Project", add filter "*.psc" for binary file, "*.pysc" for text file
+- fix cost table, translate yes/no (=1 or 0)
+--------------------------------------------------------------------------------------
+2024-5-10:
+update webapp:
+- support import case from .pySC (menu in project list)
+- fix make json, support empty row/table
+- add theme style bordered
+
+update workbook vba macro:
+- add module "binary_filesystem", support save/load to binary file
+- update module "FromThisWorkbook", mengganti penggunaan activesheet ke assigned sheets(_) dibeberapa sub agar bs digunakan globally
+- update module "Save_Print_Project" switch link to load/save binary
+--------------------------------------------------------------------------------------
+2024-5-4:
+update webapp:
+- add montecarlo module
+- add websokets lib.
+- update table editor, fix formula conv. 2 numeric
+- upd dashboard, fix pie element value*=1e6 (usd)
+- upd sens calc, use parallel
+
+update launcher:
+- upd webview, add header ctrl, disable def. context menu, disable dev. tool, add refresh button, add version
+
+--------------------------------------------------------------------------------------
+2024-4-29:
+- add sensitivity modul
+- add exception 2 catch error msg
+- upd dashboard, fix chart type, add pie chart
+- upd cashflow, fix chart view
+- fix grouping data chart
+--------------------------------------------------------------------------------------
+2024-4-26 Patch 1:
+- fix installer package
+
+--------------------------------------------------------------------------------------
+2024-4-26:
+- add sample "sample-A1.psyc" (hidayah data)
+- upd producer, add chart
+- upd cost, add chart
+- add modul cashflow
+- upd dashboard, add exc.summary 
+- upd dashboard, add mini card info
+- change ext. file to ".pysc"
+
+--------------------------------------------------------------------------------------
+2024-4-15:
+PySCnomicsApp:
+- change struct format for int
+- change inc. cheader bin file
+- fix add prodnumber for Gas
+
+--------------------------------------------------------------------------------------
+2024-4-12:
+
+PySCnomicsApp Setup:
+- fix python not in systempath
+- fix install requirements
+
+--------------------------------------------------------------------------------------
+2024-4-11:
+PySCnomicsApp:
+- fix save/load multi numprod
+- fix browse dialog
+- add export json module
+
+PySCnomicsApp Setup:
+- remove temporary dirs
+--------------------------------------------------------------------------------------
+2024-4-10:
+PySCnomicsApp:
+- add config UI
+- add costs UI
+- add new, open, save modul
+
+PySCnomicsApp Setup:
+- tested
+
+PySCnomicsApp Laucher:
+- tested
