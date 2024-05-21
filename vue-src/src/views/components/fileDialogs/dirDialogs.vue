@@ -70,7 +70,7 @@ const fetchDirs = async (_path: string | null) => {
       method: 'GET',
       params: {
         flext: fileExt.value,
-        root: _path ? btoa(_path) : btoa("/"/*"__drive__"*/)
+        root: _path ? btoa(_path) : btoa("__drive__")
       },
       onResponseError({ response }) {
       },
@@ -164,7 +164,7 @@ defineExpose({
                   Not found
                 </VListItemTitle>
               </VListItem>
-              <VListItem v-if="childlist.parent && childlist.parent != '/'"
+              <VListItem v-if="childlist.parent && childlist.parent != '__drive__'"
                 :value="-(Math.floor(Math.random() * 1000))">
                 <VListItemTitle>
                   . .
