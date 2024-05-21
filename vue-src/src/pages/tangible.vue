@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppStore } from "@/stores/appStore";
 import { usePyscConfStore } from '@/stores/genfisStore';
+import { TableContextMenus } from '@/utils/pysc/pyscType';
 import { useDataStore } from '@/utils/pysc/useDataStore';
 import CostChart from '@/views/pages/config/costChart.vue';
 import 'handsontable/dist/handsontable.full.min.css';
@@ -67,7 +68,7 @@ const mainSetting = ref({
   },
   rowHeaders: true,
   height: 'auto',
-  contextMenu: ['row_above', 'row_below', 'remove_row', '---------', 'cut', 'copy', '---------', 'undo', 'redo',],
+  contextMenu: TableContextMenus(),
   autoWrapRow: false,
   stretchH: 'none',
   manualColumnResize: true,

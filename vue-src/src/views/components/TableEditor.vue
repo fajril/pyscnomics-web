@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAppStore } from "@/stores/appStore";
 import {
-  ExcelColumnType,
+  ExcelColumnType, TableContextMenus
 } from '@/utils/pysc/pyscType';
 import 'handsontable/dist/handsontable.full.css';
 import HyperFormula from 'hyperformula';
@@ -61,7 +61,7 @@ const hotSettings = ref({
   },
   rowHeaders: true,
   height: 'auto',
-  contextMenu: ['row_above', 'row_below', 'remove_row', '---------', 'cut', 'copy', '---------', 'undo', 'redo',],
+  contextMenu: TableContextMenus(),
   autoWrapRow: false,
   stretchH: props.colAutoWidth,
   manualColumnResize: true,

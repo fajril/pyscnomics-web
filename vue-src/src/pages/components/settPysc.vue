@@ -46,7 +46,7 @@ const TaxSetting = ref({
   width: '100%',
   stretchH: 'last',
   height: 'auto',
-  contextMenu: ['row_above', 'row_below', 'remove_row', '---------', 'cut', 'copy', '---------', 'undo', 'redo',],
+  contextMenu: Pysc.TableContextMenus(),
   autoWrapRow: false,
   manualColumnResize: true,
   autoWrapCol: false,

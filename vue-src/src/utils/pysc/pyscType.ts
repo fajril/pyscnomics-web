@@ -90,6 +90,37 @@ export interface TableCFOption {
   cells: Array<object>
 }
 
+export const TableContextMenus = () => {
+  return {
+    items: {
+      row_above: {},
+      row_below: {},
+      remove_row: {},
+      sp1: { name: '---------' },
+      cut: {},
+      copy: {},
+      copy_with_column_headers: {
+        name: 'Copy with column(s) header',
+        callback(key, selection, clickEvent) {
+          this.getPlugin('copyPaste').copyWithAllColumnHeaders()
+        }
+      },
+      paste: {
+        name: 'Paste', callback(key, selection, clickEvent) {
+          const result = document.execCommand("paste", null, null)
+          if (result)
+            this.getPlugin('copyPaste').paste("xx")
+          else
+            alert("Not allowed to read from the clipboard system, use Ctrl+V instead")
+        }
+      },
+      sp2: { name: '---------' },
+      undo: {},
+      redo: {},
+    }
+  }
+}
+
 export interface OptTable {
   page: number;
   itemsPerPage: number;
