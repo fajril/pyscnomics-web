@@ -113,6 +113,7 @@ const chtOption = computed(() => {
     yAxis: {
       type: 'value',
       name: 'Freq. %',
+      scale: true,
       splitLine: { show: true, lineStyle: { color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
