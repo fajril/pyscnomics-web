@@ -1,20 +1,19 @@
 import json
+import logging
 import os
 import stat
 from pathlib import Path
 
+import psutil
+
 # import win32api
 # import win32file
 
+log = logging.getLogger("uvicorn")
 
-# def get_local_drives_win32api():
-#     drives = win32api.GetLogicalDriveStrings().split("\x00")
-#     local_drives = [
-#         drive
-#         for drive in drives
-#         if win32file.GetDriveType(drive) == win32file.DRIVE_FIXED
-#     ]
-#     return local_drives
+
+def get_local_drives_win32api():
+    return [dp.mountpoint for dp in psutil.disk_partitions()]
 
 
 def is_folder_normal(folder_path):
@@ -63,15 +62,15 @@ def list_files(flext: str, startpath: Path):
     return {"parent": None, "children": []}
 
 
-# def list_drives():
-#     local_drives = get_local_drives_win32api()
-#     return {
-#         "parent": "__drive__",
-#         "children": [{"name": item, "type": 0} for item in local_drives],
-#     }
+def list_drives():
+    local_drives = get_local_drives_win32api()
+    return {
+        "parent": "__drive__",
+        "children": [{"name": item, "type": 0} for item in local_drives],
+    }
 
 
 # if __name__ == "__main__":
 #     local_drives_win32api = get_local_drives_win32api()
 #     print("Local drives (win32api):", local_drives_win32api)
-#     list_files(Path("c:\\"))
+# list_files(Path("c:\\"))
