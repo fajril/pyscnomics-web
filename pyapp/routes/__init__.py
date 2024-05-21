@@ -518,6 +518,7 @@ async def calc_ext_summ(type: int, data: str):
                 "Investment": sumCalc.getInvesment(),
                 "Expenses": sumCalc.getExpenses(),
                 "Tax": sumCalc.getTax(),
+                "CashFlow": sumCalc.getCashFlow(),
                 "pie": sumCalc.getPie(),
             },
             "summary": sumCalc.summary,
