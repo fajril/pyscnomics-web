@@ -1,3 +1,14 @@
+2024-5-21:
+update webapp:
+- fix axis scale (sensitivity chart)
+- fix axis scale (montecarlo chart)
+- upd dashboard, add CF card chart (switch to chard gas if exists), fix chart index (exp./tax)
+- upd summaries.py, add cf data
+- upd id lang
+
+update Launcher:
+- fix edgewebview, enable default rightclick menus
+--------------------------------------------------------------------------------------
 2024-5-19:
 update webapp:
 - upd dashboard, add card full chart, clickable Card chart,  clickable Pie chart element
