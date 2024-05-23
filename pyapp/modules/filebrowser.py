@@ -6,13 +6,10 @@ from pathlib import Path
 
 import psutil
 
-# import win32api
-# import win32file
-
 log = logging.getLogger("uvicorn")
 
 
-def get_local_drives_win32api():
+def get_local_drives():
     return [dp.mountpoint for dp in psutil.disk_partitions()]
 
 
@@ -63,7 +60,7 @@ def list_files(flext: str, startpath: Path):
 
 
 def list_drives():
-    local_drives = get_local_drives_win32api()
+    local_drives = get_local_drives()
     return {
         "parent": "__drive__",
         "children": [{"name": item, "type": 0} for item in local_drives],

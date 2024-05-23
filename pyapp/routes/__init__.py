@@ -60,7 +60,6 @@ async def read_dirs(flext: str, root: str = None):
                 if pathname != "__drive__"
                 else list_drives()
             )
-            # return list_files(flext, Path(pathname))
     return list_files(
         flext, Path(str(Path(__file__).parent.parent.parent) + "\\Samples")
     )
