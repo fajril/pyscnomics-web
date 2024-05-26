@@ -20,8 +20,9 @@ log = logging.getLogger("uvicorn")
 class pyscPacker:
     typeContract: int = 1
     __hfl: str = "pySCapp"
-    __vfl: int = 4  # ver.3: var add sign (1 byte) for Null int
+    __vfl: int = 5  # ver.3: var add sign (1 byte) for Null int
     # ver.4: add case data
+    # ver.5: add data sens and monte
 
     def __init__(self, path: Path | None = None):
         if path:
@@ -33,7 +34,7 @@ class pyscPacker:
     def isValidFileHeader(self, path: Path):
         with open(path, "rb") as fs:
             hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
-            return hfl == self.__hfl.encode() and vfl == self.__vfl
+            return hfl == self.__hfl.encode() and vfl >= 4
 
     def makePath(self, path: Path, filename: str):
         return Path(str(path), filename)
@@ -159,6 +160,27 @@ class pyscPacker:
                         str(self.makePath(wsPath, f"asr_{caseid}.bin")), "wb"
                     ) as out8:
                         pickle.dump(asr, out8)
+            if vfl >= 5:
+                # extract sens
+                for idx, icase in enumerate(fullcases):
+                    writeData = icase["id"] in caseID
+                    caseid = (
+                        newCaseID[caseID.index(icase["id"])]
+                        if writeData
+                        else icase["id"]
+                    )
+                    self.extractSens(wsPath, fs, caseid, writeData)
+
+                # extract monte
+                for idx, icase in enumerate(fullcases):
+                    writeData = icase["id"] in caseID
+                    caseid = (
+                        newCaseID[caseID.index(icase["id"])]
+                        if writeData
+                        else icase["id"]
+                    )
+                    self.extractMonte(wsPath, fs, caseid, writeData)
+
             return selCase
 
     def writeProject(self, wsPath: Path, path: Path):
@@ -182,6 +204,18 @@ class pyscPacker:
                 self.writeCosts(Path(), 2, self.loadCosts(2, wsPath, id), fs)
                 # ars
                 self.writeCosts(Path(), 3, self.loadCosts(3, wsPath, id), fs)
+
+            # write sens
+            for idx, icase in enumerate(cases):
+                self.writeSens(Path(), self.loadsens(wsPath, icase["id"]), fs)
+
+            # write monte
+            for idx, icase in enumerate(cases):
+                monteCfg = self.loadmonte(wsPath, icase["id"])
+                monteRes = self.loadmonteRes(wsPath, icase["id"])
+                self.writeMonte(Path(), monteCfg, fs)
+                self.writeMonteRes(Path(), monteRes, fs)
+
         return True
 
     def writeGenConfig(
@@ -764,7 +798,7 @@ class pyscPacker:
     def ExtractFile(self, source: Path, target: Path, useID: bool = False):
         with open(source, "rb") as fs:
             hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
-            if hfl != self.__hfl.encode() or vfl != self.__vfl:
+            if hfl != self.__hfl.encode() or vfl not in [4, 5]:
                 return "Invalid file type"
 
             cases = self.readCase(fs)
@@ -794,6 +828,11 @@ class pyscPacker:
                 intangible = self.readCosts(1, fs)
                 opex = self.readCosts(2, fs)
                 asr = self.readCosts(3, fs)
+
+                sensCfg = [80, 80]
+                monteCfg = self.defMonteCfg()
+                monteRes = None
+
                 with open(str(target) + f"\\genconf_{id}.bin", "wb") as out1:
                     pickle.dump(genConf, out1)
                 with open(str(target) + f"\\fiscal_{id}.bin", "wb") as out2:
@@ -810,6 +849,17 @@ class pyscPacker:
                     pickle.dump(opex, out7)
                 with open(str(target) + f"\\asr_{id}.bin", "wb") as out8:
                     pickle.dump(asr, out8)
+
+            if vfl >= 5:
+                # extract sens
+                for idx, icase in enumerate(cases):
+                    id = icase["id"] if useID else idx
+                    self.extractSens(target, fs, id, True)
+                # extract monte
+                for idx, icase in enumerate(cases):
+                    id = icase["id"] if useID else idx
+                    self.extractMonte(target, fs, id, True)
+
             return True
 
     def loadCases(self, sourcePath: Path):
@@ -871,6 +921,223 @@ class pyscPacker:
                 return pickle.load(fl)
         else:
             return []
+
+    def loadsens(self, sourcePath: Path, index: int):
+        filePath = self.makePath(sourcePath, f"senscfg_{index}.bin")
+        if not filePath.exists():
+            return [80, 80]
+        with open(str(filePath), "rb") as fl:
+            return pickle.load(fl)
+
+    def defMonteCfg(self):
+        return {
+            "numsim": 1000,
+            "params": [
+                {
+                    "id": 0,
+                    "dist": 2,
+                    "min": None,
+                    "max": None,
+                    "base": None,
+                    "stddev": 1.25,
+                },
+                {
+                    "id": 1,
+                    "dist": 2,
+                    "min": None,
+                    "max": None,
+                    "base": None,
+                    "stddev": 1.25,
+                },
+                {
+                    "id": 2,
+                    "dist": 2,
+                    "min": None,
+                    "max": None,
+                    "base": None,
+                    "stddev": 1.25,
+                },
+                {
+                    "id": 3,
+                    "dist": 2,
+                    "min": None,
+                    "max": None,
+                    "base": None,
+                    "stddev": 1.25,
+                },
+                {
+                    "id": 4,
+                    "dist": 2,
+                    "min": None,
+                    "max": None,
+                    "base": None,
+                    "stddev": 1.25,
+                },
+            ],
+        }
+
+    def readSens(self, fs: BufferedReader):
+        return [self.readPack("d", fs, 80.0) for i in range(2)]
+
+    def writeSens(self, path: Path, value: List, fsw: BufferedWriter | None = None):
+        fs = fsw if fsw is not None else open(path, "ab")
+        self.writePack(value[0], "d", fs)
+        self.writePack(value[1], "d", fs)
+
+    def extractSens(self, wsPath: Path, fs: BufferedReader, id: int, writeData: bool):
+        sensCfg = self.readSens(fs)
+        if writeData:
+            with open(str(self.makePath(wsPath, f"senscfg_{id}.bin")), "wb") as fw:
+                pickle.dump(sensCfg, fw)
+
+    def readMonte(self, fs: BufferedReader):
+        numsim = int(self.readPack("i", fs, 1000))
+        lenParams = int(self.readPack("i", fs, 0))
+        if lenParams:
+            return {
+                "numsim": numsim,
+                "params": [
+                    {
+                        "id": self.readPack("i", fs),
+                        "dist": self.readPack("h", fs),
+                        "min": self.readPack("d", fs),
+                        "max": self.readPack("d", fs),
+                        "base": self.readPack("d", fs),
+                        "stddev": self.readPack("d", fs),
+                    }
+                    for i in range(lenParams)
+                ],
+            }
+        else:
+            return self.defMonteCfg()
+
+    def writeMonte(self, path: Path, param: Any, fsw: BufferedWriter | None = None):
+        fs = fsw if fsw is not None else open(path, "ab")
+        self.writePack(param["numsim"], "i", fs)
+        lenParams = len(param["params"])
+        self.writePack(lenParams, "i", fs)
+        for i, param in enumerate(param["params"]):
+            self.writePack(param["id"], "i", fs)
+            self.writePack(param["dist"], "h", fs)
+            self.writePack(param["min"], "d", fs)
+            self.writePack(param["max"], "d", fs)
+            self.writePack(param["base"], "d", fs)
+            self.writePack(param["stddev"], "d", fs)
+
+    def loadmonte(self, sourcePath: Path, index: int):
+        filePath = self.makePath(sourcePath, f"montecfg_{index}.bin")
+        if not filePath.exists():
+            return self.defMonteCfg()
+        with open(str(filePath), "rb") as fl:
+            return pickle.load(fl)
+
+    def loadmonteRes(self, sourcePath: Path, index: int):
+        filePath = self.makePath(sourcePath, f"monte_{index}.bin")
+        if not filePath.exists():
+            return {"hash": None, "result": None}
+        with open(str(filePath), "rb") as fs:
+            (lentxt,) = struct.unpack("@i", fs.read(struct.calcsize("@i")))
+            if lentxt:
+                (txt,) = struct.unpack(
+                    f"@{lentxt}s", fs.read(struct.calcsize(f"@{lentxt}s"))
+                )
+                hashid = txt.decode("utf-8") if isinstance(txt, bytes) else None
+                return {
+                    "hash": hashid,
+                    "result": pickle.load(fs) if hashid is not None else None,
+                }
+        return {"hash": None, "result": None}
+
+    def readMonteRes(self, fs: BufferedReader):
+        hasResult = self.readPack("?", fs, False)
+
+        def readResult():
+            results = {"params": [], "results": [], "P10": [], "P50": [], "P90": []}
+            # read params
+            lenParam = int(self.readPack("i", fs, 0))
+            if lenParam:
+                results["params"] = (
+                    [self.readPack("s", fs) for i in range(lenParam)]
+                    if lenParam
+                    else []
+                )
+            # read results
+            lenRows = int(self.readPack("i", fs, 0))
+            if lenRows:
+                lenCols = int(self.readPack("i", fs, 0))
+                results["results"] = [
+                    [self.readPack("d", fs) for c in range(lenCols)]
+                    for r in range(lenRows)
+                ]
+            # read percentile
+            for p in [10, 50, 90]:
+                lenP = int(self.readPack("i", fs, 0))
+                if lenP:
+                    results[f"P{p}"] = [self.readPack("d", fs) for c in range(lenP)]
+
+            return results
+
+        if hasResult:
+            hashid = self.readPack("s", fs)
+            result = readResult() if hashid is not None else None
+            return {"hash": hashid, "result": result}
+
+        return {"hash": None, "result": None}
+
+    def writeMonteRes(
+        self, path: Path, resData: Any, fsw: BufferedWriter | None = None
+    ):
+        fs = fsw if fsw is not None else open(path, "ab")
+        hashid = resData["hash"] if resData is not None else None
+        result = resData["result"] if resData is not None else None
+        # monte result
+        self.writePack(True if result is not None else False, "?", fs)
+        if result is not None:
+            # write hash value
+            self.writePack(hashid, "s", fs)
+            # write params
+            lenParam = len(result["params"])
+            self.writePack(lenParam, "i", fs)
+            if lenParam:
+                for i, param in enumerate(result["params"]):
+                    self.writePack(param, "s", fs)
+            # write result
+            lenResult = len(result["results"])
+            self.writePack(lenResult, "i", fs)
+            if lenResult:
+                for ii, resitem in enumerate(result["results"]):
+                    rows = resitem
+                    if ii == 0:
+                        self.writePack(len(rows), "i", fs)
+                    for iii, col in enumerate(rows):
+                        self.writePack(col, "d", fs)
+            # write P10/P50/P90
+            for p in [10, 50, 90]:
+                lenP = len(result[f"P{p}"])
+                self.writePack(lenP, "i", fs)
+                if lenP:
+                    for i, col in enumerate(result[f"P{p}"]):
+                        self.writePack(col, "d", fs)
+
+    def extractMonte(self, wsPath: Path, fs: BufferedReader, id: int, writeData: bool):
+        # read monte
+        monteCfg = self.readMonte(fs)
+        # read monte result
+        monteRes = self.readMonteRes(fs)
+
+        if writeData:
+            # save monte cfg
+            with open(str(self.makePath(wsPath, f"montecfg_{id}.bin")), "wb") as fw1:
+                pickle.dump(monteCfg, fw1)
+            # save monte result
+            hash: str | None = monteRes["hash"]
+            resMonte = monteRes["result"]
+            if hash is not None and resMonte is not None:
+                with open(str(self.makePath(wsPath, f"monte_{id}.bin")), "wb") as fw2:
+                    lenTxt = len(hash)
+                    fw2.write(struct.pack("@i", lenTxt))
+                    fw2.write(struct.pack(f"@{lenTxt}s", str(hash).encode()))
+                    pickle.dump(resMonte, fw2)
 
     def extractProject(self, filePath: Path, oldWSPath: str | None, newWSPath: str):
         owsPath: Path | None = (
@@ -956,6 +1223,10 @@ class pyscPacker:
         clonefile(tmpPath, "intangible")
         clonefile(tmpPath, "opex")
         clonefile(tmpPath, "asr")
+        if not typechg:
+            clonefile(tmpPath, "senscfg")
+            clonefile(tmpPath, "montecfg")
+            clonefile(tmpPath, "monte")
 
     def chgCtrType(self, wspath: str, sourceid: int, oldCtrType: int, newCtrType: int):
         tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
