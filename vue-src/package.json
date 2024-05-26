@@ -32,6 +32,7 @@
     "apexcharts-clevision": "^3.28.5",
     "chart.js": "^4.4.2",
     "cookie-es": "^1.0.0",
+    "crypto-js": "^4.2.0",
     "dayjs": "^1.11.10",
     "echarts": "^5.5.0",
     "handsontable": "^14.2.0",
