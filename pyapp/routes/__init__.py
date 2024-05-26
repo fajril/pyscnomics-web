@@ -25,6 +25,7 @@ from pyapp.modules.monte import ProcessMonte
 from pyapp.modules.sens import ProcessSens
 from pyapp.shemas import TableRequest
 from pyapp.shemas.project import ProjectCreate, ProjectUpdate
+from pyscnomics import contracts
 from pyscnomics.api.adapter import (
     get_contract_optimization,
     get_contract_table,
@@ -32,6 +33,7 @@ from pyscnomics.api.adapter import (
     get_grosssplit,
     get_transition,
 )
+from pyscnomics.tools import summary
 
 from ..crud.project import (
     create_project,
@@ -270,27 +272,27 @@ async def importcase(wspath: str, data: str):
 
 @routerapi.post("/wrtproject", response_class=JSONResponse)
 async def wrt_project(wspath: str, targetfile: str):
-    # try:
-    tmpWSPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
-    targetpath = Path(base64.b64decode(targetfile).decode("utf-8"))
-    # temporary file merge
-    bundlePath = Path(
-        str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}/bundle.bin"
-    )
-    packer = pyscPacker(bundlePath)
-    if packer.writeProject(tmpWSPath, bundlePath):
-        # copy to target path
-        shutil.copyfile(str(bundlePath), str(targetpath))
-    if bundlePath.exists():
-        os.remove(str(bundlePath))
-    return {"state": True}
-    # except Exception as err:
-    #     if bundlePath.exists():
-    #         os.remove(str(bundlePath))
-    #     raise HTTPException(
-    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    #         detail=err.args,
-    #     )
+    try:
+        tmpWSPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        targetpath = Path(base64.b64decode(targetfile).decode("utf-8"))
+        # temporary file merge
+        bundlePath = Path(
+            str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}/bundle.bin"
+        )
+        packer = pyscPacker(bundlePath)
+        if packer.writeProject(tmpWSPath, bundlePath):
+            # copy to target path
+            shutil.copyfile(str(bundlePath), str(targetpath))
+        if bundlePath.exists():
+            os.remove(str(bundlePath))
+        return {"state": True}
+    except Exception as err:
+        if bundlePath.exists():
+            os.remove(str(bundlePath))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
 
 
 @routerapi.post("/wrtcases", response_class=JSONResponse)
@@ -498,6 +500,62 @@ async def rdcosts(wspath: str, mode: int, caseid: int):
     return {"state": False}
 
 
+@routerapi.post("/wrtsens", response_class=JSONResponse)
+async def wrt_sens(wspath: str, caseid: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        filePath = Path(str(tmpPath), f"senscfg_{caseid}.bin")
+        with open(str(filePath), "wb") as fs:
+            pickle.dump(data, fs)
+            fs.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/rdsens", response_class=JSONResponse)
+async def rdsens(wspath: str, caseid: int):
+    pathFile = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+    if pathFile.exists():
+        packer = pyscPacker()
+        return {"state": True, "data": packer.loadsens(pathFile, caseid)}
+    return {"state": False}
+
+
+@routerapi.post("/wrtmonte", response_class=JSONResponse)
+async def wrt_monte(wspath: str, caseid: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        filePath = Path(str(tmpPath), f"montecfg_{caseid}.bin")
+        with open(str(filePath), "wb") as fs:
+            pickle.dump(data, fs)
+            fs.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/rdmonte", response_class=JSONResponse)
+async def rdmonte(wspath: str, caseid: int):
+    pathFile = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+    if pathFile.exists():
+        packer = pyscPacker()
+        return {"state": True, "data": packer.loadmonte(pathFile, caseid)}
+    return {"state": False}
+
+
 @routerapi.get("/closeddata", response_class=JSONResponse)
 async def closeddata(tmppath: str):
     pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
@@ -511,9 +569,9 @@ async def calc_ext_summ(type: int, data: str):
     dataJson = base64.b64decode(data).decode("utf-8")
     json_dict: dict = json.loads(dataJson)
 
-    sumCalc = Summaries(type, json_dict)
     try:
-        return {
+        sumCalc = Summaries(type, json_dict)
+        cardResult = {
             "card": {
                 "year": sumCalc.Year,
                 "Oil": sumCalc.getOil(),
@@ -526,6 +584,67 @@ async def calc_ext_summ(type: int, data: str):
                 "pie": sumCalc.getPie(),
             },
             "summary": sumCalc.summary,
+        }
+        return cardResult
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/get_case_summaries")
+async def get_case_summaries(type: int, caseid: int, data: str):
+    keyofsum = [
+        "lifting_oil",
+        "oil_wap",
+        "lifting_gas",
+        "gas_wap",
+        "gross_revenue",
+        "none",
+        "ctr_gross_share",
+        "gov_gross_share",
+        "sunk_cost",
+        "investment",
+        "tangible",
+        "intangible",
+        "opex_and_asr",
+        "opex",
+        "asr",
+        "cost_recovery/deductible_cost",
+        "cost_recovery_over_gross_rev",
+        "unrec_cost",
+        "unrec_over_gross_rev",
+        "none",
+        "ctr_net_share",
+        "ctr_net_share_over_gross_share",
+        "ctr_net_cashflow",
+        "ctr_net_cashflow_over_gross_rev",
+        "ctr_npv",
+        "ctr_irr",
+        "ctr_pot",
+        "ctr_pv_ratio",
+        "ctr_pi",
+        "none",
+        "gov_gross_share",
+        "gov_ftp_share",
+        "gov_ddmo",
+        "gov_tax_income",
+        "gov_take",
+        "gov_take_over_gross_rev",
+        "gov_take_npv",
+    ]
+    try:
+        dataJson = base64.b64decode(data).decode("utf-8")
+        json_dict: dict = json.loads(dataJson)
+        sumCalc = Summaries(type, json_dict)
+        summary = sumCalc.summary
+        contracts = sumCalc.contract
+        return {
+            "summary": [
+                summary[key] if key != "none" else None
+                for i, key in enumerate(keyofsum)
+            ]
         }
     except Exception as err:
         raise HTTPException(
@@ -576,14 +695,39 @@ async def calc_sens(type: int, data: str):
 
 
 @routerapi.get("/calc_monte")
-async def calc_monte(type: int, id: int, data: str):
+async def calc_monte(type: int, ws: str, id: int, data: str):
     dataJson = base64.b64decode(data).decode("utf-8")
     json_dict: dict = json.loads(dataJson)
     try:
         ProcessMonte(
-            type, id, json_dict["contract"], json_dict["numsim"], json_dict["parameter"]
+            type,
+            ws,
+            id,
+            json_dict["contract"],
+            json_dict["numsim"],
+            json_dict["parameter"],
         ).run()
         return {"state": "running"}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/get_monte_result")
+async def get_monte_result(ws: str, id: int, hashData: str):
+    try:
+        pathWS = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{ws}")
+        packer = pyscPacker()
+        monteres = packer.loadmonteRes(pathWS, id)
+        return {
+            "res": (
+                monteres["result"]
+                if monteres["hash"] is not None and hashData == monteres["hash"]
+                else None
+            )
+        }
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
