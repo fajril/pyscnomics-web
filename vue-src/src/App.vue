@@ -8,6 +8,8 @@ import { useTheme } from 'vuetify'
 import SettDialogs from '@/pages/components/settPysc.vue'
 import { tAlert, useAppStore } from "@/stores/appStore"
 import { usePyscConfStore } from '@/stores/genfisStore'
+import { usePyscMonteStore } from '@/stores/monteStore'
+import { usePyscSensStore } from '@/stores/sensStore'
 import { useWSStore } from '@/stores/wsStore'
 import * as Pysc from '@/utils/pysc/pyscType'
 import { useDataStore } from '@/utils/pysc/useDataStore'
@@ -22,6 +24,8 @@ const configStore = useConfigStore()
 const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
 const wsStore = useWSStore()
+const PyscSens = usePyscSensStore()
+const PyscMonte = usePyscMonteStore()
 const { settFunc, alertFunc } = storeToRefs(appStore)
 const isShowAlert = ref(false)
 const dayjs = Pysc.useDayJs()
@@ -41,7 +45,9 @@ appStore.mainCallbackCaseID = async (value, oldValue) => {
       await useDataStore().saveCaseData(appStore.curWS, oldValue,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr)
+        PyscConf.opex, PyscConf.asr,
+        PyscSens.sensConfig,
+        PyscMonte.monteConfig)
     }
   }
   await useDataStore().applyCase(appStore.curWS, [], true)
@@ -123,7 +129,8 @@ settFunc.value = (tab: number) => RefSettDialogs.value?.ShowSetting(tab)
           {{ alertProps.header ?? "PySCnomicApp" }}
         </p>
         <p class="text-sm">
-          {{ isObject(alertProps.text) ? ($t(alertProps.text['name'], alertProps.text['arg'] ?? [])) : alertProps.text }}
+          {{ isObject(alertProps.text) ? ($t(alertProps.text['name'], alertProps.text['arg'] ?? [])) : alertProps.text
+          }}
         </p>
       </VSnackbar>
       <ScrollToTop />

@@ -139,6 +139,7 @@ const selPanel = ref([0])
 const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   console.log("sens trigger")
   calcSensPar()
+  refTableSensCfg.value?.hotInstance.updateSettings(tableSensConfig.value)
   nextTick(() => calcSens())
 })
 

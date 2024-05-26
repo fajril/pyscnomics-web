@@ -2,6 +2,7 @@ import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
 import { namespaceConfig } from '@layouts/stores/config';
 import { useStorage } from '@vueuse/core';
+import CryptoJS from 'crypto-js';
 import * as lzs from 'lz-string';
 
 export const MonteDistType = {
@@ -43,6 +44,15 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
     },
   })
 
+  const watcherMonteCfg = pausableWatch(monteConfig,
+    (value, oldValue) => {
+      const appStore = useAppStore()
+      if (appStore.watcherSelCase.isActive) {
+        nextTick(() => appStore.dataChanges())
+      }
+    }, { deep: true })
+
+
   const IsOnCalc = ref(false)
 
   const MonteCalc = async (_id: number, _data: any) => {
@@ -64,6 +74,7 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
         parameter: JSON.parse(JSON.stringify(monteConfig.value.params)),
         contract: PyscConf.makeJSON(_id)
       }
+
       if (!PyscConf.prodHasGas()) {
         const idx = MonteJson.parameter.findIndex(p => p.id === 1)
         if (idx != -1) MonteJson.parameter.splice(idx, 1)
@@ -71,6 +82,7 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
       const result = await $api('auth/calc_monte', {
         params: {
           type: PyscConf.dataGConf.type_of_contract,
+          ws: appStore.curWS,
           id: _id,
           data: btoa(JSON.stringify(MonteJson))
         },
@@ -89,10 +101,53 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
     }
   }
 
+  const LoadResult = async (_id: number, _hashID: string | null = null, _showAlert: boolean = false) => {
+    if (IsOnCalc.value) return false
+    const appStore = useAppStore()
+    const PyscConf = usePyscConfStore()
+    const hashID = isEmpty(_hashID) ? CryptoJS.MD5(JSON.stringify(PyscConf.makeJSON(_id))).toString() : _hashID
+    try {
+      const result = await $api('auth/get_monte_result', {
+        params: {
+          ws: appStore.curWS,
+          id: _id,
+          hashData: hashID
+        },
+        method: 'GET',
+        onResponseError({ response }) {
+          throw [response.status, response._data.detail]
+        },
+      })
+      if (_showAlert) {
+        appStore.showAlert({
+          text: "Calculation Done" + (result.res ? "" : ", with error"),
+          isalert: !(result.res)
+        })
+      }
+      // console.log(result)
+      return result
+    }
+    catch (error) {
+      if (_showAlert)
+        appStore.showAlert({
+          text: "Calculation Done, with error",
+          isalert: true
+        })
+      else
+        appStore.showAlert({
+          text: `Error ${Array.isArray(error) ? error[0] : ''}: ${Array.isArray(error) ? error[1] : error}`,
+          isalert: true
+        })
+    }
+    return { res: null }
+  }
+
   return {
-    monteConfig,
+    defParam,
+    monteConfig, watcherMonteCfg,
     MonteCalc,
-    IsOnCalc
+    IsOnCalc,
+    LoadResult
   }
 })
 

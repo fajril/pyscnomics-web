@@ -126,6 +126,11 @@ export const useAppStore = defineStore('pyscConfig', () => {
     return projects.value.map(v => ({ title: v.name, value: v.id }))
   })
 
+  const caseByID = (caseID: number | null | undefined) => {
+    const index = projects.value.findIndex(e => e.id === caseID)
+    return index != -1 ? projects.value[index] : null
+  }
+
   const IndexCase = computed(() => projects.value.findIndex(e => e.id === +curSelCase.value))
 
   const selectedCase = computed(() => IndexCase.value !== -1 ? projects.value[IndexCase.value] :
@@ -172,6 +177,7 @@ export const useAppStore = defineStore('pyscConfig', () => {
     caseList,
     fetchProjects,
     postProjects,
+    caseByID,
 
     alertFunc,
     showAlert,

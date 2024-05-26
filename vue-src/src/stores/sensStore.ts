@@ -1,3 +1,4 @@
+import { useAppStore } from "@/stores/appStore";
 import { namespaceConfig } from '@layouts/stores/config';
 import { useStorage } from '@vueuse/core';
 import * as lzs from 'lz-string';
@@ -10,7 +11,16 @@ export const usePyscSensStore = defineStore('pyscSensConf', () => {
     },
   })
 
+  const watcherSensCfg = pausableWatch(sensConfig,
+    (value, oldValue) => {
+      const appStore = useAppStore()
+      if (appStore.watcherSelCase.isActive)
+        nextTick(() => appStore.dataChanges())
+    }, { deep: true })
+
+
   return {
-    sensConfig
+    sensConfig,
+    watcherSensCfg
   }
 })

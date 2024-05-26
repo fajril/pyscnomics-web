@@ -220,6 +220,7 @@ const showPieElement = (params: any) => {
   cardSumFull.value?.showSummCardDialog(5, params.dataIndex, dataChtF)
 }
 
+
 const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   console.log("client trigger")
   loadSummary()

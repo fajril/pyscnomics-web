@@ -7,6 +7,7 @@ import { useDayJs } from "@/utils/pysc/pyscType";
 import { useDataStore } from '@/utils/pysc/useDataStore';
 import dirDialogs from "@/views/components/fileDialogs/dirDialogs.vue";
 import selCases from "@/views/components/selCases.vue";
+import CardCompare from '@/views/pages/dashboard/caseCompare.vue';
 import { VDataTableVirtual } from 'vuetify/labs/VDataTable';
 import ProjectEditor from "./AddNewProject.vue";
 
@@ -59,6 +60,7 @@ const updateProject = async (param: Pysc.ProjectBase) => {
 
 const SelLocImportRef = ref()
 const selCasesDialogs = ref()
+const cardCompare = ref()
 
 const updateSelImportPath = async (value: string) => {
   // console.log(value)
@@ -89,8 +91,11 @@ const moreprojList = [
       { title: "From .psc", value: "imppysc" },
       { title: "From JSON", value: "impjson" },
     ]
-  }, //
+  },
+  { title: "Case comparison", value: "compare" },
 ]
+
+const isCompareDlgVisible = ref(false)
 
 const projectMenuClick = (key) => {
   if (key === "newproj")
@@ -101,12 +106,18 @@ const projectMenuClick = (key) => {
     else
       SelLocImportRef.value?.loadMyDris("open", "__local__")
   }
+  else if (key === "compare") {
+    if (appStore.projects.length === 1) return
+    isCompareDlgVisible.value = true
+    nextTick(() => cardCompare.value?.showCaseCompare(appStore.curSelCase))
+  }
 }
 
 const moreTabData = [
   { title: "New Case", value: "new" },
   { title: "Duplicate", value: "clone" },
   { title: "Remove", value: "delete" },
+  { title: "Case comparison", value: "compare" },
   { title: "Properties", value: "edit" },
 ]
 
@@ -135,6 +146,11 @@ const TabMenuDataClicked = async (key: string, item: any) => {
     if (appStore.projects.length === 1) return
     caseDeleteID.value = { id: +item.id, name: item.name }
     isShowConfirmDelete.value = true
+  }
+  else if (key === 'compare') {
+    if (appStore.projects.length === 1) return
+    isCompareDlgVisible.value = true
+    nextTick(() => cardCompare.value?.showCaseCompare(+item.id))
   }
 }
 
@@ -213,6 +229,8 @@ watch(locale, val => {
     @confirm="deleteCase" />
   <dirDialogs ref="SelLocImportRef" @update:path="updateSelImportPath" />
   <selCases ref="selCasesDialogs" @update:importcase="postImportData" />
+  <CardCompare v-if="isCompareDlgVisible" ref="cardCompare"
+    @compareDlgDone="() => nextTick(() => isCompareDlgVisible = false)" />
 </template>
 
 <style lang="scss" scoped>
