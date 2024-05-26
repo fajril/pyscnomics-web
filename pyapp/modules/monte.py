@@ -1,8 +1,12 @@
 import asyncio
 import copy
+import hashlib
 import json
 import logging
+import pickle
+import struct
 import threading
+from pathlib import Path
 
 import numpy as np
 from joblib import Parallel, delayed
@@ -24,13 +28,22 @@ log = logging.getLogger("uvicorn")
 class ProcessMonte:
     target = ["npv", "irr", "pi", "pot", "gov_take", "ctr_net_share"]
 
-    def __init__(self, type, id, contract, numSim, params):
+    def __init__(self, type, ws, id, contract, numSim, params):
         self.type = type
+        self.ws = ws
         self.id = id
         self.numSim = numSim
         self.progress = 0
         self.baseContract = contract
         self.parameter = params
+        self.hasGas = False
+        for i in range(len(self.parameter)):
+            if self.parameter[i]["id"] == 1:
+                self.hasGas = True
+                break
+        self.hash = hashlib.md5(
+            json.dumps(contract, separators=(",", ":")).encode()
+        ).hexdigest()
 
     def Adjust_Data(self, multipliers: np.ndarray):
         Adj_Contract = copy.deepcopy(self.baseContract)
@@ -179,7 +192,7 @@ class ProcessMonte:
         percentiles = np.percentile(
             a=results_arranged,
             q=[10, 50, 90],
-            method="lower",
+            method="higher",
             axis=0,
         )
 
@@ -188,11 +201,25 @@ class ProcessMonte:
 
         # Final outcomes
         outcomes = {
+            "params": (
+                ["Oil Price", "Gas Price", "Opex", "Capex", "Cum. prod."]
+                if self.hasGas
+                else ["Oil Price", "Opex", "Capex", "Cum. prod."]
+            ),
             "results": results_arranged[indices, :].tolist(),
             "P10": percentiles[0, :].tolist(),
             "P50": percentiles[1, :].tolist(),
             "P90": percentiles[2, :].tolist(),
         }
+        # log.info(self.hash)
+
+        # save result
+        pathWS = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{self.ws}")
+        with open(str(pathWS) + f"\\monte_{self.id}.bin", "wb") as fs:
+            lenTxt = len(self.hash)
+            fs.write(struct.pack("@i", lenTxt))
+            fs.write(struct.pack(f"@{lenTxt}s", str(self.hash).encode()))
+            pickle.dump(outcomes, fs)
 
         asyncio.run(
             wsMan.broadcast(
@@ -200,7 +227,7 @@ class ProcessMonte:
                     {
                         "module": "monte",
                         "id": self.id,
-                        "data": {"progress": -1, "output": outcomes},
+                        "data": {"progress": -1, "output": self.hash},
                     }
                 )
             )
