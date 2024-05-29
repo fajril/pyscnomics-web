@@ -93,7 +93,7 @@ const calcSens = async () => {
     const SensJson = {
       config: { min: sensConfig.value[0] / 100, max: sensConfig.value[1] / 100 },
       parameter: ["Oil Price", "OPEX", "CAPEX", "Lifting"],
-      contract: PyscConf.makeJSON(appStore.curSelCase)
+      contract: useDataStore().curCase2Json()
     }
     if (PyscConf.prodHasGas())
       SensJson.parameter.splice(1, 0, "Gas Price")

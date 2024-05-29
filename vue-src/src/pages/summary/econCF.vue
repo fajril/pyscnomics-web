@@ -109,7 +109,7 @@ const loadCF = async () => {
     const result = await $api('auth/calc_cf', {
       params: {
         type: PyscConf.dataGConf.type_of_contract,
-        data: btoa(JSON.stringify(PyscConf.makeJSON(appStore.curSelCase)))
+        data: btoa(JSON.stringify(useDataStore().curCase2Json()))
       },
       method: 'GET',
       onResponseError({ response }) {

@@ -160,13 +160,6 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     }
   })
 
-  const makeJSON = (id: number, useDate: boolean = true) => {
-    return useDataStore().makeJSONofCase(id,
-      generalConfig.value, producer.value, contracts.value, fiscal.value,
-      tangible.value, intangible.value, opex.value, asr.value,
-      useDate)
-  }
-
   return {
     generalConfig, dataGConf,
     fiscal, dataFisc,
@@ -183,8 +176,6 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     chgVer,
 
     getProducer,
-
-    makeJSON,
 
     watcherAllData
 

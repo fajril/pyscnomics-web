@@ -1,5 +1,6 @@
 import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 import { namespaceConfig } from '@layouts/stores/config';
 import { useStorage } from '@vueuse/core';
 import CryptoJS from 'crypto-js';
@@ -72,7 +73,7 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
       const MonteJson = {
         numsim: monteConfig.value.numsim,
         parameter: JSON.parse(JSON.stringify(monteConfig.value.params)),
-        contract: PyscConf.makeJSON(_id)
+        contract: useDataStore().curCase2Json()
       }
 
       if (!PyscConf.prodHasGas()) {
@@ -105,7 +106,7 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
     if (IsOnCalc.value) return false
     const appStore = useAppStore()
     const PyscConf = usePyscConfStore()
-    const hashID = isEmpty(_hashID) ? CryptoJS.MD5(JSON.stringify(PyscConf.makeJSON(_id))).toString() : _hashID
+    const hashID = isEmpty(_hashID) ? CryptoJS.MD5(JSON.stringify(useDataStore().curCase2Json())).toString() : _hashID
     try {
       const result = await $api('auth/get_monte_result', {
         params: {

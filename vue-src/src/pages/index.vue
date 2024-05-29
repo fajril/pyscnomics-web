@@ -130,10 +130,9 @@ const loadSummary = async () => {
   }
 
   try {
-
     const result = await $api('/auth/calc_ext_summ',
       {
-        params: { type: PyscConf.dataGConf.type_of_contract, data: btoa(JSON.stringify(PyscConf.makeJSON(appStore.curSelCase))) },
+        params: { type: PyscConf.dataGConf.type_of_contract, data: btoa(JSON.stringify(useDataStore().curCase2Json())) },
         method: 'GET',
         onResponseError({ response }) {
           throw [response.status, response._data.detail]

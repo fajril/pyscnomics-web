@@ -42,6 +42,7 @@ declare module 'vue-router/auto/routes' {
     'dashboard': RouteRecordInfo<'dashboard', '/', Record<never, never>, Record<never, never>>,
     '$error': RouteRecordInfo<'$error', '/:error(.*)', { error: ParamValue<true> }, { error: ParamValue<false> }>,
     'pysc-monte': RouteRecordInfo<'pysc-monte', '/pysc-monte', Record<never, never>, Record<never, never>>,
+    'pysc-optim': RouteRecordInfo<'pysc-optim', '/pysc-optim', Record<never, never>, Record<never, never>>,
     'pysc-sens': RouteRecordInfo<'pysc-sens', '/pysc-sens', Record<never, never>, Record<never, never>>,
     'components-error-error-animated': RouteRecordInfo<'components-error-error-animated', '/components/error/ErrorAnimated', Record<never, never>, Record<never, never>>,
     'components-error-error-hero': RouteRecordInfo<'components-error-error-hero', '/components/error/ErrorHero', Record<never, never>, Record<never, never>>,

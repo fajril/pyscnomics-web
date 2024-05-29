@@ -27,12 +27,12 @@ const mainSetting = ref({
     "Applied By IC", "VAT Portion", "Description"],
   columns: [
     { type: 'numeric', validator: 'numeric', allowInvalid: false },
-    { type: 'dropdown', source: ['Oil', 'Gas'], visibleRows: 15 },
+    { type: 'dropdown', source: ['Oil', 'Gas'], visibleRows: 15, strict: true },
     { type: 'numeric', validator: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, allowInvalid: false },
     { type: 'numeric', validator: 'numeric', allowInvalid: false },
     { type: 'numeric', validator: 'numeric', allowInvalid: false },
     { type: 'numeric', validator: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, allowInvalid: false },
-    { type: 'dropdown', source: ['Yes', 'No'] },
+    { type: 'dropdown', source: ['Yes', 'No'], visibleRows: 15, strict: true },
     { type: 'numeric', validator: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, allowInvalid: false },
     {}
   ],

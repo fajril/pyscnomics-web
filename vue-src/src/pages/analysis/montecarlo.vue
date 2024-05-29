@@ -32,7 +32,7 @@ const cardResult = ref()
 const { monteConfig: monteCfg } = storeToRefs(MonteStore)
 const numbro = Pysc.useNumbro()
 
-const { top, left, width, height } = useElementBounding(cardParams)
+// const { top, left, width, height } = useElementBounding(cardParams)
 
 const dataTable = ref(JSON.parse(JSON.stringify(monteCfg.value.params.map(v => {
   return {
@@ -128,13 +128,21 @@ const headerMonteRes = [
   { title: 'P90', key: "p90", align: 'end', value: item => item.p90 ? (numbro(item.p90 * (item.key === 'IRR' ? 100 : 1)).format()) : item.p90 },
 ]
 
+const { height } = useElementSize(refTableMonteCfg)
+
+const stopWatch = watch(height, (val) => {
+  stopWatch()
+  const el = document.querySelector(".handsontable.htColumnHeaders")
+  el.style.height = `${el.clientHeight + 200}px`
+  el.style.marginBottom = `-198px`
+})
 const tableMonteConfig = computed(() => {
   const Opt = {
     data: dataTable.value,
     colHeaders: ['Parameter', 'Distribution', 'Min', 'Base', 'Max', 'Std.Dev'],
     columns: [
       { data: 'name', renderer: 'html', readOnly: true },
-      { data: 'dist', type: 'dropdown', source: Object.values(MonteDistType), visibleRows: 15 },
+      { data: 'dist', type: 'dropdown', source: Object.values(MonteDistType), visibleRows: 15, strict: true, trimDropdown: true },
       { data: 'min', type: 'numeric', validator: 'numeric', allowInvalid: false, numericFormat: { pattern: { thousandSeparated: true, mantissa: 3, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
       { data: 'base', type: 'numeric', readOnly: true, numericFormat: { pattern: { thousandSeparated: true, mantissa: 3, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
       { data: 'max', type: 'numeric', validator: 'numeric', allowInvalid: false, numericFormat: { pattern: { thousandSeparated: true, mantissa: 3, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
@@ -324,7 +332,7 @@ onUnmounted(() => {
     </VCardText>
     <VCardText>
       <AppCardActions ref="cardParams" action-collapsed :title="$t('Parameter')" compact-header
-        :disabled="MonteStore.IsOnCalc">
+        :disabled="MonteStore.IsOnCalc" style="z-index:100; overflow:visible !important;">
         <VCardText>
           <VRow>
             <VCol cols="12" class="d-flex align-center justify-content-start">

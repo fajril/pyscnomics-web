@@ -9,6 +9,7 @@ import SettDialogs from '@/pages/components/settPysc.vue'
 import { tAlert, useAppStore } from "@/stores/appStore"
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
+import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import { useWSStore } from '@/stores/wsStore'
 import * as Pysc from '@/utils/pysc/pyscType'
@@ -26,6 +27,7 @@ const PyscConf = usePyscConfStore()
 const wsStore = useWSStore()
 const PyscSens = usePyscSensStore()
 const PyscMonte = usePyscMonteStore()
+const PyscOptim = usePyscOptimStore()
 const { settFunc, alertFunc } = storeToRefs(appStore)
 const isShowAlert = ref(false)
 const dayjs = Pysc.useDayJs()
@@ -47,7 +49,8 @@ appStore.mainCallbackCaseID = async (value, oldValue) => {
         PyscConf.tangible, PyscConf.intangible,
         PyscConf.opex, PyscConf.asr,
         PyscSens.sensConfig,
-        PyscMonte.monteConfig)
+        PyscMonte.monteConfig,
+        PyscOptim.optimConfig)
     }
   }
   await useDataStore().applyCase(appStore.curWS, [], true)
