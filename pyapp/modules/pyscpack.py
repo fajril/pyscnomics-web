@@ -20,9 +20,10 @@ log = logging.getLogger("uvicorn")
 class pyscPacker:
     typeContract: int = 1
     __hfl: str = "pySCapp"
-    __vfl: int = 5  # ver.3: var add sign (1 byte) for Null int
+    __vfl: int = 6  # ver.3: var add sign (1 byte) for Null int
     # ver.4: add case data
     # ver.5: add data sens and monte
+    # ver.6: add data optimization
 
     def __init__(self, path: Path | None = None):
         if path:
@@ -181,6 +182,17 @@ class pyscPacker:
                     )
                     self.extractMonte(wsPath, fs, caseid, writeData)
 
+                if vfl >= 6:
+                    # extract optim
+                    for idx, icase in enumerate(fullcases):
+                        writeData = icase["id"] in caseID
+                        caseid = (
+                            newCaseID[caseID.index(icase["id"])]
+                            if writeData
+                            else icase["id"]
+                        )
+                        self.extractOptim(wsPath, fs, caseid, writeData)
+
             return selCase
 
     def writeProject(self, wsPath: Path, path: Path):
@@ -215,6 +227,11 @@ class pyscPacker:
                 monteRes = self.loadmonteRes(wsPath, icase["id"])
                 self.writeMonte(Path(), monteCfg, fs)
                 self.writeMonteRes(Path(), monteRes, fs)
+
+            # write optim
+            for idx, icase in enumerate(cases):
+                optimCfg = self.loadoptim(wsPath, icase["id"])
+                self.writeOptim(Path(), optimCfg, fs)
 
         return True
 
@@ -798,7 +815,7 @@ class pyscPacker:
     def ExtractFile(self, source: Path, target: Path, useID: bool = False):
         with open(source, "rb") as fs:
             hfl, vfl = struct.unpack("@7si", fs.read(struct.calcsize("@7si")))
-            if hfl != self.__hfl.encode() or vfl not in [4, 5]:
+            if hfl != self.__hfl.encode() or not (vfl >= 4 and vfl <= self.__vfl):
                 return "Invalid file type"
 
             cases = self.readCase(fs)
@@ -832,6 +849,7 @@ class pyscPacker:
                 sensCfg = [80, 80]
                 monteCfg = self.defMonteCfg()
                 monteRes = None
+                optimCfg = self.defOptimCfg()
 
                 with open(str(target) + f"\\genconf_{id}.bin", "wb") as out1:
                     pickle.dump(genConf, out1)
@@ -859,6 +877,11 @@ class pyscPacker:
                 for idx, icase in enumerate(cases):
                     id = icase["id"] if useID else idx
                     self.extractMonte(target, fs, id, True)
+                if vfl >= 6:
+                    # extract optim
+                    for idx, icase in enumerate(cases):
+                        id = icase["id"] if useID else idx
+                        self.extractOptim(target, fs, id, True)
 
             return True
 
@@ -1139,6 +1162,76 @@ class pyscPacker:
                     fw2.write(struct.pack(f"@{lenTxt}s", str(hash).encode()))
                     pickle.dump(resMonte, fw2)
 
+    def defOptimCfg(self):
+        return {
+            "target_parameter": 0,
+            "target_optimization": 0.0,
+            "optimization": [
+                {
+                    "parameter": i,
+                    "min": 0.3 if i in [0, 1] else 0.4 if i == 9 else 0.2,
+                    "max": (
+                        0.6
+                        if i in [0, 1]
+                        else 0.44 if i == 9 else 1.0 if i in [6, 7] else 0.4
+                    ),
+                    "pos": i,
+                    "checked": False,
+                }
+                for i in range(11)
+            ],
+        }
+
+    def readOptim(self, fs: BufferedReader):
+        target_parameter = int(self.readPack("h", fs, 0))
+        target_optimization = self.readPack("d", fs)
+        lenOpti = int(self.readPack("i", fs, 0))
+        if lenOpti:
+            return {
+                "target_parameter": target_parameter,
+                "target_optimization": target_optimization,
+                "optimization": [
+                    {
+                        "parameter": self.readPack("h", fs),
+                        "min": self.readPack("d", fs),
+                        "max": self.readPack("d", fs),
+                        "pos": self.readPack("h", fs),
+                        "checked": self.readPack("?", fs),
+                    }
+                    for i in range(lenOpti)
+                ],
+            }
+        else:
+            return self.defOptimCfg()
+
+    def writeOptim(self, path: Path, param: Any, fsw: BufferedWriter | None = None):
+        fs = fsw if fsw is not None else open(path, "ab")
+        self.writePack(param["target_parameter"], "h", fs)
+        self.writePack(param["target_optimization"], "d", fs)
+        lenOpti = len(param["optimization"])
+        self.writePack(lenOpti, "i", fs)
+        for i, param in enumerate(param["optimization"]):
+            self.writePack(param["parameter"], "h", fs)
+            self.writePack(param["min"], "d", fs)
+            self.writePack(param["max"], "d", fs)
+            self.writePack(param["pos"], "h", fs)
+            self.writePack(param["checked"], "?", fs)
+
+    def loadoptim(self, sourcePath: Path, index: int):
+        filePath = self.makePath(sourcePath, f"optimcfg_{index}.bin")
+        if not filePath.exists():
+            return self.defOptimCfg()
+        with open(str(filePath), "rb") as fl:
+            return pickle.load(fl)
+
+    def extractOptim(self, wsPath: Path, fs: BufferedReader, id: int, writeData: bool):
+        # read optim
+        optimCfg = self.readOptim(fs)
+        if writeData:
+            # save optim cfg
+            with open(str(self.makePath(wsPath, f"optimcfg_{id}.bin")), "wb") as fw1:
+                pickle.dump(optimCfg, fw1)
+
     def extractProject(self, filePath: Path, oldWSPath: str | None, newWSPath: str):
         owsPath: Path | None = (
             None
@@ -1227,6 +1320,7 @@ class pyscPacker:
             clonefile(tmpPath, "senscfg")
             clonefile(tmpPath, "montecfg")
             clonefile(tmpPath, "monte")
+            clonefile(tmpPath, "optimcfg")
 
     def chgCtrType(self, wspath: str, sourceid: int, oldCtrType: int, newCtrType: int):
         tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
