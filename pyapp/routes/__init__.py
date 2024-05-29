@@ -1,4 +1,5 @@
 import base64
+import copy
 import json
 import logging
 import os
@@ -556,6 +557,34 @@ async def rdmonte(wspath: str, caseid: int):
     return {"state": False}
 
 
+@routerapi.post("/wrtoptim", response_class=JSONResponse)
+async def wrt_optim(wspath: str, caseid: int, gc: str):
+    try:
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(tmpPath)
+        filePath = Path(str(tmpPath), f"optimcfg_{caseid}.bin")
+        with open(str(filePath), "wb") as fs:
+            pickle.dump(data, fs)
+            fs.close()
+        return {"state": True}
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/rdoptim", response_class=JSONResponse)
+async def rdoptim(wspath: str, caseid: int):
+    pathFile = Path(str(Path(__file__).parent.parent.parent), f"~tmp/{wspath}")
+    if pathFile.exists():
+        packer = pyscPacker()
+        return {"state": True, "data": packer.loadoptim(pathFile, caseid)}
+    return {"state": False}
+
+
 @routerapi.get("/closeddata", response_class=JSONResponse)
 async def closeddata(tmppath: str):
     pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
@@ -728,6 +757,196 @@ async def get_monte_result(ws: str, id: int, hashData: str):
                 else None
             )
         }
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/get_optim_base_target")
+async def get_optim_base_target(type: int, data: str):
+    try:
+        dataJson = base64.b64decode(data).decode("utf-8")
+        json_dict: dict = json.loads(dataJson)
+        sumCalc = Summaries(type, json_dict)
+        return {
+            "IRR": sumCalc.summary["ctr_irr"] if sumCalc.summary is not None else 0,
+            "NPV": sumCalc.summary["ctr_npv"] if sumCalc.summary is not None else 0,
+            "PI": sumCalc.summary["ctr_pi"] if sumCalc.summary is not None else 0,
+        }
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/calc_optim")
+async def calc_optim(type: int, data: str):
+    try:
+        dataJson = base64.b64decode(data).decode("utf-8")
+        json_dict: dict = json.loads(dataJson)
+        resOptim = (
+            get_contract_optimization(data=json_dict, contract_type="Cost Recovery")
+            if type == 1
+            else (
+                get_contract_optimization(data=json_dict, contract_type="Gross Split")
+                if type == 2
+                else None
+            )
+        )
+        if resOptim is not None:
+            # calc base
+            sumCalc = Summaries(type, json_dict)
+            baseSummary = sumCalc.summary
+            json_dict2 = copy.deepcopy(json_dict)
+            for i, key in enumerate(resOptim["list_params_value"].keys()):
+                if (
+                    key == "Oil Contractor Pre Tax"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["costrecovery"]["oil_ctr_pretax_share"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Gas Contractor Pre Tax"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["costrecovery"]["gas_ctr_pretax_share"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Oil FTP Portion"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["costrecovery"]["oil_ftp_portion"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Gas FTP Portion"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["costrecovery"]["gas_ftp_portion"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Oil IC"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["costrecovery"]["oil_ic_rate"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Gas IC"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["costrecovery"]["gas_ic_rate"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Oil DMO Fee"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    if type == 1:
+                        json_dict2["costrecovery"]["oil_dmo_fee_portion"] = resOptim[
+                            "list_params_value"
+                        ][key]
+                    else:
+                        json_dict2["grosssplit"]["oil_dmo_fee_portion"] = resOptim[
+                            "list_params_value"
+                        ][key]
+                elif (
+                    key == "Gas DMO Fee"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    if type == 1:
+                        json_dict2["costrecovery"]["gas_dmo_fee_portion"] = resOptim[
+                            "list_params_value"
+                        ][key]
+                    else:
+                        json_dict2["grosssplit"]["gas_dmo_fee_portion"] = resOptim[
+                            "list_params_value"
+                        ][key]
+                elif (
+                    key == "VAT Rate"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["contract_arguments"]["vat_rate"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Effective Tax Rate"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["contract_arguments"]["tax_rate"] = resOptim[
+                        "list_params_value"
+                    ][key]
+                elif (
+                    key == "Ministerial Discretion"
+                    and resOptim["list_params_value"][key] != "Base Value"
+                ):
+                    json_dict2["grosssplit"]["split_ministry_disc"] = resOptim[
+                        "list_params_value"
+                    ][key]
+            sumCalc2 = Summaries(type, json_dict2)
+            optimSummary = sumCalc2.summary
+            keyofsum = [
+                "lifting_oil",
+                "oil_wap",
+                "lifting_gas",
+                "gas_wap",
+                "gross_revenue",
+                "none",
+                "ctr_gross_share",
+                "gov_gross_share",
+                "sunk_cost",
+                "investment",
+                "tangible",
+                "intangible",
+                "opex_and_asr",
+                "opex",
+                "asr",
+                "cost_recovery/deductible_cost",
+                "cost_recovery_over_gross_rev",
+                "unrec_cost",
+                "unrec_over_gross_rev",
+                "none",
+                "ctr_net_share",
+                "ctr_net_share_over_gross_share",
+                "ctr_net_cashflow",
+                "ctr_net_cashflow_over_gross_rev",
+                "ctr_npv",
+                "ctr_irr",
+                "ctr_pot",
+                "ctr_pv_ratio",
+                "ctr_pi",
+                "none",
+                "gov_gross_share",
+                "gov_ftp_share",
+                "gov_ddmo",
+                "gov_tax_income",
+                "gov_take",
+                "gov_take_over_gross_rev",
+                "gov_take_npv",
+            ]
+
+            return {
+                "state": True,
+                "out": {
+                    "result": resOptim,
+                    "summary1": [
+                        baseSummary[key] if key != "none" else None
+                        for i, key in enumerate(keyofsum)
+                    ],
+                    "summary2": [
+                        optimSummary[key] if key != "none" else None
+                        for i, key in enumerate(keyofsum)
+                    ],
+                },
+            }
+        else:
+            return {"state": False, "out": None}
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
