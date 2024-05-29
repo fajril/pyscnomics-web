@@ -5,7 +5,7 @@ const jsonexportref = ref(null)
 const selectedItem = ref(null)
 const exportType = [
   { name: "Json File Format", icon: "tabler-json", value: "json" },
-  { name: "XLSX File Format", icon: "tabler-file-spreadsheet", value: "xlsx" }
+  { name: "PDF File Format", icon: "tabler-pdf", value: "pdf" }
 ]
 
 const ExportTo = (value) => {
