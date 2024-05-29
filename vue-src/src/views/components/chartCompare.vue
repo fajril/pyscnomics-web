@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useAppStore } from "@/stores/appStore";
 import * as Pysc from "@/utils/pysc/pyscType";
 import { hexToRgb } from '@layouts/utils';
 import { RadarChart } from "echarts/charts";
@@ -36,11 +35,11 @@ const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] 
 }
 
 interface Props {
-  selCase: number[]
+  series: { id: number, title: string, subtitle?: string }[]
   dataChart: []
 }
+
 const props = defineProps<Props>()
-const appStore = useAppStore()
 const refCompContainer = ref()
 const refCompChart = ref()
 
@@ -73,14 +72,17 @@ const chtOption = computed(() => {
     const data = getDataIndicator(index)
     return data.length ? math.min(data) : 0
   }
-  const caseName = props.selCase.map(_id => ({ id: _id, name: appStore.caseByID(_id)?.name }))
   const chartOpt = {
     legend: {
       textStyle: { color: themePrimaryTextColor }
     },
     radar: [
       {
-        indicator: indicator.map((name, idx) => ({ text: name.name, max: MaxDataIndicator(idx) })),
+        indicator: indicator.map((name, idx) => {
+          const _max = MaxDataIndicator(idx)
+          const _min = MinDataIndicator(idx)
+          return { name: name.name, max: MaxDataIndicator(idx), min: _max > 0 && _min < 0 ? _min : undefined }
+        }),
         splitNumber: 4,
         splitArea: {
           areaStyle: {
@@ -115,7 +117,7 @@ const chtOption = computed(() => {
             const data = getDataIndicator(idxI).map((v, i) => ({ idx: i, value: v })).sort((a, b) => b.value - a.value)
             const txt = `<b>${indicator[idxI].long} ${idxI === 4 ? '(%)' : (idxI !== 5 ? '(USD)' : '')}</b><table>` +
               data.reduce((txt, v, i) => {
-                const name = caseName[v.idx].name
+                const name = props.series[v.idx].title
                 const val = typeof v.value === 'number' ? numbro(v.value * (![4, 5].includes(idxI) ? 1e6 : 1)).format({ mantissa: 3, thousandSeparated: true, average: ![4, 5].includes(idxI) }).toUpperCase() : ''
                 return txt + `<tr><td>${name}</td><td><span  class="me-3 ms-1">:</span></td><td class="text-right">${val}</td></tr>`
               }, '') + '</table>'
@@ -133,10 +135,10 @@ const chtOption = computed(() => {
             return value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value
           },
         },
-        data: props.selCase.map((s, idx) => {
+        data: props.series.map((s, idx) => {
           return {
             value: props.dataChart.length ? props.dataChart[idx] : [],
-            name: caseName[idx].name,
+            name: s.title,
             lineStyle: {
               type: idx === 0 ? 'solid' : 'dashed',
             },

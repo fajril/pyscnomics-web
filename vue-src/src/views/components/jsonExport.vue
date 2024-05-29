@@ -6,6 +6,7 @@ import Prism from 'vue-prism-component';
 
 import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
+import { useDataStore } from '@/utils/pysc/useDataStore';
 
 const unknownJson = "TODO: json format blum diketahui"
 const appStore = useAppStore()
@@ -19,7 +20,7 @@ const LoadJsonFormat = () => {
   jsonCode.value = {}
   IsLoading.value = true
   isDialogVisible.value = true
-  jsonCode.value = Object.assign({}, PyscConf.makeJSON(appStore.curSelCase))
+  jsonCode.value = Object.assign({}, useDataStore().curCase2Json())
   IsLoading.value = false
 }
 

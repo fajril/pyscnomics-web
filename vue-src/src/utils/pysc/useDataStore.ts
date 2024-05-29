@@ -1,6 +1,7 @@
 import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
 import { tmonteConfig, usePyscMonteStore } from '@/stores/monteStore';
+import { optimCfg, usePyscOptimStore } from '@/stores/optimStore';
 import { usePyscSensStore } from '@/stores/sensStore';
 import * as Pysc from '@/utils/pysc/pyscType';
 
@@ -9,6 +10,7 @@ export const useDataStore = () => {
   const PyscConf = usePyscConfStore()
   const PyscSens = usePyscSensStore()
   const PyscMonte = usePyscMonteStore()
+  const PyscOptim = usePyscOptimStore()
 
   const dayjs = Pysc.useDayJs()
 
@@ -83,6 +85,10 @@ export const useDataStore = () => {
         state.monteConfig = JSON.parse(JSON.stringify(PyscMonte.defParam))
       })
 
+      PyscOptim.$patch((state) => {
+        state.optimConfig = JSON.parse(JSON.stringify(PyscOptim.defOptimCfg()))
+      })
+
       if (_incVer) state.appver = newVer
       state.curWS = newWS
       state.curProject = null
@@ -123,6 +129,7 @@ export const useDataStore = () => {
 
     const DataSens = { params: [80, 80] }
     const DataMonte = { params: JSON.parse(JSON.stringify(PyscMonte.defParam)) }
+    const DataOptim = { params: JSON.parse(JSON.stringify(PyscOptim.defOptimCfg())) }
 
     let DataLoaded = false
     const cases = dataOnly ? appStore.projects : _caselists
@@ -168,6 +175,9 @@ export const useDataStore = () => {
       //montecarlo
       resInit = await execPartData('/auth/rdmonte', 'GET', { wspath: wsPath, caseid: curSelCase })
       DataMonte.params = JSON.parse(JSON.stringify(resInit.data))
+      //optim
+      resInit = await execPartData('/auth/rdoptim', 'GET', { wspath: wsPath, caseid: curSelCase })
+      DataOptim.params = JSON.parse(JSON.stringify(resInit.data))
 
       DataLoaded = true
 
@@ -197,6 +207,10 @@ export const useDataStore = () => {
         PyscMonte.$patch((state) => {
           state.monteConfig = JSON.parse(JSON.stringify(DataMonte.params))
         })
+
+        PyscOptim.$patch((state) => {
+          state.optimConfig = JSON.parse(JSON.stringify(DataOptim.params))
+        })
       }
     }
 
@@ -215,7 +229,8 @@ export const useDataStore = () => {
     tangible: Array<number | string | null>[], intangible: Array<number | string | null>[],
     opex: Array<number | string | null>[], asr: Array<number | string | null>[],
     sensConfig: number[],
-    monteConfig: tmonteConfig) => {
+    monteConfig: tmonteConfig,
+    optimComfig: optimCfg) => {
     try {
       await execPartData('/auth/wrtgenconf', 'POST', {
         wspath: curWS,
@@ -287,6 +302,14 @@ export const useDataStore = () => {
         wspath: curWS,
         caseid: caseID,
         gc: btoa(JSON.stringify(monteConfig))
+      })
+    } catch (err) { }
+    //optimasi
+    try {
+      await execPartData('/auth/wrtoptim', 'POST', {
+        wspath: curWS,
+        caseid: caseID,
+        gc: btoa(JSON.stringify(optimComfig))
       })
     } catch (err) { }
 
@@ -395,7 +418,8 @@ export const useDataStore = () => {
           PyscConf.tangible, PyscConf.intangible,
           PyscConf.opex, PyscConf.asr,
           PyscSens.sensConfig,
-          PyscMonte.monteConfig)
+          PyscMonte.monteConfig,
+          PyscOptim.optimConfig)
       }
 
       const wrtproject = await execPartData('/auth/wrtproject', 'POST', {
@@ -511,7 +535,7 @@ export const useDataStore = () => {
       await saveCaseData(appStore.curWS, param.id,
         ngc, Pysc.defProdConfig(), ctr, Pysc.defFiskal(),
         [Array(9).fill(null)], [Array(5).fill(null)], [Array(8).fill(null)], [Array(4).fill(null)],
-        [80, 80], JSON.parse(JSON.stringify(PyscMonte.defParam)))
+        [80, 80], JSON.parse(JSON.stringify(PyscMonte.defParam)), JSON.parse(JSON.stringify(PyscOptim.defOptimCfg())))
 
     } catch (err) {
 
@@ -1036,7 +1060,12 @@ export const useDataStore = () => {
     return jsonres
   }
 
-
+  const curCase2Json = (useDate: boolean = true) => {
+    return makeJSONofCase(appStore.curSelCase,
+      PyscConf.dataGConf, PyscConf.dataProd, PyscConf.dataContr, PyscConf.dataFisc,
+      PyscConf.dataTan, PyscConf.dataIntan, PyscConf.dataOpex, PyscConf.dataASR,
+      useDate)
+  }
 
   return {
     resetDataStore,
@@ -1054,6 +1083,6 @@ export const useDataStore = () => {
 
     addCase, cloneCase, delCase, updateCase, saveCaseData,
 
-    makeJSONofCase,
+    makeJSONofCase, curCase2Json
   }
 }

@@ -54,11 +54,29 @@ export const InpDateToUnix = (obj: Ref<number>, val: string) => {
   obj.value = toUTCUnix(val);
 };
 
-export const VModelPercent = (model) => computed({
-  get: () => model.value / 100.,
-  set: (val) => { model.value = val * 100 }
+export const VModelPercent = (model: Ref<number | null | undefined>) => computed({
+  get: () => model.value ? model.value / 100. : 0,
+  set: (val) => { if (!isNaN(+val)) model.value = val * 100 }
 })
 
+export const extractError = (err: any) => {
+  try {
+    const error = isObject(err) && err.hasOwnProperty('state') ? err.state : err
+    const errorStatus = Array.isArray(error) && error.length === 2 ? error[0] : (isObject(error) && error.hasOwnProperty('status') ? error.status : '')
+    let errorMsg = Array.isArray(error) && error.length === 2 ? error[1] : (isObject(error) && error.hasOwnProperty('error') ? error.error : error)
+    if (Array.isArray(errorMsg)) errorMsg = errorMsg[0]
+    if (typeof errorMsg === 'string' && errorMsg.toLowerCase().indexOf("<html") !== -1) errorMsg = "Unknown error"
+    return {
+      status: errorStatus,
+      msg: errorMsg
+    }
+  } catch (err) {
+  }
+  return {
+    status: '',
+    msg: 'Unknown error'
+  }
+}
 /**
  * Chart OPT
  */
@@ -120,6 +138,46 @@ export const TableContextMenus = () => {
     }
   }
 }
+
+export const templateSummary = [
+  { param: "Oil Production", unit: "MMSTB" },
+  { param: "Oil WAP", unit: "US$/bbl" },
+  { param: "Gas Production", unit: "TBTU" },
+  { param: "Gas WAP", unit: "US$/MMBTU" },
+  { param: "Gross Revenue", unit: "MUS$" },
+  { param: 'Gross Share', unit: "", grp: 2 },
+  { param: "Contr. Gross Share", unit: "MUS$", grp: -1 },
+  { param: "GoI Gross Share", unit: "MUS$", grp: -2 },
+  { param: "Sunk Cost", unit: "MUS$" },
+  { param: 'Investment', unit: "MUS$", grp: 2 },
+  { param: "Tangible", unit: "MUS$", grp: -1 },
+  { param: "Intangible", unit: "MUS$", grp: -2 },
+  { param: "OPEX + ASR", unit: "MUS$", grp: 2 },
+  { param: "OPEX", unit: "MUS$", grp: -1 },
+  { param: "ASR", unit: "MUS$", grp: -2 },
+  { param: "Cost Recovery / Deductible Cost", unit: "MUS$", grp: 1 },
+  { param: "(% Gross Revenue)", unit: "%", grp: -1 },
+  { param: "Unrec. Cost / Carry Fwd. Deductible Cost", unit: "MUS$", grp: 1 },
+  { param: "(% Gross Revenue)", unit: "%", grp: -1 },
+  { param: "Contractor Profitability:", unit: "", grp: 9 },
+  { param: "Contr. Net Share", unit: "MUS$", grp: -1 },
+  { param: "(% Gross Rev)", unit: "%", grp: -2 },
+  { param: "Contr. Net Cash Flow", unit: "MUS$", grp: -3 },
+  { param: "(% Gross Rev)", unit: "%", grp: -4 },
+  { param: "Contr. NPV", unit: "MUS$", grp: -5 },
+  { param: "Contr. IRR", unit: "%", grp: -6 },
+  { param: "Contr. POT", unit: "years", grp: -7 },
+  { param: "Contr. PV Ratio", unit: "", grp: -8 },
+  { param: "Contr. PI", unit: "", grp: -9 },
+  { param: "GoI Profitability:", unit: "", grp: 7 },
+  { param: "GoI Gross Share", unit: "MUS$", grp: -1 },
+  { param: "FTP (PSC Cost Recovery)", unit: "MUS$", grp: -2 },
+  { param: "Net DMO", unit: "MUS$", grp: -3 },
+  { param: "Tax", unit: "MUS$", grp: -4 },
+  { param: "GoI Take", unit: "MUS$", grp: -5 },
+  { param: "(% Gross Rev)", unit: "%", grp: -7 },
+  { param: "GoI NPV", unit: "MUS$", grp: -8 },
+]
 
 export interface OptTable {
   page: number;

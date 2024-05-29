@@ -76,5 +76,6 @@ export default [
   {
     title: 'Optimization',
     icon: { icon: 'tabler-settings-automation' },
+    to: { name: 'pysc-optim' },
   },
 ]

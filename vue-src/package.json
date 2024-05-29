@@ -54,6 +54,7 @@
     "vite-plugin-dynamic-base": "^1.0.2",
     "vue": "^3.4.10",
     "vue-chartjs": "^5.2.0",
+    "vue-draggable-plus": "^0.4.1",
     "vue-echarts": "^6.7.1",
     "vue-flatpickr-component": "11.0.3",
     "vue-i18n": "^9.5.0",

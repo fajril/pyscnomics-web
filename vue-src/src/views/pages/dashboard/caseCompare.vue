@@ -2,11 +2,13 @@
 import { useAppStore } from "@/stores/appStore";
 import { usePyscConfStore } from '@/stores/genfisStore';
 import { usePyscMonteStore } from '@/stores/monteStore';
+import { usePyscOptimStore } from '@/stores/optimStore';
 import { usePyscSensStore } from '@/stores/sensStore';
 import * as Pysc from "@/utils/pysc/pyscType";
 import { useDataStore } from '@/utils/pysc/useDataStore';
+import ChartCompare from '@/views/components/chartCompare.vue';
+import TableCompare from '@/views/components/tableCompare.vue';
 import 'handsontable/dist/handsontable.full.css';
-import ChartCompare1 from './compareChart1.vue';
 
 interface Emit {
   (e: 'compareDlgDone'): void
@@ -18,12 +20,14 @@ const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
 const PyscSens = usePyscSensStore()
 const PyscMonte = usePyscMonteStore()
+const PyscOptim = usePyscOptimStore()
 const numbro = Pysc.useNumbro()
 
-const tblCompare = ref()
 const isCompareVisible = ref(false)
 const sourceCase = ref()
 const selCase = ref([])
+const TableCompareRef = ref()
+const dataTableCompare = ref([])
 const dataChartCompare = ref([])
 const isCalcData = ref(false)
 const targetCases = computed(() => {
@@ -37,124 +41,124 @@ const closeChips = (caseID: number) => {
   selCase.value.splice(index, 1)
 }
 
-const templatedata = [
-  { param: "Oil Production", unit: "MMSTB" },
-  { param: "Oil WAP", unit: "US$/bbl" },
-  { param: "Gas Production", unit: "TBTU" },
-  { param: "Gas WAP", unit: "US$/MMBTU" },
-  { param: "Gross Revenue", unit: "MUS$" },
-  { param: 'Gross Share', unit: "", grp: 2 },
-  { param: "Contr. Gross Share", unit: "MUS$", grp: -1 },
-  { param: "GoI Gross Share", unit: "MUS$", grp: -2 },
-  { param: "Sunk Cost", unit: "MUS$" },
-  { param: 'Investment', unit: "MUS$", grp: 2 },
-  { param: "Tangible", unit: "MUS$", grp: -1 },
-  { param: "Intangible", unit: "MUS$", grp: -2 },
-  { param: "OPEX + ASR", unit: "MUS$", grp: 2 },
-  { param: "OPEX", unit: "MUS$", grp: -1 },
-  { param: "ASR", unit: "MUS$", grp: -2 },
-  { param: "Cost Recovery / Deductible Cost", unit: "MUS$", grp: 1 },
-  { param: "(% Gross Revenue)", unit: "%", grp: -1 },
-  { param: "Unrec. Cost / Carry Fwd. Deductible Cost", unit: "MUS$", grp: 1 },
-  { param: "(% Gross Revenue)", unit: "%", grp: -1 },
-  { param: "Contractor Profitability:", unit: "", grp: 9 },
-  { param: "Contr. Net Share", unit: "MUS$", grp: -1 },
-  { param: "(% Gross Rev)", unit: "%", grp: -2 },
-  { param: "Contr. Net Cash Flow", unit: "MUS$", grp: -3 },
-  { param: "(% Gross Rev)", unit: "%", grp: -4 },
-  { param: "Contr. NPV", unit: "MUS$", grp: -5 },
-  { param: "Contr. IRR", unit: "%", grp: -6 },
-  { param: "Contr. POT", unit: "years", grp: -7 },
-  { param: "Contr. PV Ratio", unit: "", grp: -8 },
-  { param: "Contr. PI", unit: "", grp: -9 },
-  { param: "GoI Profitability:", unit: "", grp: 7 },
-  { param: "GoI Gross Share", unit: "MUS$", grp: -1 },
-  { param: "FTP (PSC Cost Recovery)", unit: "MUS$", grp: -2 },
-  { param: "Net DMO", unit: "MUS$", grp: -3 },
-  { param: "Tax", unit: "MUS$", grp: -4 },
-  { param: "GoI Take", unit: "MUS$", grp: -5 },
-  { param: "(% Gross Rev)", unit: "%", grp: -7 },
-  { param: "GoI NPV", unit: "MUS$", grp: -8 },
-]
+// const templatedata = [
+//   { param: "Oil Production", unit: "MMSTB" },
+//   { param: "Oil WAP", unit: "US$/bbl" },
+//   { param: "Gas Production", unit: "TBTU" },
+//   { param: "Gas WAP", unit: "US$/MMBTU" },
+//   { param: "Gross Revenue", unit: "MUS$" },
+//   { param: 'Gross Share', unit: "", grp: 2 },
+//   { param: "Contr. Gross Share", unit: "MUS$", grp: -1 },
+//   { param: "GoI Gross Share", unit: "MUS$", grp: -2 },
+//   { param: "Sunk Cost", unit: "MUS$" },
+//   { param: 'Investment', unit: "MUS$", grp: 2 },
+//   { param: "Tangible", unit: "MUS$", grp: -1 },
+//   { param: "Intangible", unit: "MUS$", grp: -2 },
+//   { param: "OPEX + ASR", unit: "MUS$", grp: 2 },
+//   { param: "OPEX", unit: "MUS$", grp: -1 },
+//   { param: "ASR", unit: "MUS$", grp: -2 },
+//   { param: "Cost Recovery / Deductible Cost", unit: "MUS$", grp: 1 },
+//   { param: "(% Gross Revenue)", unit: "%", grp: -1 },
+//   { param: "Unrec. Cost / Carry Fwd. Deductible Cost", unit: "MUS$", grp: 1 },
+//   { param: "(% Gross Revenue)", unit: "%", grp: -1 },
+//   { param: "Contractor Profitability:", unit: "", grp: 9 },
+//   { param: "Contr. Net Share", unit: "MUS$", grp: -1 },
+//   { param: "(% Gross Rev)", unit: "%", grp: -2 },
+//   { param: "Contr. Net Cash Flow", unit: "MUS$", grp: -3 },
+//   { param: "(% Gross Rev)", unit: "%", grp: -4 },
+//   { param: "Contr. NPV", unit: "MUS$", grp: -5 },
+//   { param: "Contr. IRR", unit: "%", grp: -6 },
+//   { param: "Contr. POT", unit: "years", grp: -7 },
+//   { param: "Contr. PV Ratio", unit: "", grp: -8 },
+//   { param: "Contr. PI", unit: "", grp: -9 },
+//   { param: "GoI Profitability:", unit: "", grp: 7 },
+//   { param: "GoI Gross Share", unit: "MUS$", grp: -1 },
+//   { param: "FTP (PSC Cost Recovery)", unit: "MUS$", grp: -2 },
+//   { param: "Net DMO", unit: "MUS$", grp: -3 },
+//   { param: "Tax", unit: "MUS$", grp: -4 },
+//   { param: "GoI Take", unit: "MUS$", grp: -5 },
+//   { param: "(% Gross Rev)", unit: "%", grp: -7 },
+//   { param: "GoI NPV", unit: "MUS$", grp: -8 },
+// ]
 
-function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
-  if (col === 0) {
-    if (templatedata[row].grp < 0) {
-      const span = document.createElement('span')
-      span.classList.add("ms-4")
-      span.classList.add("text-capitalize")
-      span.innerText = value
-      td.innerText = ''
-      td.appendChild(span)
-      if (!isEmpty(templatedata[row].unit)) {
-        span.innerText = span.innerText + ", "
-        const small = document.createElement('small')
-        small.classList.add("text-primary")
-        small.innerText = templatedata[row].unit
-        td.appendChild(small)
-      }
-    } else {
-      td.classList.add("text-capitalize")
-      if (templatedata[row].grp > 0)
-        td.classList.add("font-weight-bold")
-      td.innerText = value
-      if (!isEmpty(templatedata[row].unit)) {
-        const small = document.createElement('small')
-        small.classList.add("text-primary")
-        td.innerText = td.innerText + ", "
-        small.innerText = templatedata[row].unit
-        td.appendChild(small)
-      }
-    }
-  } else {
+// function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
+//   if (col === 0) {
+//     if (templatedata[row].grp < 0) {
+//       const span = document.createElement('span')
+//       span.classList.add("ms-4")
+//       span.classList.add("text-capitalize")
+//       span.innerText = value
+//       td.innerText = ''
+//       td.appendChild(span)
+//       if (!isEmpty(templatedata[row].unit)) {
+//         span.innerText = span.innerText + ", "
+//         const small = document.createElement('small')
+//         small.classList.add("text-primary")
+//         small.innerText = templatedata[row].unit
+//         td.appendChild(small)
+//       }
+//     } else {
+//       td.classList.add("text-capitalize")
+//       if (templatedata[row].grp > 0)
+//         td.classList.add("font-weight-bold")
+//       td.innerText = value
+//       if (!isEmpty(templatedata[row].unit)) {
+//         const small = document.createElement('small')
+//         small.classList.add("text-primary")
+//         td.innerText = td.innerText + ", "
+//         small.innerText = templatedata[row].unit
+//         td.appendChild(small)
+//       }
+//     }
+//   } else {
 
-    const div = document.createElement('div')
-    div.classList.add("d-flex")
-    div.classList.add("justify-end")
-    const span = document.createElement('span')
-    const valTxt = typeof value === 'number' ? numbro(value).format({ mantissa: 3, thousandSeparated: true, negative: "parenthesis", spaceSeparated: true }) : ""
-    span.innerText = valTxt
-    div.appendChild(span)
-    if (col > 1 && typeof value === 'number' && !isEmpty(valTxt)) {
-      const iel = document.createElement('span')
-      iel.classList.add("font-weight-bold")
-      const _indicator = value > CompSetting.value.data[row][1] ? 'tabler-corner-right-up' : (value < CompSetting.value.data[row][1] ? 'tabler-corner-right-down' : '')
-      const _color = value > CompSetting.value.data[row][1] ? 'text-primary' : (value < CompSetting.value.data[row][1] ? 'text-error' : '')
-      iel.innerHTML = `<i class="v-icon notranslate ${_color} ${_indicator} v-icon notranslate" aria-hidden="true" style="font-size: 16px; height: 16px; width: 16px;"></i>`
-      div.appendChild(iel)
-    }
-    td.innerText = ""
-    td.appendChild(div)
-  }
-  return td
-}
+//     const div = document.createElement('div')
+//     div.classList.add("d-flex")
+//     div.classList.add("justify-end")
+//     const span = document.createElement('span')
+//     const valTxt = typeof value === 'number' ? numbro(value).format({ mantissa: 3, thousandSeparated: true, negative: "parenthesis", spaceSeparated: true }) : ""
+//     span.innerText = valTxt
+//     div.appendChild(span)
+//     if (col > 1 && typeof value === 'number' && !isEmpty(valTxt)) {
+//       const iel = document.createElement('span')
+//       iel.classList.add("font-weight-bold")
+//       const _indicator = value > CompSetting.value.data[row][1] ? 'tabler-corner-right-up' : (value < CompSetting.value.data[row][1] ? 'tabler-corner-right-down' : '')
+//       const _color = value > CompSetting.value.data[row][1] ? 'text-primary' : (value < CompSetting.value.data[row][1] ? 'text-error' : '')
+//       iel.innerHTML = `<i class="v-icon notranslate ${_color} ${_indicator} v-icon notranslate" aria-hidden="true" style="font-size: 16px; height: 16px; width: 16px;"></i>`
+//       div.appendChild(iel)
+//     }
+//     td.innerText = ""
+//     td.appendChild(div)
+//   }
+//   return td
+// }
 
-const CompSetting = computed(() => {
-  let tblCfg = {
-    data: templatedata.map(v => [v.param]),
-    colHeaders: (index) => {
-      if (index === 0)
-        return ""
-      else {
+// const CompSetting = computed(() => {
+//   let tblCfg = {
+//     data: templatedata.map(v => [v.param]),
+//     colHeaders: (index) => {
+//       if (index === 0)
+//         return ""
+//       else {
 
-        const source = index === 1 ? appStore.caseByID(sourceCase.value) : appStore.caseByID(selCase.value[index - 2])
-        const _ctrType = ['', 'PSC', 'GS', 'CR-CR', 'CR-GS', 'GS-GS', 'GS-CR']
-        return `<div><p class="my-0">${source?.name}</p><h5 class="my-0 text-primary" style=":style="max-inline-size:100px;overflow:hidden;text-overflow:ellipsis;">${_ctrType[source?.type]}</h5></div>`
-      }
-    },
-    columns: [],
-    contextMenu: false,
-    height: 'auto',
-    width: '100%',
-    fixedColumnsStart: 1,
-    manualColumnResize: true,
-    autoWrapRow: false,
-    autoWrapCol: false,
-    licenseKey: 'non-commercial-and-evaluation'
-  }
-  tblCfg.columns = Array(2 + selCase.value.length).fill({ readOnly: true, renderer: renderedColumn })
-  return tblCfg
-})
+//         const source = index === 1 ? appStore.caseByID(sourceCase.value) : appStore.caseByID(selCase.value[index - 2])
+//         const _ctrType = ['', 'PSC', 'GS', 'CR-CR', 'CR-GS', 'GS-GS', 'GS-CR']
+//         return `<div><p class="my-0">${source?.name}</p><h5 class="my-0 text-primary" style=":style="max-inline-size:100px;overflow:hidden;text-overflow:ellipsis;">${_ctrType[source?.type]}</h5></div>`
+//       }
+//     },
+//     columns: [],
+//     contextMenu: false,
+//     height: 'auto',
+//     width: '100%',
+//     fixedColumnsStart: 1,
+//     manualColumnResize: true,
+//     autoWrapRow: false,
+//     autoWrapCol: false,
+//     licenseKey: 'non-commercial-and-evaluation'
+//   }
+//   tblCfg.columns = Array(2 + selCase.value.length).fill({ readOnly: true, renderer: renderedColumn })
+//   return tblCfg
+// })
 
 const execPartData = async (url: string, mode: string, param: object) => {
   const result = await $api(url, {
@@ -175,7 +179,7 @@ const loadData = async (urlpath: string, id: number, costmode: number | undefine
 
 
 const calcData = async () => {
-  const CompOut = templatedata.map(v => [v.param])
+  const CompOut = []
   let dataLoaded = false
   try {
     if ((sourceCase.value === appStore.curSelCase || selCase.value.includes(appStore.curSelCase)) &&
@@ -185,7 +189,8 @@ const calcData = async () => {
         PyscConf.tangible, PyscConf.intangible,
         PyscConf.opex, PyscConf.asr,
         PyscSens.sensConfig,
-        PyscMonte.monteConfig)
+        PyscMonte.monteConfig,
+        PyscOptim.optimConfig)
 
     const listCaseID = [sourceCase.value, ...selCase.value]
     for (let i = 0; i < listCaseID.length; i++) {
@@ -209,42 +214,55 @@ const calcData = async () => {
           throw { status: response.status, error: response._data.detail }
         },
       })
-      CompOut.forEach((row, index) => row.push(typeof result.summary[index] === "number" ? (result.summary[index] * (templatedata[index].unit === '%' ? 100 : 1)) : result.summary[index]))
+      if (CompOut.length === 0)
+        CompOut.splice(0, CompOut.length, ...result.summary.map(v => [v]))
+      else
+        CompOut.forEach((row, index) => row.push(typeof result.summary[index] === "number" ? (result.summary[index] * (Pysc.templateSummary[index].unit === '%' ? 100 : 1)) : result.summary[index]))
     }
     dataLoaded = true
   } catch (err) {
-    const error = isObject(err) && err.hasOwnProperty('state') ? err.state : err
-    const errorStatus = Array.isArray(error) && error.length === 2 ? error[0] : (isObject(error) && error.hasOwnProperty('status') ? error.status : '')
-    let errorMsg = Array.isArray(error) && error.length === 2 ? error[1] : (isObject(error) && error.hasOwnProperty('error') ? error.error : error)
-    if (Array.isArray(errorMsg)) errorMsg = errorMsg[0]
-    if (errorMsg.toLowerCase().indexOf("<html") !== -1) errorMsg = "Unknown error"
+    const { status, msg } = Pysc.extractError(err)
     appStore.showAlert({
-      text: `Error ${errorStatus}: ${errorMsg}`,
+      text: `Error ${status}: ${msg}`,
       isalert: true
     })
+    dataTableCompare.value.splice(0, dataTableCompare.value.length, ...[])
+    dataChartCompare.value.splice(0, dataChartCompare.value.length, ...[])
   }
   if (dataLoaded) {
-    CompSetting.value.data.splice(0, CompSetting.value.data.length, ...CompOut)
+    // CompSetting.value.data.splice(0, CompSetting.value.data.length, ...CompOut)
+    dataTableCompare.value.splice(0, dataTableCompare.value.length, ...CompOut)
     dataChartCompare.value.splice(0, dataChartCompare.value.length, ...[sourceCase.value, ...selCase.value].map((cs, idx) => {
       return [
-        CompOut[4][idx + 1], //'Revenue'
-        CompOut[15][idx + 1], //'CR/DC'
-        CompOut[20][idx + 1], //'NCS'
-        CompOut[24][idx + 1], //'Ctr. NPV'
-        CompOut[25][idx + 1], //'Ctr. IRR'
-        CompOut[28][idx + 1], //'Ctr. PI'
-        CompOut[32][idx + 1], //'DMO'
-        CompOut[33][idx + 1], //'Tax'
-        CompOut[34][idx + 1], //'GoS'
-        CompOut[36][idx + 1], //'GoI NPV'
+        CompOut[4][idx], //'Revenue'
+        CompOut[15][idx], //'CR/DC'
+        CompOut[20][idx], //'NCS'
+        CompOut[24][idx], //'Ctr. NPV'
+        CompOut[25][idx], //'Ctr. IRR'
+        CompOut[28][idx], //'Ctr. PI'
+        CompOut[32][idx], //'DMO'
+        CompOut[33][idx], //'Tax'
+        CompOut[34][idx], //'GoS'
+        CompOut[36][idx], //'GoI NPV'
       ]
     }))
   }
-  nextTick(() => {
-    isCalcData.value = false
-    tblCompare.value?.hotInstance.updateSettings(CompSetting.value)
-  })
+  isCalcData.value = false
 }
+
+const dataChartSeries = computed(() => {
+  return [sourceCase.value, ...selCase.value].map((_id => {
+    return { id: +_id, title: appStore.caseByID(_id)?.name }
+  }))
+})
+
+const tableColumnHeader = computed(() => {
+  return [sourceCase.value, ...selCase.value].map(_id => {
+    const source = appStore.caseByID(_id)
+    const _ctrType = ['', 'PSC', 'GS', 'CR-CR', 'CR-GS', 'GS-GS', 'GS-CR']
+    return { id: _id, title: source?.name, subtitle: _ctrType[source?.type] }
+  })
+})
 
 watchDebounced(selCase, (val) => {
   if (sourceCase.value) {
@@ -257,7 +275,7 @@ const showCaseCompare = (caseID: number) => {
   if (!(appStore.caseByID(caseID)?.type > 0))
     return appStore.showAlert({ text: "Only PSC Cost Recovery (CR), PSC Gross Split (GS), and Transition can be compared", isalert: false })
   sourceCase.value = caseID
-  CompSetting.value.data = templatedata.map(v => [v.param])
+  // CompSetting.value.data = templatedata.map(v => [v.param])
   selCase.value = []
   isCompareVisible.value = true
   nextTick(() => {
@@ -304,7 +322,7 @@ defineExpose({
                     </template>
                     <span :style="{ 'max-inline-size': '100px', 'overflow': 'hidden', 'text-overflow': 'ellipsis' }">{{
                       item.raw.name
-                    }}</span>
+                      }}</span>
                   </VChip>
                 </template>
               </AppSelect>
@@ -320,13 +338,14 @@ defineExpose({
               <VCol cols="12" lg="7" xl="6">
                 <AppCardActions action-collapsed title="Summary" compact-header :loading="isCalcData">
                   <VCardText>
-                    <hot-table ref="tblCompare" :settings="CompSetting"></hot-table>
+                    <!-- <hot-table ref="tblCompare" :settings="CompSetting"></hot-table> -->
+                    <TableCompare ref="TableCompareRef" :columns="tableColumnHeader" :data="dataTableCompare" />
                   </VCardText>
                 </AppCardActions>
               </VCol>
               <VCol cols="12" lg="5" xl="6">
-                <AppCardActions action-collapsed title="Chart" compact-header>
-                  <ChartCompare1 :selCase="[sourceCase, ...selCase]" :dataChart="dataChartCompare" />
+                <AppCardActions action-collapsed title="Chart" compact-header style="overflow:visible !important">
+                  <ChartCompare :series="dataChartSeries" :dataChart="dataChartCompare" />
                 </AppCardActions>
               </VCol>
             </VRow>

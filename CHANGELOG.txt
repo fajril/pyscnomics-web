@@ -1,3 +1,9 @@
+2024-5-29:
+update webapp:
+- (+)optimization module
+- upd filesystem: (+)optim. data
+- upd. uncertainty: fix issue show dropdown menu
+--------------------------------------------------------------------------------------
 2024-5-26:
 update webapp:
 - upd dashboard: (+)"Case comparison"

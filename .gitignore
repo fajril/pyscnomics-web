@@ -31,3 +31,4 @@ pyscnomics/tools/__pycache__/
 vue-src/pnpm-lock.yaml
 vue-src/.env.example
 vue-src/README.md
+*.7z
