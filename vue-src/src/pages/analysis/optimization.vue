@@ -23,6 +23,7 @@ const PyscConf = usePyscConfStore()
 const PyscOptim = usePyscOptimStore()
 const { optimConfig } = storeToRefs(PyscOptim)
 const numbro = Pysc.useNumbro()
+const dayjs = Pysc.useDayJs()
 
 const isLoading = ref(false)
 
@@ -98,18 +99,18 @@ const getBaseValue = (paramID: number) => {
   else if (paramID === 7)
     return PyscConf.dataContr.cr.GasDMO.fee
   else if (paramID === 8)
-    return PyscConf.fiscal.Fiskal.VAT.vat_rate_init
+    return PyscConf.fiscal.Fiskal.VAT.vat_mode === 1 ? PyscConf.fiscal.Fiskal.VAT.multi_vat_init : PyscConf.fiscal.Fiskal.VAT.vat_rate_init
   else if (paramID === 9)
-    return PyscConf.fiscal.Fiskal.Tax.tax_rate_init
+    return PyscConf.fiscal.Fiskal.Tax.tax_mode === 1 ? PyscConf.fiscal.Fiskal.Tax.multi_tax_init : PyscConf.fiscal.Fiskal.Tax.tax_rate_init
   else if (paramID === 10)
     return PyscConf.contracts.gs.ministry_discretion_split
   return null
 }
 
 const baseTarget = ref<number[]>([0.0, 0.0, 0.0])
-const getBaseTarget = (targetIndex: number | string) => {
+const getBaseTarget = (targetIndex: number | string, valueOnly: boolean = false) => {
   if (targetIndex !== null && targetIndex !== undefined)
-    return numbro(baseTarget.value[+targetIndex]).format({ mantissa: 2, optionalMantissa: true })
+    return valueOnly ? (baseTarget.value[+targetIndex] / (+targetIndex === 0 ? 100 : 1)) : numbro(baseTarget.value[+targetIndex]).format({ mantissa: 2, optionalMantissa: true })
   return ""
 }
 
@@ -130,9 +131,7 @@ const buildDataParams = async (calcBase: boolean = false) => {
     const result = await $api('auth/get_optim_base_target', {
       params: {
         type: PyscConf.dataGConf.type_of_contract,
-        data: btoa(JSON.stringify(useDataStore().makeJSONofCase(appStore.curSelCase,
-          PyscConf.dataGConf, PyscConf.dataProd, PyscConf.dataContr, PyscConf.dataFisc,
-          PyscConf.dataTan, PyscConf.dataIntan, PyscConf.dataOpex, PyscConf.dataASR, true)))
+        data: btoa(JSON.stringify(useDataStore().curCase2Json(true)))
       },
       method: 'GET',
       onResponseError({ response }) {
@@ -146,22 +145,25 @@ const buildDataParams = async (calcBase: boolean = false) => {
   nextTick(() => watcherOptimData.resume())
 }
 
-
-const draggable = useDraggable(dragAbleList, dataParams, {
-  animation: 500,
-  handle: ".list-drag-handle",
-  direction: 'vertical',
-  onStart() {
-  },
-  onUpdate() {
-    PyscOptim.$patch((state) => {
-      state.optimConfig.optimization.forEach(el => {
-        const index = dataParams.value.findIndex(v => v.parameter === el.parameter)
-        el.pos = index
-      })
+const updateDragAble = () => {
+  if (dragAbleList.value) {
+    const draggable = useDraggable(dragAbleList, dataParams, {
+      animation: 500,
+      handle: ".list-drag-handle",
+      direction: 'vertical',
+      onStart() {
+      },
+      onUpdate() {
+        PyscOptim.$patch((state) => {
+          state.optimConfig.optimization.forEach(el => {
+            const index = dataParams.value.findIndex(v => v.parameter === el.parameter)
+            el.pos = index
+          })
+        })
+      }
     })
   }
-})
+}
 
 const isValid = computed(() => {
   return optimConfig.value.target_optimization &&
@@ -169,16 +171,33 @@ const isValid = computed(() => {
 })
 const optimResult = ref<object>({})
 
+const getOptimResultValue = (paramID: number) => {
+  if (optimResult.value?.result)
+    return optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID] === 'Gas DMO Fee' ? 'Gas Dmo Fee' : Object.values(optimParamType)[paramID]]
+  return false
+}
 const getOptimResult = (paramID: number) => {
   if (optimResult.value.hasOwnProperty('result')) {
-    let val = optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID]]
-    if (typeof val !== 'number')
-      val = getBaseValue(paramID)
-    return numbro(val).format({
-      mantissa: 2,
-      optionalMantissa: true, output: 'percent',
-      spaceSeparated: true, thousandSeparated: true
-    })
+    const key = Object.values(optimParamType)[paramID]
+    let val = optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
+    if (typeof val === 'string' && val.toLowerCase() === 'base value')
+      return getBaseValue(paramID)
+    if (typeof val === 'number')
+      return numbro(val).format({
+        mantissa: 2,
+        optionalMantissa: true, output: 'percent',
+        spaceSeparated: true, thousandSeparated: true
+      })
+    else if (Array.isArray(val)) {
+      const type_of_contract = PyscConf.dataGConf.type_of_contract
+      const startY = dayjs.utc(PyscConf.dataGConf.start_date_project).local().year()
+      let endY = dayjs.utc(PyscConf.dataGConf.end_date_project).local().year()
+      const end2Y = dayjs.utc(PyscConf.dataGConf.end_date_project_second).local().year()
+      if (type_of_contract >= 3) endY = math.max([endY, end2Y])
+      const mapY = Array.from({ length: endY - startY + 1 }, (_, i) => (startY - 1) + i + 1)
+      const valArr = mapY.map((v, i) => ({ year: v, rate: val[i] }))
+      return useArrayUnique(valArr, (a, b) => a.rate === b.rate).value
+    }
   }
   return '-'
 }
@@ -187,9 +206,7 @@ const CalcOptim = async () => {
   if (!isValid.value) return
   try {
     const dataJson = {
-      ...useDataStore().makeJSONofCase(appStore.curSelCase,
-        PyscConf.dataGConf, PyscConf.dataProd, PyscConf.dataContr, PyscConf.dataFisc,
-        PyscConf.dataTan, PyscConf.dataIntan, PyscConf.dataOpex, PyscConf.dataASR, true),
+      ...useDataStore().curCase2Json(true),
       optimization_arguments: {
         dict_optimization: {
           parameter: dataParams.value.map(v => Object.values(optimParamType)[v.parameter]),
@@ -267,6 +284,7 @@ const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
     nextTick(() => CalcOptim())
   else
     optimResult.value = {}
+  nextTick(() => updateDragAble())
 })
 
 onMounted(() => {
@@ -336,7 +354,43 @@ onUnmounted(() => {
                   <VList ref="dragAbleList" density="comfortable" lines="two">
                     <template v-for="(item, index) in dataParams" :key="item.parameter">
                       <VListItem border class="mx-1" :title="Object.values(optimParamType)[item.parameter]"
-                        :subtitle="'base value: ' + (item.base ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : '')">
+                        :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : ('base value: ' + (item.base ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : ''))">
+                        <template #subtitle="{ subtitle }">
+                          <VListItemSubtitle v-if="Array.isArray(item.base)">
+                            base value:<span class="ms-1 text-primary text-decoration-underline"
+                              style="cursor:pointer;opacity:0.8;">
+                              <VMenu activator="parent" location="bottom end" :close-on-content-click="false">
+                                <VCard>
+                                  <VCardItem class="info-section">
+                                    {{ Object.values(optimParamType)[item.parameter] }}, %:
+                                  </VCardItem>
+                                  <VCardText>
+                                    <table>
+                                      <thead>
+                                        <tr>
+                                          <th>Year</th>
+                                          <th>Rate, %</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr v-for="v in JSON.parse(subtitle)">
+                                          <td class="ps-2 pe-3">{{ v.year }}</td>
+                                          <td class="ps-1 pe-2 text-right">{{
+                                            v.rate !== null ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </VCardText>
+                                </VCard>
+                              </VMenu>
+                              multi values
+                            </span>
+                          </VListItemSubtitle>
+                          <VListItemSubtitle v-else>
+                            {{ subtitle }}
+                          </VListItemSubtitle>
+
+                        </template>
                         <template #prepend>
                           <VIcon icon="tabler-dots-vertical" style="cursor:move;inline-size:24px;"
                             class="ms-n3 list-drag-handle" />
@@ -364,7 +418,7 @@ onUnmounted(() => {
             <VCardText>
               <VList density="comfortable">
                 <VListItem class="mx-0 px-1" :title="Object.values(optimTarget)[optimConfig.target_parameter]"
-                  density="compact" :subtitle="getBaseTarget(optimConfig.target_parameter)">
+                  density="compact" :subtitle="getBaseTarget(optimConfig.target_parameter, true)">
                   <template #subtitle="{ subtitle }">
                     <span class="text-caption text-primary">
                       base: {{ numbro(subtitle).format({
@@ -387,16 +441,76 @@ onUnmounted(() => {
                 <VDivider />
                 <template v-for="(item, index) in dataParams" :key="item.parameter">
                   <VListItem class="mx-0 px-1" :title="Object.values(optimParamType)[item.parameter]" density="compact"
-                    :subtitle="item.base ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : 0">
+                    :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (item.base ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : '')">
                     <template #subtitle="{ subtitle }">
-                      <span class="text-caption text-primary">
-                        base: {{ subtitle }}
-                      </span>
+                      <VListItemSubtitle v-if="Array.isArray(item.base)">
+                        <span class="text-caption text-primary">base: </span><span
+                          class="ms-1 text-primary text-decoration-underline" style="cursor:pointer;opacity:0.8;">
+                          <VMenu activator="parent" location="bottom end" :close-on-content-click="false">
+                            <VCard>
+                              <VCardItem class="info-section">
+                                {{ Object.values(optimParamType)[item.parameter] }}, %:
+                              </VCardItem>
+                              <VCardText>
+                                <table class="table__wrapper">
+                                  <thead>
+                                    <tr>
+                                      <th>Year</th>
+                                      <th>Rate, %</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-for="v in JSON.parse(subtitle)">
+                                      <td class="ps-2 pe-3">{{ v.year }}</td>
+                                      <td class="ps-1 pe-2 text-right">{{
+                                        v.rate !== null ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </VCardText>
+                            </VCard>
+                          </VMenu>
+                          multi values
+                        </span>
+                      </VListItemSubtitle>
+                      <VListItemSubtitle v-else>
+                        <span class="text-caption text-primary">base: {{ subtitle }}</span>
+                      </VListItemSubtitle>
                     </template>
                     <template #append>
-                      <span class="text-right"
-                        :class="{ 'text-primary': typeof optimResult.result?.list_params_value[Object.values(optimParamType)[item.parameter]] !== 'number' }">{{
-                          getOptimResult(item.parameter) }}</span>
+                      <span
+                        v-if="['string', 'number'].includes(typeof getOptimResultValue(item.parameter)) || Array.isArray(getOptimResultValue(item.parameter))"
+                        class="text-right"
+                        :class="`${(typeof getOptimResultValue(item.parameter) === 'string' ? ' text-primary' : ' text-default') + (Array.isArray(getBaseValue(item.parameter)) ? ' text-decoration-underline' : '')}`"
+                        :style="`${Array.isArray(getBaseValue(item.parameter)) ? 'cursor:pointer;opacity:0.8;' : ''}`">
+                        {{ Array.isArray(getBaseValue(item.parameter)) ? 'values' : getOptimResult(item.parameter) }}
+                        <VMenu v-if="Array.isArray(getBaseValue(item.parameter))" activator="parent"
+                          location="bottom end" :close-on-content-click="false">
+                          <VCard>
+                            <VCardItem class="info-section">
+                              {{ Object.values(optimParamType)[item.parameter] }}, %:
+                            </VCardItem>
+                            <VCardText>
+                              <table class="table__wrapper">
+                                <thead>
+                                  <tr>
+                                    <th>Year</th>
+                                    <th>Rate, %</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr v-for="v in getOptimResult(item.parameter)">
+                                    <td class="ps-2 pe-3">{{ v.year }}</td>
+                                    <td class="ps-1 pe-2 text-right">{{
+                                      v.rate !== null ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </VCardText>
+                          </VCard>
+                        </VMenu>
+                      </span>
+                      <span v-else class="text-right">-</span>
                     </template>
                   </VListItem>
                   <VDivider />

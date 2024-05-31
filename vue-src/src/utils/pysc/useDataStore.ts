@@ -671,6 +671,23 @@ export const useDataStore = () => {
     appStore.watcherSelCase.resume()
   }
 
+  const table2Array = (table: any[], istartY: number, iendY: number, keys: string[] = ["year", "rate"]) => {
+    //filter not unempty row
+    const rateTab: Pysc.GlobalTabValue[] = JSON.parse(JSON.stringify(table)).filter(row => !isEmpty(row[keys[0]]) && !isEmpty(row[keys[1]]))
+    rateTab.sort((a, b) => a[keys[0]] - b[keys[0]])
+    const mapY = Array.from({ length: iendY - istartY + 1 }, (_, i) => (istartY - 1) + i + 1)
+    let retvalue = Array<number | null>(iendY - istartY + 1).fill(0.0)
+    rateTab.forEach((y, idx) => {
+      if (y[keys[0]] && y[keys[0]] < istartY) retvalue = retvalue.fill(y[keys[1]])
+      else {
+        const idxY = mapY.findIndex(e => e === y[keys[0]])
+        if (idxY != -1)
+          retvalue = retvalue.fill(y[keys[1]], idxY)
+      }
+    })
+    return retvalue
+  }
+
   const makeJSONofCase = (id: number,
     dGConf: Pysc.genConfig, dProd: Pysc.producerConfig[], dContr: Pysc.Contracts, dFisc: Pysc.Fiskal,
     dTan: Array<number | string | null>[], dIntan: Array<number | string | null>[],
@@ -694,23 +711,6 @@ export const useDataStore = () => {
     dGConf.start_date_project_second = Pysc.useDayJs().utc(dGConf.end_date_project).add(1, 'day').valueOf()
     const start2Y = Pysc.useDayJs().utc(dGConf.start_date_project_second).local().year()
     const end2Y = Pysc.useDayJs().utc(dGConf.end_date_project_second).local().year()
-
-    const table2Array = (table: Array<Pysc.GlobalTabValue>, istartY: number, iendY: number) => {
-      //filter not unempty row
-      const rateTab: Pysc.GlobalTabValue[] = JSON.parse(JSON.stringify(table)).filter(row => !isEmpty(row.year) && !isEmpty(row.rate))
-      rateTab.sort((a, b) => a.year - b.year)
-      const mapY = Array.from({ length: iendY - istartY + 1 }, (_, i) => (istartY - 1) + i + 1)
-      let retvalue = Array<number | null>(iendY - istartY + 1).fill(0.0)
-      rateTab.forEach((y, idx) => {
-        if (y.year && y.year < istartY) retvalue = retvalue.fill(y.rate)
-        else {
-          const idxY = mapY.findIndex(e => e === y.year)
-          if (idxY != -1)
-            retvalue = retvalue.fill(y.rate, idxY)
-        }
-      })
-      return retvalue
-    }
 
     const getTaxRegime = (istartY: number) => {
       return istartY < 2016 ? 0.44 : (istartY < 2020 ? 0.42 : 0.4)
@@ -742,7 +742,14 @@ export const useDataStore = () => {
         gas_dmo_holiday_duration: +cr.GasDMO.period,
       }
     }
-    const gs2json = (gs: Pysc.GS, hasGas: boolean) => {
+    const getGS_split_offset = (gs: Pysc.GS, iStart: number, iendY: number) => {
+      return gs.cum_production_split_offset.mode === 1 ?
+        table2Array(gs.cum_production_split_offset.split, iStart, iendY, ["year", "split"]) : gs.cum_production_split_offset.offset
+    }
+
+    const gs2json = (gs: Pysc.GS, hasGas: boolean, icontract: number = 0) => {
+      // const splitTable = table2Array(gs.cum_production_split_offset.split,
+      //   (type_of_contract >= 3 && icontract === 1 ? start2Y : startY), (type_of_contract >= 3 && icontract === 1 ? end2Y : endY), ["year", "split"])
       return {
         field_status: Object.values(Pysc.FieldStat)[gs.field_status],
         field_loc: Object.values(Pysc.FieldLoc)[gs.field_location],
@@ -763,6 +770,7 @@ export const useDataStore = () => {
         gas_dmo_volume_portion: +gs.GasDMO.volume,
         gas_dmo_fee_portion: +gs.GasDMO.fee,
         gas_dmo_holiday_duration: +gs.GasDMO.period,
+        // cum_production_split_offset: gs.cum_production_split_offset.mode === 0 ? gs.cum_production_split_offset.offset : splitTable
       }
     }
     const contrArg2json = (fiscal: Pysc.FiskalBase, isCR: boolean, genconf: Pysc.genConfig, dmo_is_weighted: boolean, hasGas: boolean, isTransition: boolean = false, icontract: number = 0) => {
@@ -782,8 +790,13 @@ export const useDataStore = () => {
         vat_rate: fiscal.VAT.vat_mode === 1 ? table2Array(fiscal.VAT.multi_vat_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : +fiscal.VAT.vat_rate_init,
         lbt_rate: fiscal.LBT.lbt_mode === 1 ? table2Array(fiscal.LBT.multi_lbt_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : +fiscal.LBT.lbt_rate_init,
         inflation_rate: fiscal.Inflation.inflation_rate_mode === 1 ? table2Array(fiscal.Inflation.multi_inflation_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : +fiscal.Inflation.inflation_rate_init,
-        future_rate: +((+fiscal.asr_future_rate).toPrecision(10)),
-        inflation_rate_applied_to: Object.values(Pysc.InflateToType)[genconf.inflation_rate_applied_to]
+        future_rate: +fiscal.asr_future_rate,
+        inflation_rate_applied_to: Object.values(Pysc.InflateToType)[genconf.inflation_rate_applied_to],
+        post_uu_22_year2001: (isCR ? (icontract === 0 ? dContr.cr.post_uu_22_year2001 :
+          (isTransition && dContr.second?.hasOwnProperty('post_uu_22_year2001') ? (<Pysc.costRec>dContr.second).post_uu_22_year2001 : undefined)) : undefined),
+        cum_production_split_offset: (!isCR ?
+          (icontract === 0 ?
+            getGS_split_offset(dContr.gs, startY, endY) : getGS_split_offset(<Pysc.GS>dContr.second, start2Y, end2Y)) : undefined)
       }
     }
 
@@ -1017,8 +1030,8 @@ export const useDataStore = () => {
             oil_onstream_date: null, //Oil ? (useDate ? Pysc.useDayJs().utc(Oil.onstream_date).local().format('DD/MM/YYYY') : Oil.onstream_date) : null,
             gas_onstream_date: null, //Gas ? (useDate ? Pysc.useDayJs().utc(Gas.onstream_date).local().format('DD/MM/YYYY') : Gas.onstream_date) : null,
           },
-          costrecovery: [3, 4].includes(type_of_contract) ? cr2json(dContr.cr, !!Gas) : undefined,
-          grosssplit: [5, 6].includes(type_of_contract) ? gs2json(dContr.gs, !!Gas) : undefined,
+          costrecovery: [3, 4].includes(type_of_contract) ? cr2json(dContr.cr, !!Gas) : null,
+          grosssplit: [5, 6].includes(type_of_contract) ? gs2json(dContr.gs, !!Gas, 0) : null,
           contract_arguments: contrArg2json(dFisc.Fiskal, [3, 4].includes(type_of_contract), dGConf,
             ([3, 4].includes(type_of_contract) ? dContr.cr : dContr.gs).dmo_is_weighted, !!Gas,
             true, 0),
@@ -1035,8 +1048,8 @@ export const useDataStore = () => {
             oil_onstream_date: null, //Oil ? (useDate ? Pysc.useDayJs().utc(Oil.onstream_date).local().format('DD/MM/YYYY') : Oil.onstream_date) : null,
             gas_onstream_date: null, //Gas ? (useDate ? Pysc.useDayJs().utc(Gas.onstream_date).local().format('DD/MM/YYYY') : Gas.onstream_date) : null,
           },
-          costrecovery: [3, 6].includes(type_of_contract) ? cr2json(<Pysc.costRec>dContr.second, !!Gas) : undefined,
-          grosssplit: [4, 5].includes(type_of_contract) ? gs2json(<Pysc.GS>dContr.second, !!Gas) : undefined,
+          costrecovery: [3, 6].includes(type_of_contract) ? cr2json(<Pysc.costRec>dContr.second, !!Gas) : null,
+          grosssplit: [4, 5].includes(type_of_contract) ? gs2json(<Pysc.GS>dContr.second, !!Gas, 1) : null,
           contract_arguments: contrArg2json(dFisc.Fiskal2, [3, 6].includes(type_of_contract), dGConf,
             ([3, 6].includes(type_of_contract) ? <Pysc.costRec>dContr.second : <Pysc.GS>dContr.second).dmo_is_weighted, !!Gas,
             true, 1),
@@ -1083,6 +1096,6 @@ export const useDataStore = () => {
 
     addCase, cloneCase, delCase, updateCase, saveCaseData,
 
-    makeJSONofCase, curCase2Json
+    table2Array, makeJSONofCase, curCase2Json
   }
 }

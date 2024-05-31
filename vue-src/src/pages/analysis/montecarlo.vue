@@ -130,12 +130,20 @@ const headerMonteRes = [
 
 const { height } = useElementSize(refTableMonteCfg)
 
-const stopWatch = watch(height, (val) => {
-  stopWatch()
+const lastHeight = ref(0)
+
+const calcTableHeight = () => {
   const el = document.querySelector(".handsontable.htColumnHeaders")
-  el.style.height = `${el.clientHeight + 200}px`
-  el.style.marginBottom = `-198px`
-})
+  if (lastHeight.value === 0) lastHeight.value = el.clientHeight
+  tableMonteConfig.value.height = `${lastHeight.value + 200}px`
+  el.style.height = `${lastHeight.value + 200}px`
+}
+
+const stopHandle = watch(height, (val) => {
+  stopHandle()
+  calcTableHeight()
+}, { once: true })
+
 const tableMonteConfig = computed(() => {
   const Opt = {
     data: dataTable.value,
@@ -179,7 +187,7 @@ const tableMonteConfig = computed(() => {
       engine: HyperFormula,
     },
     rowHeaders: false,
-    height: 'auto',
+    height: lastHeight.value ? `${lastHeight.value + 200}px` : 'auto',
     autoWrapRow: false,
     stretchH: 'all',
     manualColumnResize: true,
@@ -306,6 +314,7 @@ const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
     isValid.value = ValidateData()
     addBroadCast()
     nextTick(() => LoadResult())
+    calcTableHeight()
   })
 })
 
@@ -343,7 +352,7 @@ onUnmounted(() => {
               </VBtn>
             </VCol>
             <VCol cols="12">
-              <hot-table ref="refTableMonteCfg" :settings="tableMonteConfig"></hot-table>
+              <hot-table class="lockTableHeight" ref="refTableMonteCfg" :settings="tableMonteConfig"></hot-table>
             </VCol>
           </VRow>
         </VCardText>
@@ -387,6 +396,12 @@ onUnmounted(() => {
     </VCardText>
   </VCard>
 </template>
+
+<style lang="scss" scoped>
+.lockTableHeight {
+  margin-block-end: -198px;
+}
+</style>
 
 <style lang="scss">
 .custom-expan-monte-panel>.v-expansion-panel-title--active>.v-expansion-panel-title__overlay,

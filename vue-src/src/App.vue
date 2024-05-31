@@ -37,8 +37,10 @@ const RefSettDialogs = ref()
 /*              2 add multiple case, dashboard
 *               3 browser local storage (blc), hanya menyimpan per-case saja   
 *                 load to server on demand
+*               4 (+) field post_uu_22_year2001:bool/def.=True/ (PSC),
+*                 (+) field cum_production_split_offset:list[len proj]|float/def.=0/ (GS)
 */
-const curVer = 3
+const curVer = 4
 
 appStore.mainCallbackCaseID = async (value, oldValue) => {
   if (value != oldValue && oldValue != -1) {
@@ -65,9 +67,9 @@ if (+appStore.appver !== curVer || isEmpty(appStore.curWS)) {
   //reset
   appStore.watcherSelCase.pause()
   PyscConf.watcherAllData.pause()
-  if (oldVer <= 2) {
-    useDataStore().resetDataStore(curVer, newWS, true, false)
-  }
+  PyscMonte.watcherMonteCfg.pause()
+  PyscOptim.watcherOptimCfg.pause()
+  useDataStore().resetDataStore(curVer, newWS, true, false)
 
   const extractState = ref<string | boolean | null>(false)
   useDataStore().extractProject(appStore.curProjectPath, newWS, oldWS).then(result => {
@@ -84,8 +86,12 @@ if (+appStore.appver !== curVer || isEmpty(appStore.curWS)) {
     })
   }).finally(async () => {
     appStore.$patch({ curWS: newWS })
-    appStore.watcherSelCase.resume()
-    PyscConf.watcherAllData.resume()
+    nextTick(() => {
+      appStore.watcherSelCase.resume()
+      PyscConf.watcherAllData.resume()
+      PyscMonte.watcherMonteCfg.resume()
+      PyscOptim.watcherOptimCfg.resume()
+    })
   })
 }
 

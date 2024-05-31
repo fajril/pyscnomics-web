@@ -136,9 +136,13 @@ const CR_gas_cr_cap_rate = computed({
     </VCol>
     <VCol cols="12" class="ms-4 pe-4 mt-4">
       <span class="ml-n4 font-weight-bold text-primary">DMO Configuration</span>
-      <Checkbox v-model="contractValue.dmo_is_weighted" label="DMO is Weighted" />
+      <VCheckbox v-model="contractValue.dmo_is_weighted" label="DMO is Weighted" />
       <DmoUI v-model="contractValue.OilDMO" label="Oil" class="ms-4" />
       <DmoUI v-if="prodHasGas()" v-model="contractValue.GasDMO" label="Gas" class="ms-4" />
+    </VCol>
+    <VCol cols="12" class="ms-4 pe-4 mt-4">
+      <span class="ml-n4 font-weight-bold text-primary">UU No. 22 Tahun 2001</span>
+      <VCheckbox v-model="contractValue.post_uu_22_year2001" label="Post UU No. 22 Tahun 2001" />
     </VCol>
   </VRow>
 </template>

@@ -4,6 +4,7 @@ import {
   APiType,
   CO2Type,
   DCUType,
+  ExcelColumnType,
   Field2Array,
   FieldLoc,
   FieldStat,
@@ -13,7 +14,10 @@ import {
   ResDepth,
   ResType,
   TahapProdType,
+  useDayJs,
 } from '@/utils/pysc/pyscType';
+import TableEditor from '@/views/components/TableEditor.vue';
+import { isNull } from 'mathjs';
 import DmoUI from './dmoconf.vue';
 
 interface Props {
@@ -24,6 +28,8 @@ interface Props {
 const props = defineProps<Props>()
 
 const PyscConf = usePyscConfStore()
+
+const dayjs = useDayJs()
 
 const { prodHasGas } = PyscConf
 const { dataContr } = storeToRefs(PyscConf)
@@ -43,6 +49,37 @@ const gas_base_split = computed({
   get: () => contractValue.value.gas_base_split * 100,
   set: (val) => { if (!isNaN(+val)) contractValue.value.gas_base_split = +val / 100 }
 })
+
+const { t, locale } = useI18n({ useScope: 'global' })
+
+const columnTable = computed((): ExcelColumnType => {
+  const start2Y = dayjs.utc(dataGConf.value.end_date_project).add(1, 'day').local().year()
+  const endY = dayjs.utc(dataGConf.value.end_date_project).local().year()
+  const startY = props.subProject ? start2Y : dayjs.utc(dataGConf.value.start_date_project).local().year()
+  const end2Y = dayjs.utc(dataGConf.value.end_date_project_second).local().year()
+  console.log([startY, endY, start2Y, end2Y])
+  return {
+    colHeaders: (index) => {
+      if (index === 0) return t('Year') + '<br>' + `[${props.subProject ? start2Y : startY}-${props.subProject ? end2Y : endY}]`
+      else return t('Split') + '<br>[fraction]'
+    },
+    columns: [
+      { data: 'year', type: 'numeric', validator: 'numeric', allowInvalid: false },
+      { data: 'split', type: 'numeric', validator: 'numeric', numericFormat: { pattern: { mantissa: 2, negative: "parenthesis" } }, allowInvalid: false },
+    ]
+  }
+})
+
+const cum_production_split = computed(() => {
+  const start2Y = dayjs.utc(dataGConf.value.end_date_project).add(1, 'day').local().year()
+  const startY = props.subProject ? start2Y : dayjs.utc(dataGConf.value.start_date_project).local().year()
+  if (contractValue.value.cum_production_split_offset.split.length === 0)
+    contractValue.value.cum_production_split_offset.split = [{ year: startY, split: 0 }]
+  else if (isNull(contractValue.value.cum_production_split_offset.split[0].year))
+    contractValue.value.cum_production_split_offset.split[0].year = startY
+  return contractValue.value.cum_production_split_offset.split
+})
+
 </script>
 
 <template>
@@ -81,6 +118,18 @@ const gas_base_split = computed({
       <VCheckbox v-model="contractValue.dmo_is_weighted" label="DMO is Weighted" />
       <DmoUI v-model="contractValue.OilDMO" label="Oil" class="ms-4" />
       <DmoUI v-if="prodHasGas()" v-model="contractValue.GasDMO" label="Gas" class="ms-4" />
+    </VCol>
+    <VCol cols="12" class="ms-4 pe-4 mt-4">
+      <span class="ml-n4 font-weight-bold text-primary">Cummulative Production</span>
+      <AppSelect v-model="contractValue.cum_production_split_offset.mode"
+        :items="[{ title: 'Offset (MMBOE)', value: 0 }, { title: 'Split (fraction)', value: 1 }]" item-props
+        variant="outlined" label-placeholder="Offset/Split Mode" class="mt-4" />
+      <VCardText v-if="contractValue.cum_production_split_offset.mode === 1" class="mt-2 ms-4 py-0 px-0">
+        <TableEditor v-model:model-value="cum_production_split" :columns="columnTable" colAutoWidth="all" />
+      </VCardText>
+      <AppTextField v-else label-placeholder="Cum.Prod. Offset, MMBOE" class="ms-4 mt-4"
+        :rules="[requiredValidator, numberValidator]"
+        v-model.number="contractValue.cum_production_split_offset.offset" />
     </VCol>
   </VRow>
 </template>

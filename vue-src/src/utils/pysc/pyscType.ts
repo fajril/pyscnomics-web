@@ -447,17 +447,20 @@ export interface costRec {
   oil_ftp: commonFTP
   gas_ftp: commonFTP
 
-  TaxSplit: TaxSplits;
-  IC: ICType;
-  CR: CRType;
+  TaxSplit: TaxSplits
+  IC: ICType
+  CR: CRType
 
-  RCSlidingScale: SlidingScaleType[];
-  ICPSlidingScale: SlidingScaleType[];
-  Indicator: IndicatorType[];
+  RCSlidingScale: SlidingScaleType[]
+  ICPSlidingScale: SlidingScaleType[]
+  Indicator: IndicatorType[]
 
-  dmo_is_weighted: boolean;
-  OilDMO: dmoRec;
-  GasDMO: dmoRec;
+  dmo_is_weighted: boolean
+  OilDMO: dmoRec
+  GasDMO: dmoRec
+
+  // (+) field post_uu_22_year2001:bool/def.=True/ (PSC)
+  post_uu_22_year2001: boolean
 }
 
 export const defCostRec = (): costRec => ({
@@ -498,6 +501,7 @@ export const defCostRec = (): costRec => ({
     start_production: dayjs.utc().valueOf(),
     volume: 0.25, fee: 0.25,
   },
+  post_uu_22_year2001: true
 });
 
 export const FieldStat = {
@@ -586,6 +590,13 @@ export interface GS {
   dmo_is_weighted: boolean;
   OilDMO: dmoRec;
   GasDMO: dmoRec;
+
+  // (+) field cum_production_split_offset:list[len proj]|float/def.=0/ (GS)
+  cum_production_split_offset: {
+    mode: number,
+    offset: number,
+    split: { year: number | null, split: number | null }[]
+  }
 }
 
 export const defGS = (): GS => ({
@@ -617,6 +628,7 @@ export const defGS = (): GS => ({
     start_production: dayjs.utc().valueOf(),
     volume: 0.25, fee: 0.25,
   },
+  cum_production_split_offset: { mode: 0, offset: 0, split: [{ year: null, split: 0 }] },
 });
 
 export interface Contracts {
@@ -767,6 +779,6 @@ export const defFiskal = (): Fiskal => ({
  * EXCEL Column Type
  */
 export interface ExcelColumnType {
-  colHeaders: string[]
+  colHeaders: string[] | Function
   columns: Object[]
 }
