@@ -1,3 +1,21 @@
+2024-5-31:
+update webapp:
+- upd. json builder
+- upd. CostRec: (+)post_uu_22_year2001 
+- upd. GS: (+)cum_production_split_offset 
+- upd. filesystem: 
+  * chg header file = 7 
+  * (+) field post_uu_22_year2001 (PSC)
+  * (+) field cum_production_split_offset (GS)
+- upd. optimization: fix issue display base value, (+)allow multi values
+
+update Launcher:
+- (+) add custom port
+- upd. sync state process
+
+update Installer:
+- clear static path
+--------------------------------------------------------------------------------------
 2024-5-29:
 update webapp:
 - (+)optimization module
