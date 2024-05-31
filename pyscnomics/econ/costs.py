@@ -6,13 +6,12 @@ Prepare and classify cost data based on its components. The associated cost comp
 (4) ASR
 """
 
+import numpy as np
 from dataclasses import dataclass, field
 
-import numpy as np
-
 import pyscnomics.econ.depreciation as depr
-from pyscnomics.econ.selection import DeprMethod, FluidType, TaxType
 from pyscnomics.tools.helper import apply_cost_adjustment
+from pyscnomics.econ.selection import FluidType, DeprMethod, TaxType
 
 
 class TangibleException(Exception):
@@ -438,7 +437,7 @@ class Tangible(GeneralCost):
             inflation_rate=inflation_rate,
         )
 
-        # TODO : Refactoring the codes to implement the dictionary design pattern
+        # TODO : Refactoring the codes to implement the dictionary design pattern 
         # Straight line
         if depr_method == DeprMethod.SL:
             depreciation_charge = np.asarray(
@@ -861,7 +860,6 @@ class Intangible(GeneralCost):
     ----------
     The attributes are inherited from class GeneralCost.
     """
-
     def __post_init__(self):
         # Check for inappropriate start and end year project
         if self.end_year >= self.start_year:
@@ -1059,19 +1057,13 @@ class Intangible(GeneralCost):
             start_year_combined = min(self.start_year, other.start_year)
             end_year_combined = max(self.end_year, other.end_year)
             cost_combined = np.concatenate((self.cost, other.cost))
-            expense_year_combined = np.concatenate(
-                (self.expense_year, other.expense_year)
-            )
+            expense_year_combined = np.concatenate((self.expense_year, other.expense_year))
             cost_allocation_combined = self.cost_allocation + other.cost_allocation
             description_combined = self.description + other.description
             vat_portion_combined = np.concatenate((self.vat_portion, other.vat_portion))
-            vat_discount_combined = np.concatenate(
-                (self.vat_discount, other.vat_discount)
-            )
+            vat_discount_combined = np.concatenate((self.vat_discount, other.vat_discount))
             lbt_portion_combined = np.concatenate((self.lbt_portion, other.lbt_portion))
-            lbt_discount_combined = np.concatenate(
-                (self.lbt_discount, other.lbt_discount)
-            )
+            lbt_discount_combined = np.concatenate((self.lbt_discount, other.lbt_discount))
 
             return Intangible(
                 start_year=start_year_combined,
@@ -1103,19 +1095,13 @@ class Intangible(GeneralCost):
             start_year_combined = min(self.start_year, other.start_year)
             end_year_combined = max(self.end_year, other.end_year)
             cost_combined = np.concatenate((self.cost, -other.cost))
-            expense_year_combined = np.concatenate(
-                (self.expense_year, other.expense_year)
-            )
+            expense_year_combined = np.concatenate((self.expense_year, other.expense_year))
             cost_allocation_combined = self.cost_allocation + other.cost_allocation
             description_combined = self.description + other.description
             vat_portion_combined = np.concatenate((self.vat_portion, other.vat_portion))
-            vat_discount_combined = np.concatenate(
-                (self.vat_discount, other.vat_discount)
-            )
+            vat_discount_combined = np.concatenate((self.vat_discount, other.vat_discount))
             lbt_portion_combined = np.concatenate((self.lbt_portion, other.lbt_portion))
-            lbt_discount_combined = np.concatenate(
-                (self.lbt_discount, other.lbt_discount)
-            )
+            lbt_discount_combined = np.concatenate((self.lbt_discount, other.lbt_discount))
 
             return Intangible(
                 start_year=start_year_combined,
@@ -1450,24 +1436,16 @@ class OPEX(GeneralCost):
         if isinstance(other, OPEX):
             start_year_combined = min(self.start_year, other.start_year)
             end_year_combined = max(self.end_year, other.end_year)
-            expense_year_combined = np.concatenate(
-                (self.expense_year, other.expense_year)
-            )
+            expense_year_combined = np.concatenate((self.expense_year, other.expense_year))
             cost_allocation_combined = self.cost_allocation + other.cost_allocation
             description_combined = self.description + other.description
             vat_portion_combined = np.concatenate((self.vat_portion, other.vat_portion))
-            vat_discount_combined = np.concatenate(
-                (self.vat_discount, other.vat_discount)
-            )
+            vat_discount_combined = np.concatenate((self.vat_discount, other.vat_discount))
             lbt_portion_combined = np.concatenate((self.lbt_portion, other.lbt_portion))
-            lbt_discount_combined = np.concatenate(
-                (self.lbt_discount, other.lbt_discount)
-            )
+            lbt_discount_combined = np.concatenate((self.lbt_discount, other.lbt_discount))
             fixed_cost_combined = np.concatenate((self.fixed_cost, other.fixed_cost))
             prod_rate_combined = np.concatenate((self.prod_rate, other.prod_rate))
-            cost_per_volume_combined = np.concatenate(
-                (self.cost_per_volume, other.cost_per_volume)
-            )
+            cost_per_volume_combined = np.concatenate((self.cost_per_volume, other.cost_per_volume))
 
             return OPEX(
                 start_year=start_year_combined,
@@ -1500,24 +1478,16 @@ class OPEX(GeneralCost):
         if isinstance(other, OPEX):
             start_year_combined = min(self.start_year, other.start_year)
             end_year_combined = max(self.end_year, other.end_year)
-            expense_year_combined = np.concatenate(
-                (self.expense_year, other.expense_year)
-            )
+            expense_year_combined = np.concatenate((self.expense_year, other.expense_year))
             cost_allocation_combined = self.cost_allocation + other.cost_allocation
             description_combined = self.description + other.description
             vat_portion_combined = np.concatenate((self.vat_portion, other.vat_portion))
-            vat_discount_combined = np.concatenate(
-                (self.vat_discount, other.vat_discount)
-            )
+            vat_discount_combined = np.concatenate((self.vat_discount, other.vat_discount))
             lbt_portion_combined = np.concatenate((self.lbt_portion, other.lbt_portion))
-            lbt_discount_combined = np.concatenate(
-                (self.lbt_discount, other.lbt_discount)
-            )
+            lbt_discount_combined = np.concatenate((self.lbt_discount, other.lbt_discount))
             fixed_cost_combined = np.concatenate((self.fixed_cost, -other.fixed_cost))
             prod_rate_combined = np.concatenate((self.prod_rate, -other.prod_rate))
-            cost_per_volume_combined = np.concatenate(
-                (self.cost_per_volume, other.cost_per_volume)
-            )
+            cost_per_volume_combined = np.concatenate((self.cost_per_volume, other.cost_per_volume))
 
             return OPEX(
                 start_year=start_year_combined,
@@ -1616,7 +1586,6 @@ class ASR(GeneralCost):
     ----------
     The attributes are inherited from class GeneralCost.
     """
-
     def __post_init__(self):
         # Check for inappropriate start and end year project
         if self.end_year >= self.start_year:
@@ -1847,11 +1816,10 @@ class ASR(GeneralCost):
             year_ref = self.start_year
 
         if not isinstance(future_rate, float):
-            future_rate = float(future_rate)
-            # raise ASRException(
-            #     f"Future rate must be a float, not a "
-            #     f"{future_rate.__class__.__qualname__}"
-            # )
+            raise ASRException(
+                f"Future rate must be a float, not a "
+                f"{future_rate.__class__.__qualname__}"
+            )
 
         cost_adjusted = apply_cost_adjustment(
             start_year=self.start_year,
@@ -1870,12 +1838,8 @@ class ASR(GeneralCost):
             inflation_rate=inflation_rate,
         )
 
-        cost_adjusted *= np.power(
-            (1 + future_rate), self.end_year - self.expense_year + 1
-        )
-        expenses = np.bincount(
-            self.expense_year - self.start_year, weights=cost_adjusted
-        )
+        cost_adjusted *= np.power((1 + future_rate), self.end_year - self.expense_year + 1)
+        expenses = np.bincount(self.expense_year - self.start_year, weights=cost_adjusted)
         zeros = np.zeros(self.project_duration - len(expenses))
 
         return np.concatenate((expenses, zeros))
@@ -2040,19 +2004,13 @@ class ASR(GeneralCost):
             start_year_combined = min(self.start_year, other.start_year)
             end_year_combined = max(self.end_year, other.end_year)
             cost_combined = np.concatenate((self.cost, other.cost))
-            expense_year_combined = np.concatenate(
-                (self.expense_year, other.expense_year)
-            )
+            expense_year_combined = np.concatenate((self.expense_year, other.expense_year))
             cost_allocation_combined = self.cost_allocation + other.cost_allocation
             description_combined = self.description + other.description
             vat_portion_combined = np.concatenate((self.vat_portion, other.vat_portion))
-            vat_discount_combined = np.concatenate(
-                (self.vat_discount, other.vat_discount)
-            )
+            vat_discount_combined = np.concatenate((self.vat_discount, other.vat_discount))
             lbt_portion_combined = np.concatenate((self.lbt_portion, other.lbt_portion))
-            lbt_discount_combined = np.concatenate(
-                (self.lbt_discount, other.lbt_discount)
-            )
+            lbt_discount_combined = np.concatenate((self.lbt_discount, other.lbt_discount))
 
             return ASR(
                 start_year=start_year_combined,
@@ -2084,19 +2042,13 @@ class ASR(GeneralCost):
             start_year_combined = min(self.start_year, other.start_year)
             end_year_combined = max(self.end_year, other.end_year)
             cost_combined = np.concatenate((self.cost, -other.cost))
-            expense_year_combined = np.concatenate(
-                (self.expense_year, other.expense_year)
-            )
+            expense_year_combined = np.concatenate((self.expense_year, other.expense_year))
             cost_allocation_combined = self.cost_allocation + other.cost_allocation
             description_combined = self.description + other.description
             vat_portion_combined = np.concatenate((self.vat_portion, other.vat_portion))
-            vat_discount_combined = np.concatenate(
-                (self.vat_discount, other.vat_discount)
-            )
+            vat_discount_combined = np.concatenate((self.vat_discount, other.vat_discount))
             lbt_portion_combined = np.concatenate((self.lbt_portion, other.lbt_portion))
-            lbt_discount_combined = np.concatenate(
-                (self.lbt_discount, other.lbt_discount)
-            )
+            lbt_discount_combined = np.concatenate((self.lbt_discount, other.lbt_discount))
 
             return ASR(
                 start_year=start_year_combined,

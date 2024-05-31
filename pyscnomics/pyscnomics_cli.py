@@ -6,6 +6,7 @@ import click
 import numpy as np
 import pandas as pd
 import xlwings as xw
+import uvicorn
 
 from pyscnomics.io.parse import InitiateContract
 from pyscnomics.io.aggregator import Aggregate
@@ -33,40 +34,6 @@ from pyscnomics.optimize.uncertainty import (
 
 
 # Click command for generating CLI command
-@click.command()
-@click.option(
-    '-p',
-    '--path',
-    help='The path of the Microsoft Excel Workbook or the .pysc file'
-)
-@click.option(
-    '-m',
-    '--mode',
-    default='Standard',
-    help='The mode of the simulation. They are: Standard, Sensitivity, Optimization, Uncertainty'
-)
-def entry_point(**kwargs):
-    """ Manages CLI """
-    # Defining the cli command for path
-    if 'p' in kwargs:
-        file_path = kwargs['p']
-    elif 'path' in kwargs:
-        file_path = kwargs['path']
-    else:
-        file_path = None
-
-    # Defining the cli command for mode
-    if 'm' in kwargs:
-        mode = kwargs['m']
-    elif 'mode' in kwargs:
-        mode = kwargs['mode']
-    else:
-        mode = None
-
-    # Running the code based on the given CLI input
-    main(workbook_path=file_path, mode=mode)
-
-
 def main(workbook_path, mode):
     """
     The entry point of the engine if the execution is using Excel workbook.
@@ -215,8 +182,8 @@ def main(workbook_path, mode):
 
         # Specify probability
         prob = (
-            np.arange(1, uncertainty_data["run_number"] + 1, dtype=np.float_)
-            / uncertainty_data["run_number"]
+                np.arange(1, uncertainty_data["run_number"] + 1, dtype=np.float_)
+                / uncertainty_data["run_number"]
         )
 
         # Arrange the results
@@ -279,10 +246,69 @@ def main(workbook_path, mode):
         )
 
         # Generating the uncertainty plot
-        # get_uncertainty_plot(uncertainty_outcomes=outcomes, plot_type='Stairway')
+        get_uncertainty_plot(uncertainty_outcomes=outcomes, plot_type='Stairway')
 
     # Giving the workbook execution status to show that execution is success
     xw.Book(workbook_path).sheets("References").range("N17").value = "Success"
+
+
+@click.command()
+@click.option(
+    '-p',
+    '--path',
+    help='The path of the Microsoft Excel Workbook'
+)
+@click.option(
+    '-m',
+    '--mode',
+    default='Standard',
+    help='The mode of the simulation. They are: "Standard", "Sensitivity", "Optimization", "Uncertainty"'
+)
+@click.option(
+    '-api',
+    '--api',
+    default=0,
+    help='The command for running the API backend. '
+         '0 for not activating the API backend. 1 for activating the API backend'
+)
+@click.option(
+    '-port',
+    '--port',
+    default=8000,
+    help='The port number for running the API backend. The default port is 8000'
+)
+def entry_point(**kwargs):
+    """ Manages CLI """
+    if kwargs['api'] == 1:
+        port_number = kwargs['port']
+        uvicorn.run("pyscnomics.api.main:app", port=int(port_number), reload=False)
+
+    if kwargs['path'] is not None:
+        # Defining the cli command for path
+        if 'p' in kwargs:
+            file_path = kwargs['p']
+        elif 'path' in kwargs:
+            file_path = kwargs['path']
+        else:
+            file_path = None
+
+        # Defining the cli command for mode
+        if 'm' in kwargs:
+            mode = kwargs['m']
+        elif 'mode' in kwargs:
+            mode = kwargs['mode']
+        else:
+            mode = None
+
+        # Running the code based on the given CLI input
+        main(workbook_path=file_path, mode=mode)
+
+    else:
+        body = """
+        We welcome you to our library, PySCnomics. This package contains tailored functionalities for assessing economic feasibility of oil and gas projects following the state-of-the-art Production Sharing Contract (PSC) schemes in Indonesia.
+        PySCnomics is the product of join research between Indonesia's Special Task Force for Upstream Oil and Gas Business Activities (SKK Migas) and the Department of Petroleum Engineering, Institut Teknologi Bandung (ITB)
+        """
+        print(body)
 
 
 def run_standard(
@@ -335,7 +361,7 @@ def run_standard(
     write_summary(
         summary_dict=contract_summary,
         workbook_object=workbook_object,
-        sheet_name='Summary',
+        sheet_name='Executive Summary',
         range_cell='E5',
     )
 
@@ -394,6 +420,7 @@ def run_optimization(
     list_str = optim_result[0]
     list_params_value = optim_result[1]
     result_optimization = optim_result[2]
+    optimized_contract = optim_result[3][-1]
 
     # Writing optimization result
     write_opt(
@@ -405,6 +432,18 @@ def run_optimization(
         range_opt_result='P2',
         range_list_params=range_list_params,
         range_list_value=range_list_value,
+    )
+
+    # Generating the summary of the optimized contract
+    summary_arguments['contract'] = optimized_contract
+    optimized_contract_summary = get_summary(**summary_arguments)
+
+    # Writing optimized contract summary
+    write_summary(
+        summary_dict=optimized_contract_summary,
+        workbook_object=workbook_object,
+        sheet_name='Optimization Comparison',
+        range_cell='J6',
     )
 
 

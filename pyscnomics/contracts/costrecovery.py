@@ -680,7 +680,8 @@ class CostRecovery(BaseProject):
             lbt_rate: np.ndarray | float = 0.0,
             inflation_rate: np.ndarray | float = 0.0,
             future_rate: float = 0.02,
-            inflation_rate_applied_to: InflationAppliedTo = InflationAppliedTo.CAPEX
+            inflation_rate_applied_to: InflationAppliedTo | None = InflationAppliedTo.CAPEX,
+            post_uu_22_year2001: bool = True
     ):
 
         # Configure Sunk Cost Reference Year
@@ -1000,6 +1001,10 @@ class CostRecovery(BaseProject):
             ctr_pretax_share=self.oil_ctr_pretax_share,
             unrecovered_cost=self._oil_unrecovered_after_transfer,
             is_dmo_end_weighted=is_dmo_end_weighted,
+            ets=self._oil_ets_after_transfer,
+            ctr_ets=self._oil_contractor_share,
+            ctr_ftp=self._oil_ftp_ctr,
+            post_uu_22_year2001=post_uu_22_year2001,
         )
 
         self._gas_dmo_volume, self._gas_dmo_fee, self._gas_ddmo = psc_tools.get_dmo(
@@ -1014,6 +1019,10 @@ class CostRecovery(BaseProject):
             ctr_pretax_share=self.gas_ctr_pretax_share,
             unrecovered_cost=self._gas_unrecovered_after_transfer,
             is_dmo_end_weighted=is_dmo_end_weighted,
+            ets=self._gas_ets_after_transfer,
+            ctr_ets=self._gas_contractor_share,
+            ctr_ftp=self._gas_ftp_ctr,
+            post_uu_22_year2001=post_uu_22_year2001,
         )
 
         # Adjusting DDMO for Pre PDJP
@@ -1045,8 +1054,12 @@ class CostRecovery(BaseProject):
             self._tax_rate_arr = np.full_like(self.project_years, tax_rate, dtype=float)
 
         # Generating Tax array based on the tax regime if tax_rate argument is None
-        if tax_rate is None:
+        elif tax_rate is None:
             self._tax_rate_arr = self._get_tax_by_regime(tax_regime=tax_regime)
+        elif isinstance(tax_rate, np.ndarray):
+            self._tax_rate_arr = tax_rate
+        else:
+            self._tax_rate_arr = np.full_like(self.project_years, fill_value=0.0, dtype=float)
 
         self._oil_tax_payment = self._get_tax_payment(
             ctr_share=self._oil_contractor_share,
