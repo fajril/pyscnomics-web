@@ -595,10 +595,10 @@ async def closeddata(tmppath: str):
 
 @routerapi.get("/calc_ext_summ")
 async def calc_ext_summ(type: int, data: str):
-    dataJson = base64.b64decode(data).decode("utf-8")
-    json_dict: dict = json.loads(dataJson)
-
     try:
+        dataJson = base64.b64decode(data).decode("utf-8")
+        json_dict: dict = json.loads(dataJson)
+
         sumCalc = Summaries(type, json_dict)
         cardResult = {
             "card": {
@@ -775,6 +775,7 @@ async def get_optim_base_target(type: int, data: str):
             "NPV": sumCalc.summary["ctr_npv"] if sumCalc.summary is not None else 0,
             "PI": sumCalc.summary["ctr_pi"] if sumCalc.summary is not None else 0,
         }
+
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -947,6 +948,7 @@ async def calc_optim(type: int, data: str):
             }
         else:
             return {"state": False, "out": None}
+
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

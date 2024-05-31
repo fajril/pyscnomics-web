@@ -20,10 +20,15 @@ log = logging.getLogger("uvicorn")
 class pyscPacker:
     typeContract: int = 1
     __hfl: str = "pySCapp"
-    __vfl: int = 6  # ver.3: var add sign (1 byte) for Null int
-    # ver.4: add case data
-    # ver.5: add data sens and monte
-    # ver.6: add data optimization
+    __vfl: int = 7
+    """
+    ver.3: var (+) sign (1 byte) for Null int
+    ver.4: (+) case data
+    ver.5: (+) data sens and monte
+    ver.6: (+) data optimization
+    ver.7: (+) field post_uu_22_year2001:bool/def.=True/ (PSC),
+           (+) field cum_production_split_offset:list[len proj]|float/def.=0/ (GS)
+    """
 
     def __init__(self, path: Path | None = None):
         if path:
@@ -123,7 +128,7 @@ class pyscPacker:
                     "Fiskal2": self.readFiscalBase(fs),
                 }
                 producer = self.readProducer(fs)
-                contracts = self.readcontrats(type_of_contract, fs)
+                contracts = self.readcontrats(type_of_contract, fs, vfl)
                 tangible = self.readCosts(0, fs)
                 intangible = self.readCosts(1, fs)
                 opex = self.readCosts(2, fs)
@@ -492,7 +497,10 @@ class pyscPacker:
         self.writeDMO(cr["OilDMO"], fs)
         self.writeDMO(cr["GasDMO"], fs)
 
-    def readcostRecConfig(self, fs: BufferedReader):
+        # (+) field post_uu_22_year2001:bool/def.=True/ (PSC)
+        self.writePack(bool(cr["post_uu_22_year2001"]), "?", fs)
+
+    def readcostRecConfig(self, fs: BufferedReader, vfl: int):
         def readFTP():
             return {
                 "ftp_availability": self.readPack("?", fs, False),
@@ -520,7 +528,7 @@ class pyscPacker:
                 "gas_cr_cap_rate": self.readPack("d", fs, 0.0),
             }
 
-        return {
+        costrec_ = {
             "oil_ftp": readFTP(),
             "gas_ftp": readFTP(),
             "TaxSplit": readTaxSplit(),
@@ -549,6 +557,11 @@ class pyscPacker:
             "OilDMO": self.readDMO(fs),
             "GasDMO": self.readDMO(fs),
         }
+        if vfl >= 7:
+            costrec_.update({"post_uu_22_year2001": self.readPack("?", fs, True)})
+        else:
+            costrec_.update({"post_uu_22_year2001": True})
+        return costrec_
 
     def writegsConfig(self, gs: dict, fs: BufferedWriter):
         self.writePack(gs["field_status"], "h", fs)
@@ -570,8 +583,13 @@ class pyscPacker:
         self.writeDMO(gs["OilDMO"], fs)
         self.writeDMO(gs["GasDMO"], fs)
 
-    def readgsConfig(self, fs: BufferedReader):
-        return {
+        # start on vfl=7
+        self.writePack(gs["cum_production_split_offset"]["mode"], "h", fs)
+        self.writePack(gs["cum_production_split_offset"]["offset"], "d", fs)
+        self.writeTable(gs["cum_production_split_offset"]["split"], ["i", "d"], fs)
+
+    def readgsConfig(self, fs: BufferedReader, vfl: int):
+        gs_ = {
             "field_status": self.readPack("h", fs, 0),
             "field_location": self.readPack("h", fs, 0),
             "reservoir_depth": self.readPack("h", fs, 0),
@@ -588,7 +606,20 @@ class pyscPacker:
             "dmo_is_weighted": self.readPack("?", fs, False),
             "OilDMO": self.readDMO(fs),
             "GasDMO": self.readDMO(fs),
+            # vfl>=7
+            "cum_production_split_offset": {"mode": 0, "offset": 0, "split": []},
         }
+        if vfl >= 7:
+            gs_["cum_production_split_offset"]["mode"] = self.readPack("h", fs, 0)
+            gs_["cum_production_split_offset"]["offset"] = self.readPack("d", fs, 0)
+            splitTable = self.readTable(
+                {"year": "i", "split": "d"},
+                fs,
+            )
+            if isinstance(splitTable, bool):
+                splitTable = []
+            gs_["cum_production_split_offset"]["split"] = splitTable
+        return gs_
 
     def writeFiscalConfig(
         self, path: Path, value: dict, fsw: BufferedWriter | None = None
@@ -733,17 +764,17 @@ class pyscPacker:
                 else self.writegsConfig(value["second"], fs)
             )
 
-    def readcontrats(self, tipe: int, fs: BufferedReader):
+    def readcontrats(self, tipe: int, fs: BufferedReader, vfl: int):
         result = {
-            "cr": self.readcostRecConfig(fs),
-            "gs": self.readgsConfig(fs),
+            "cr": self.readcostRecConfig(fs, vfl),
+            "gs": self.readgsConfig(fs, vfl),
             "second": None,
         }
         if tipe >= 3:
             result.update(
-                {"second": self.readcostRecConfig(fs)}
+                {"second": self.readcostRecConfig(fs, vfl)}
                 if tipe in [3, 6]
-                else {"second": self.readgsConfig(fs)}
+                else {"second": self.readgsConfig(fs, vfl)}
             )
         return result
 
@@ -840,7 +871,7 @@ class pyscPacker:
                     "Fiskal2": self.readFiscalBase(fs),
                 }
                 producer = self.readProducer(fs)
-                contracts = self.readcontrats(type_of_contract, fs)
+                contracts = self.readcontrats(type_of_contract, fs, vfl)
                 tangible = self.readCosts(0, fs)
                 intangible = self.readCosts(1, fs)
                 opex = self.readCosts(2, fs)
