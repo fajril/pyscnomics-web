@@ -1,0 +1,1023 @@
+import chalk from 'chalk'
+import { BrowserWindow, Menu, app, dialog, ipcMain, shell } from 'electron'
+import fs from 'node:fs'
+import { createServer } from 'node:http'
+import { createRequire } from 'node:module'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import open from 'open'
+
+const require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// The built directory structure
+//
+// ├─┬ dist
+// │ ├─┬ frontend
+// │ │ ├── index.html    > Electron-Renderer
+// │ │ └── assets        > Vue assets (frontend)
+// │ ├─┬ launcher
+// │ │ ├── index.html    > Electron-Renderer
+// │ │ └── assets        > Vue assets (launcher)
+// │ ├─┬ electron
+// │ │ ├─┬ main
+// │ │ │ └── index.js    > Electron-Main
+// │ │ └─┬ preload
+// │ │   └── index.mjs   > Preload-Scripts
+// │ └─┬ backend
+// │   └── main          > FastAPI engine
+// └── Samples
+
+process.env.APP_ROOT = path.normalize(path.join(__dirname, '../../..'))
+
+const isMac = process.platform === 'darwin'
+const osType = (process.platform === 'win32' ? 'win' : (isMac ? 'mac' : 'linux'))
+
+export const MAIN_DIST = path.normalize(path.join(process.env.APP_ROOT, 'dist', 'electron'))
+export const RENDERER_DIST = path.normalize(path.join(process.env.APP_ROOT, 'dist', 'launcher'))
+export const RESOURCE_DIST = app.isPackaged
+  ? path.normalize(path.join(process.env.APP_ROOT, '..'))
+  : path.normalize(path.join(process.env.APP_ROOT))
+export const FRONTEND_DIST = app.isPackaged
+  ? path.normalize(path.join(process.env.APP_ROOT, '..'))
+  : path.normalize(path.join(process.env.APP_ROOT, 'dist'))
+export const SAMPLES_DIST = path.normalize(path.join(RESOURCE_DIST, 'Samples'))
+export const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
+export const PYTHON_EXEC = path.normalize(path.join(RESOURCE_DIST, 'python-3.12.4'))
+
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
+  ? path.join(process.env.APP_ROOT, 'public')
+  : RENDERER_DIST
+
+// Disable GPU Acceleration for Windows 7
+if (os.release().startsWith('6.1'))
+  app.disableHardwareAcceleration()
+
+// Set application name for Windows 10+ notifications
+if (process.platform === 'win32')
+  app.setAppUserModelId(app.getName())
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+  process.exit(0)
+}
+
+/*************************************************************
+ * path browser
+ *************************************************************/
+const drivelist = require('drivelist')
+
+async function listDrive() {
+  const drives = await drivelist.list()
+
+  return {
+    dir: "",
+    filename: null,
+    parent: null,
+    children: drives.reduce((drv, d, i) => {
+      return [...drv, ...d.mountpoints.map(p => ({ name: p.path, type: 0 }))]
+    }, []),
+  }
+}
+
+async function read_path(flext: string, srcpath: string) {
+  let curPath = path.normalize(srcpath)
+  let basename = ''
+  if (curPath.toLowerCase().includes(`.${flext}`)) {
+    basename = path.basename(curPath)
+    curPath = path.normalize(path.join(curPath, '..'))
+  }
+  if (fs.existsSync(curPath)) {
+    const drvContent = fs.readdirSync(curPath, { withFileTypes: true }).filter(dl => {
+      return (dl.isDirectory() || dl.isFile()) && !dl.isSymbolicLink()
+    })
+
+    const lstPath = drvContent.filter(dirent => dirent.isDirectory()).map(dirent => ({ name: dirent.name, type: 1 })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    const lstFile = drvContent.filter(dirent => dirent.isFile() && dirent.name.toLowerCase().includes(`.${flext}`)).map(dirent => ({ name: dirent.name, type: 2 })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+
+    const infoPath = path.parse(curPath)
+    const prevPath = path.normalize(path.join(curPath, '..'))
+
+    const childs = [
+      ...lstPath,
+      ...lstFile,
+    ]
+
+    return {
+      dir: curPath,
+      filename: basename.length && childs.findIndex(c => c.name.toLowerCase() === basename.toLowerCase()) ? basename : null,
+      parent: infoPath.root === curPath ? "" : prevPath,
+      children: childs,
+    }
+  }
+  else {
+    const infoPath = path.parse(curPath)
+    while (!fs.existsSync(curPath)) {
+      curPath = path.normalize(path.join(curPath, '..'))
+      if (curPath === infoPath.root) {
+        if (fs.existsSync(curPath))
+          break
+        else
+          curPath = ""
+      }
+    }
+
+    return { dir: curPath, parent: curPath, filename: null, children: null }
+  }
+}
+
+async function read_dirs(ev, lookup: string) {
+  const dl = JSON.parse(atob(lookup))
+
+  // "" = list drive
+  // null = default path
+  if (dl.path != null) {
+    if (dl.path.trim().length)
+      return await read_path(dl.flext, path.normalize(dl.path))
+    else
+      return { dir: '', parent: null, filename: null, children: null }
+  }
+  else { return await read_path(dl.flext, SAMPLES_DIST) }
+}
+
+/*************************************************************
+ * ws server
+ *************************************************************/
+const WebSocket = require('ws')
+
+const serverWS = createServer()
+
+const wss = new WebSocket.Server({
+  noServer: true,
+  perMessageDeflate: {
+    zlibDeflateOptions: {
+      // See zlib defaults.
+      chunkSize: 1024,
+      memLevel: 7,
+      level: 3,
+    },
+    zlibInflateOptions: {
+      chunkSize: 10 * 1024,
+    },
+
+    // Other options settable:
+    clientNoContextTakeover: true, // Defaults to negotiated value.
+    serverNoContextTakeover: true, // Defaults to negotiated value.
+    serverMaxWindowBits: 10, // Defaults to negotiated value.
+    // Below options specified as default values.
+    concurrencyLimit: 10, // Limits zlib concurrency for perf.
+    threshold: 1024, // Size (in bytes) below which messages
+    // should not be compressed if context takeover is disabled.
+  },
+})
+
+function onSocketError(err) {
+  console.error(err)
+}
+
+function heartbeat(ev) {
+  this.isAlive = true
+
+  // console.log(`${chalk.blueBright('[WS-SERVER]')} Pong:${this.id} still alive}`)
+}
+
+wss.getUniqueID = function () {
+  function s4() {
+    return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+  }
+
+  return `${s4() + s4()}-${s4()}`
+}
+
+function broadCastMessge(data: any, isBinary: any, id?: any) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN && (id === undefined || (id && id === client.id)))
+      client.send(data, { binary: isBinary })
+  })
+}
+
+wss.on('connection', (ws, request) => {
+  // ws.id = wss.getUniqueID()
+  ws.isAlive = true
+  console.log(`[WS-SERVER] Client request - ${request?.url}.`)
+  console.log(`[WS-SERVER] Client connected - ${ws.id}.`)
+
+  ws.on('close', () => {
+    console.log('[WS-SERVER] Client disconnected.')
+  })
+
+  ws.on('error', console.error)
+  ws.on('pong', heartbeat)
+
+  ws.on('message', async (data, isBinary) => {
+    try {
+      const msg = JSON.parse(atob(data))
+      if (msg.module === 'os:sep') {
+        broadCastMessge(JSON.stringify({
+          module: 'os:sep',
+          id: ws.id,
+          data: { type: 'os:sep', data: JSON.stringify({ sep: path.sep }) },
+        }), false, ws.id)
+      }
+      else if (msg.module === 'app:drive') {
+        const listPath = await listDrive()
+
+        broadCastMessge(JSON.stringify({
+          module: 'app:dirs',
+          id: ws.id,
+          data: { type: 'app:drive', data: btoa(JSON.stringify(listPath)) },
+        }), false, ws.id)
+      }
+      else if (msg.module === 'app:dirs') {
+        const listPath = await read_dirs(null, msg.data)
+
+        broadCastMessge(JSON.stringify({
+          module: 'app:dirs',
+          id: ws.id,
+          data: { type: 'app:dirs', data: btoa(JSON.stringify(listPath)) },
+        }), false, ws.id)
+      }
+      else if (msg.module === 'app:open') {
+        handleFileOpen(null, msg.data.path).then(value => {
+          if (value.path) {
+            broadCastMessge(JSON.stringify({
+              module: 'app:open',
+              id: ws.id,
+              data: { type: 'app:open', data: { path: btoa(value.path) } },
+            }), false, ws.id)
+          }
+        })
+      }
+    }
+    catch (error) {
+      if (error)
+        console.log(error.toString())
+    }
+  })
+
+  ws.send(JSON.stringify({
+    module: 'os:conf',
+    id: ws.id,
+    data: {
+      type: 'os:conf', data: btoa(JSON.stringify({ sep: path.sep, os: osType })),
+    },
+  }))
+})
+
+const interval = setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (ws.isAlive === false)
+      return ws.terminate()
+
+    ws.isAlive = false
+    ws.ping()
+  })
+}, 30000)
+
+wss.on('close', () => {
+  clearInterval(interval)
+})
+
+serverWS.on('upgrade', (request, socket, head) => {
+  socket.on('error', onSocketError)
+
+  const { pathname, searchParams } = new URL(request.url, 'http://127.0.0.1:3142')
+
+  const clientid = searchParams.get('client')
+
+  console.log([pathname, clientid])
+
+  // This function is not defined on purpose. Implement it with your own logic.
+  socket.removeListener('error', onSocketError)
+
+  if (pathname === '/ws') {
+    // if (pathname==='ws')
+    wss.handleUpgrade(request, socket, head, ws => {
+      ws.id = clientid
+      wss.emit('connection', ws, request)
+    })
+  }
+})
+
+serverWS.listen(3142)
+
+/*************************************************************
+ * py process
+ *************************************************************/
+
+const PY_MODULE = 'main' // without .py suffix
+
+let pyProc = null
+let pyPort: any = null
+
+const getScriptPath = () => {
+  return path.normalize(path.join(RESOURCE_DIST, 'backend', `${PY_MODULE}.py`))
+}
+
+// const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+const createPyProc = async () => {
+  const script = getScriptPath()
+  const statMainPy = fs.statSync(script, { throwIfNoEntry: false })
+  if (!(script && pyPort) || statMainPy === undefined)
+    return `[backend] ${script} port:${pyPort} failed to start`
+  try {
+    if (app.isPackaged) {
+      if (osType === 'win') {
+        pyProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'Scripts', 'python'))}`, [`${PY_MODULE}.py`, pyPort, `"${FRONTEND_DIST}"`], {
+          cwd: path.normalize(path.dirname(script)),
+          windowsHide: true,
+          stdio: ['pipe', process.stdout, process.stderr],
+        })
+      }
+      else {
+        pyProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'bin', 'python3'))}`, [`${PY_MODULE}.py`, pyPort, `"${FRONTEND_DIST}"`], {
+          cwd: path.normalize(path.dirname(script)),
+          windowsHide: true,
+          stdio: ['pipe', process.stdout, process.stderr],
+        })
+      }
+      if (pyProc) {
+        pyProc.on('spawn', () => {
+          console.log(`Force running FastAPI on port ${pyPort}`)
+        })
+      }
+    }
+    else {
+      pyProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'Scripts', 'python'))}`, [`${PY_MODULE}.py`, pyPort, `"${FRONTEND_DIST}"`], {
+        cwd: path.normalize(path.dirname(script)),
+        windowsHide: true,
+        stdio: ['pipe', process.stdout, process.stderr],
+      })
+      if (pyProc != null) {
+        pyProc.on('spawn', () => {
+          console.log(`Force running FastAPI on port ${pyPort}`)
+        })
+      }
+    }
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+
+    return `[backend] ${script} port:${pyPort} failed to start`
+  }
+
+  return true
+}
+
+const exitPyProc = () => {
+  if (pyProc !== null) {
+    try {
+      if (process.platform === "win32") {
+        try {
+          require('node:child_process').execSync(`taskkill /PID ${pyProc.pid} /T /F`, {
+            windowsHide: true,
+          })
+          console.log('the server is shut down')
+        }
+        catch (error) {
+          if (error)
+            console.log(error.toString())
+        }
+      }
+      else {
+        try {
+          process?.kill(pyProc.pid)
+          console.log('the server1 is shut down')
+        }
+        catch (error) {
+          if (error)
+            console.log(error.toString())
+        }
+        try {
+          pyProc?.kill()
+          console.log('the server0 is shut down')
+        }
+        catch (error) {
+          if (error)
+            console.log(error.toString())
+        }
+      }
+    }
+    catch (error) {
+      if (error)
+        console.log(error.toString())
+    }
+  }
+  pyProc = null
+  pyPort = null
+}
+
+let win: BrowserWindow | null = null
+const preload = path.normalize(path.join(__dirname, '../preload/index.mjs'))
+const indexHtml = path.normalize(path.join(RENDERER_DIST, 'index.html'))
+
+const template = [
+  // { role: 'fileMenu' }
+  {
+    label: 'File',
+    submenu: [
+      isMac ? { role: 'close' } : { role: 'quit' },
+    ],
+  },
+
+  // { role: 'editMenu' }
+  {
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      ...(isMac
+        ? [
+          { role: 'pasteAndMatchStyle' },
+          { role: 'selectAll' },
+        ]
+        : [
+          { role: 'selectAll' },
+        ]),
+    ],
+  },
+
+  // { role: 'viewMenu' }
+  {
+    label: 'View',
+    submenu: [
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' },
+    ],
+  },
+]
+
+const menu = Menu.buildFromTemplate(template)
+
+Menu.setApplicationMenu(menu)
+
+async function createWindow() {
+  win = new BrowserWindow({
+    title: 'PySCnomics-App',
+    icon: path.normalize(path.join(process.env.VITE_PUBLIC, 'favicon.ico')),
+    webPreferences: {
+      preload,
+      devTools: !app.isPackaged,
+
+      // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
+      // nodeIntegration: true,
+
+      // Consider using contextBridge.exposeInMainWorld
+      // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
+      // contextIsolation: false,
+    },
+    width: 600,
+    height: 420,
+  })
+
+  win.setMenuBarVisibility(false)
+
+  if (VITE_DEV_SERVER_URL) { // #298
+    win.loadURL(VITE_DEV_SERVER_URL)
+
+    // Open devTool if the app is not packaged
+    if (!app.isPackaged)
+      win.webContents.openDevTools()
+  }
+  else {
+    win.loadFile(indexHtml)
+  }
+  win.webContents.on('zoom-changed', (event, zoomDirection) => {
+    const _zoomFact = win.webContents.getZoomFactor()
+
+    win.webContents.setZoomFactor(_zoomFact + (zoomDirection === 'in' ? 0.05 : -0.05))
+  })
+
+  // win.webContents.on('context-menu', e => {
+  //   e.preventDefault()
+  //   ipcRenderer.send('show-context-menu')
+  // })
+
+  // Test actively push message to the Electron-Renderer
+  win.webContents.on('did-finish-load', () => {
+    win?.webContents.send('main-process-message', new Date().toLocaleString())
+  })
+
+  // Make all links open with the browser, not with the application
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https:'))
+      shell.openExternal(url)
+
+    return { action: 'deny' }
+  })
+
+  // win.webContents.on('will-navigate', (event, url) => { }) #344
+}
+
+let dialogOnProcess = false
+async function handleFileOpen(ev, curfilePath, ext: string = 'psc') {
+  if (dialogOnProcess)
+    return { path: null }
+  dialogOnProcess = true
+
+  const normPath = curfilePath ? path.dirname(curfilePath) : path.join(RESOURCE_DIST, 'Samples')
+
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: ext === 'psc' ? 'Open PySCnomics File' : 'Select Python Interpreter',
+    defaultPath: path.normalize(normPath),
+    filters: [(ext === 'psc' ? { name: 'PySCnomics-App', extensions: ['psc'] } : { name: 'Python file', extensions: ['*'] })],
+    properties: ['openFile'],
+  })
+
+  // setTimeout(() => {
+  //   const allWindows = BrowserWindow.getAllWindows()
+
+  //   // allWindows[0].minimize()
+  // }, 2000)
+
+  // const allWindows = BrowserWindow.getAllWindows()
+
+  // allWindows[0].moveTop()
+
+  // const { canceled, filePaths } = await dialog.showOpenDialog({
+  //   title: 'Open PySCnomics File',
+  //   defaultPath: path.normalize(normPath),
+  //   filters: [(ext === 'psc' ? { name: 'PySCnomics-App', extensions: ['psc'] } : { name: 'Application file', extensions: [ext] })],
+  //   properties: ['openFile'],
+  // })
+
+  dialogOnProcess = false
+  if (!canceled)
+    return { path: path.normalize(filePaths[0]) }
+
+  return { path: null }
+}
+
+async function handleFileSave(ev, curfilePath) {
+  if (dialogOnProcess)
+    return { path: null }
+  dialogOnProcess = true
+
+  const normPath = curfilePath ? path.dirname(curfilePath) : path.join(RESOURCE_DIST, 'Samples')
+
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    title: 'Save PySCnomics Project',
+    defaultPath: path.normalize(normPath),
+    filters: [{ name: 'PySCnomics-App', extensions: ['psc'] }],
+    properties: ['showOverwriteConfirmation'],
+  })
+
+  dialogOnProcess = false
+
+  if (!canceled)
+    return { path: path.normalize(filePath) }
+
+  return { path: null }
+}
+
+async function handlesetPort(ev, port?: number) {
+  pyPort = port
+  if (pyProc)
+    exitPyProc()
+  if (pyPort)
+    return createPyProc()
+
+  return false
+}
+
+async function stopPyton(ev) {
+  try {
+    exitPyProc()
+  }
+  catch (error) {
+  }
+
+  return true
+}
+
+async function windowReload(ev) {
+  if (VITE_DEV_SERVER_URL) { // #298
+    win.loadURL(VITE_DEV_SERVER_URL)
+
+    // Open devTool if the app is not packaged
+    win.webContents.openDevTools()
+  }
+  else {
+    win.loadFile(indexHtml)
+  }
+}
+
+/*************************************************************
+ * python installer
+ *************************************************************/
+async function testFilePython(ev, noBrowseFile: any = false) {
+  const openfilepy = async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'Select Python Interpreter',
+      filters: [{ name: 'Python file', extensions: ['*'] }],
+      properties: ['openFile'],
+    })
+
+    return !canceled ? filePaths[0] : null
+  }
+
+  let filePyPath = null
+  if (noBrowseFile !== true)
+    filePyPath = await openfilepy()
+
+  if (noBrowseFile || filePyPath) {
+    const pyFilePath = filePyPath ? path.normalize(filePyPath) : null
+    let python: string | null = null
+    let pyValid: boolean = false
+    process.stdout.write(`${chalk.blue('[Setup]')} Test Python File...`)
+    try {
+      if (osType === 'win') {
+        python = require('node:child_process').execFileSync(pyFilePath || 'python', ['--version'],
+          {
+            cwd: pyFilePath ? path.normalize(path.dirname(pyFilePath)) : undefined,
+            windowsHide: true,
+            stdio: 'pipe',
+          })
+      }
+      else {
+        python = require('node:child_process').execFileSync(pyFilePath || 'python3', ['--version'],
+          {
+            cwd: pyFilePath ? path.normalize(path.dirname(pyFilePath)) : undefined,
+            windowsHide: true,
+            stdio: 'pipe',
+          })
+      }
+      process.stdout.write(`${python.toString()}\n`)
+
+      const pyver_ = python.toString().match(/Python\s*(\d*\.\d*)(\.\d*)/i)
+      if (pyver_) {
+        // check ver
+        pyValid = pyver_[1] === '3.12'
+        python = pyver_.slice(1).join('')
+      }
+    }
+    catch (error) {
+      if (error)
+        console.log(error.toString())
+    }
+
+    return { path: pyFilePath, pyVer: python, valid: pyValid }
+  }
+
+  return { path: null, pyVer: null, valid: false }
+}
+
+async function checkPython() {
+  process.stdout.write(`${chalk.blue('[Setup]')} Test Python...`)
+
+  const statDir = fs.statSync(path.join(RESOURCE_DIST, 'pyscnomics-env'), { throwIfNoEntry: false })
+  const envNotFound = statDir === undefined
+  let python: string | null = null
+  let pyExists: boolean = false
+  if (envNotFound) {
+    // check python
+    try {
+      if (osType === 'win') {
+        python = require('node:child_process').execFileSync(path.join(PYTHON_EXEC, 'python'), ['--version'],
+          {
+            cwd: PYTHON_EXEC,
+            windowsHide: true,
+            stdio: 'pipe',
+
+          })
+      }
+      else {
+        python = require('node:child_process').execFileSync('python3', ['--version'],
+          {
+            cwd: PYTHON_EXEC,
+            windowsHide: true,
+            stdio: 'pipe',
+
+          })
+      }
+
+      process.stdout.write(`${python.toString()}\n`)
+
+      const pyver_ = python.toString().match(/Python\s*(\d*\.\d*)(\.\d*)/i)
+      if (pyver_) {
+        // check ver
+        pyExists = pyver_[1] === '3.12'
+        python = pyver_.slice(1).join('')
+      }
+    }
+    catch (err) {
+      if (err)
+        console.log(err.toString())
+    }
+  }
+
+  return {
+    env: !envNotFound,
+    pyExist: pyExists,
+    pyver: python,
+  }
+}
+async function checkPIP() {
+  process.stdout.write(`${chalk.blue('[Setup]')} Test PIP...`)
+  try {
+    const statPIP = require('node:child_process').execFileSync(path.join(PYTHON_EXEC, 'python'), ['-m', 'pip', '--version'],
+      {
+        cwd: PYTHON_EXEC,
+        windowsHide: true,
+        stdio: 'pipe',
+      })
+
+    process.stdout.write(statPIP ? `${statPIP.toString()}\n` : 'not found\n')
+
+    return {
+      pip: statPIP !== undefined,
+    }
+  }
+  catch (error) {
+    process.stdout.write('not found\n')
+    if (error)
+      console.log(error.toString())
+  }
+
+  return {
+    pip: false,
+  }
+}
+async function installPIP(ev, clientid: string) {
+  process.stdout.write(`${chalk.blue('[Setup]')} Install pip...`)
+  try {
+    require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['get-pip.py'],
+      {
+        cwd: PYTHON_EXEC,
+        windowsHide: true,
+        stdio: ['pipe', process.stdout, process.stderr],
+
+      },
+      error => {
+        if (error)
+          console.log(error)
+        broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:instpip', data: !error } }), false, clientid)
+        process.stdout.write(error ? "failed" : "done\n")
+      })
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+
+    return false
+  }
+
+  return 'pip installing'
+}
+async function installVirtualEnv(ev, clientid: string) {
+  process.stdout.write(`${chalk.blue('[Setup]')} Install virtualenv...`)
+  try {
+    require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['-m', 'pip', 'install', 'virtualenv'],
+      {
+        cwd: PYTHON_EXEC,
+        windowsHide: true,
+        stdio: ['pipe', process.stdout, process.stderr],
+
+      },
+      error => {
+        if (error)
+          console.log(error)
+        broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:instvenv', data: !error } }), false, clientid)
+        process.stdout.write(error ? "failed" : "done\n")
+      })
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+
+    return false
+  }
+
+  return 'venv installing'
+}
+
+async function createPyEnv(ev, clientid: string, pyPath: string | null = null) {
+  try {
+    process.stdout.write(`${chalk.blue('[Setup]')} Create Python environment for pyscnomics-env...`)
+    if (osType === 'win') {
+      require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'),
+        ['-m', 'virtualenv', '--copies', 'pyscnomics-env'],
+        { cwd: path.normalize(RESOURCE_DIST), windowsHide: true, stdio: ['pipe', process.stdout, process.stderr] },
+        error => {
+          if (error)
+            console.log(error)
+          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:makeEnv', data: !error } }), false, clientid)
+          process.stdout.write(error ? "failed" : "done\n")
+        })
+    }
+    else {
+      require('node:child_process').execFile(pyPath ? path.normalize(pyPath) : 'python3',
+        ['-m', 'venv', '--copies', 'pyscnomics-env'],
+        {
+          cwd: path.normalize(RESOURCE_DIST),
+          windowsHide: true,
+          stdio: ['pipe', process.stdout, process.stderr],
+        },
+        error => {
+          if (error)
+            console.log(error)
+          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:makeEnv', data: !error } }), false, clientid)
+          process.stdout.write(error ? "failed" : "done\n")
+        })
+    }
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+
+    return false
+  }
+
+  return 'Create Env'
+}
+async function installPyLib(ev, clientid: string) {
+  try {
+    process.stdout.write(`${chalk.blue('[Setup]')} Install Python library...`)
+    if (osType === 'win') {
+      require('node:child_process').execFile('activate',
+        ['&&',
+          'pip',
+          'install',
+          '-r',
+          `"${path.normalize(path.join(RESOURCE_DIST, 'backend', 'requirements.txt'))}"`,
+          '&&',
+          'deactivate'],
+        {
+          cwd: path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'Scripts')),
+          windowsHide: true,
+          shell: true,
+          stdio: 'pipe',
+        }, error => {
+          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:insLib', data: !error } }), false, clientid)
+          process.stdout.write(error ? "failed" : "done\n")
+        })
+    }
+    else {
+      require('node:child_process').execFile('source ./pyscnomics-env/bin/activate',
+        ['&&',
+          'pip install -r ./backend/requirements.txt',
+          '&&',
+          'deactivate'],
+        {
+          cwd: RESOURCE_DIST,
+          windowsHide: true,
+          shell: true,
+          stdio: 'pipe',
+        }, error => {
+          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:insLib', data: !error } }), false, clientid)
+          process.stdout.write(error ? "failed" : "done\n")
+        })
+    }
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+
+    return false
+  }
+
+  return 'Install PyLib'
+}
+
+async function installPy(ev, clientid: string) {
+  process.stdout.write(`${chalk.blue('[Setup]')} Install Python 3.12...`)
+  try {
+    require('node:child_process').exec('open python-3.12.4.pkg',
+      {
+        cwd: path.normalize(path.join(RESOURCE_DIST, 'python-mac-3.12')),
+        shell: true,
+        stdio: 'pipe',
+      }, (error, stdout, stderr) => {
+        process.stdout.write(error ? "failed" : "done\n")
+        if (error)
+          process.stdout.write(error.toString())
+      })
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+    process.stdout.write(error ? "failed" : "done\n")
+
+    return false
+  }
+
+  return 'Install Python'
+}
+
+async function openAppUrl(ev, url: string) {
+  open(url)
+}
+
+app.whenReady().then(() => {
+  ipcMain.handle('config:getBackendUrl', () => `http://127.0.0.1:${pyPort}`)
+  ipcMain.handle('dialog:openFile', handleFileOpen)
+  ipcMain.handle('dialog:saveFile', handleFileSave)
+  ipcMain.handle('config:getPort', () => pyPort ?? null)
+  ipcMain.handle('config:setPort', handlesetPort)
+  ipcMain.handle('window:reload', windowReload)
+
+  ipcMain.handle('config:chkPython', checkPython)
+  ipcMain.handle('config:chkPIP', checkPIP)
+  ipcMain.handle('config:instPIP', installPIP)
+  ipcMain.handle('config:instVenv', installVirtualEnv)
+
+  ipcMain.handle('config:makeEnv', createPyEnv)
+  ipcMain.handle('config:instLib', installPyLib)
+  ipcMain.handle('config:stopPy', stopPyton)
+  ipcMain.handle('dialog:testFilePython', testFilePython)
+  ipcMain.handle('config:instPy', installPy)
+  ipcMain.handle('app:openUrl', openAppUrl)
+  ipcMain.handle('app:readPath', read_dirs)
+
+  createWindow()
+})
+
+app.on('window-all-closed', () => {
+  win = null
+  console.log(`close process${pyProc?.pid}`)
+  exitPyProc()
+  try {
+    serverWS.close()
+    wss.close()
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+  }
+
+  // if (process.platform !== 'darwin')
+  app.quit()
+})
+
+app.on('second-instance', () => {
+  if (win) {
+    // Focus on the main window if the user tried to open another
+    if (win.isMinimized())
+      win.restore()
+    win.focus()
+  }
+})
+
+app.on('activate', () => {
+  const allWindows = BrowserWindow.getAllWindows()
+  if (allWindows.length)
+    allWindows[0].focus()
+  else
+    createWindow()
+})
+
+app.on('ready', () => {
+  // createPyProc()
+})
+
+// app.on('before-quit', e => {
+//   e.preventDefault()
+//   exitPyProc()
+//   try {
+//     serverWS.close()
+//     wss.close()
+//   }
+//   catch (error) {
+
+//   }
+//   app.exit()
+// })
+
+app.on('will-quit', () => {
+  // exitPyProc()
+  // try {
+  //   serverWS.close()
+  //   wss.close()
+  // }
+  // catch (error) {
+  // }
+})
+
+// New window example arg: new windows url
+ipcMain.handle('open-win', (_, arg) => {
+  const childWindow = new BrowserWindow({
+    webPreferences: {
+      preload,
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
+  })
+
+  if (VITE_DEV_SERVER_URL)
+    childWindow.loadURL(`${VITE_DEV_SERVER_URL}#${arg}`)
+  else
+    childWindow.loadFile(indexHtml, { hash: arg })
+})

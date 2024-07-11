@@ -1,0 +1,76 @@
+// @see https://www.electron.build/configuration/configuration
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "PySCnomicsApp",
+  "asar": true,
+  "productName": "PySCnomics-App",
+  "directories": {
+    "output": "release2/${version}"
+  },
+  "files": [
+    "dist/electron",
+    "dist/launcher",
+  ],
+  "extraResources": [
+    {
+      "from": "backend",
+      "to": "backend",
+      "filter": [
+        "**/*"
+      ]
+    },
+    {
+      "from": "python-3.12.4 - Master",
+      "to": "python-3.12.4",
+      "filter": [
+        "**/*"
+      ]
+    },
+    {
+      "from": "dist/frontend",
+      "to": "frontend",
+      "filter": [
+        "**/*"
+      ]
+    },
+    {
+      "from": "Samples",
+      "to": "Samples",
+      "filter": [
+        "**/*"
+      ]
+    },
+  ],
+  "mac": {
+    "target": [
+      "zip"
+    ],
+    "icon": "images/icon_skk.png",
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "images/icon_skk_small.png",
+    "artifactName": "${productName}-Win-x64-${version}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": true,
+    "shortcutName": "PySCnomics App"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "${productName}-Linux-${version}.${ext}"
+  }
+}

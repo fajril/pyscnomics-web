@@ -1,0 +1,154 @@
+<script setup lang="ts">
+import { useAppStore } from '@/stores/appStore'
+import { usePyscConfStore } from '@/stores/genfisStore'
+import { fmtNumber, is_number, useNumbro } from "@/utils/pysc/pyscType"
+import { useDataStore } from '@/utils/pysc/useDataStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
+
+const appStore = useAppStore()
+const PyscConf = usePyscConfStore()
+const numbro = useNumbro()
+const isLoading = ref(false)
+const isShow = ref(false)
+const summary = ref<{ GOI2GR: number; IRR: number; NPV: number; PI: number }>({ GOI2GR: 0, IRR: 0, NPV: 0, PI: 0 })
+const dataDict = computed(() => useDataStore().curCase2Json())
+const stopWatchHandle = ref()
+
+const calcSumm = () => {
+  console.log("calc shoot")
+
+  const calc_summ = async () => {
+    isLoading.value = true
+    summary.value.GOI2GR = 0
+    summary.value.IRR = 0
+    summary.value.NPV = 0
+    summary.value.PI = 0
+    try {
+      useHTTP().put({
+        path: 'calc_ext_quick_summ',
+        body: {
+          type: PyscConf.dataGConf.type_of_contract,
+          json: btoa(JSON.stringify(dataDict.value)),
+        },
+        onError: (error: any) => { throw error },
+        onSuccess: value => {
+          if (isObject(value)) {
+            summary.value.GOI2GR = ((value.GOI2GR ?? 0) * 100)
+            summary.value.IRR = ((value.IRR ?? 0) * 100)
+            summary.value.NPV = (value.NPV ?? 0)
+            summary.value.PI = (value.PI ?? 0)
+          }
+        },
+      }).finally(() => isLoading.value = false)
+    }
+    catch (error) {
+      console.log(error)
+    }
+  }
+
+  calc_summ()
+}
+
+const showSumm = () => {
+  stopWatchHandle.value = watchDebounced(dataDict, val => {
+    if (isShow.value)
+      calcSumm()
+  }, { debounce: 800, deep: true })
+  calcSumm()
+}
+</script>
+
+<template>
+  <IconBtn
+    id="fileinfo-btn"
+    class="me-2"
+  >
+    <VIcon
+      icon="tabler-eye-dollar"
+      size="26"
+    />
+    <VMenu
+      v-model="isShow"
+      activator="parent"
+      location="bottom end"
+      offset="13px"
+      :close-on-content-click="false"
+      persistent
+      class="position-fixed"
+      @update:model-value="(val) => { if (val) showSumm(); else stopWatchHandle(); }"
+    >
+      <VCard
+        class="card-quick-shoot"
+        :loading="isLoading"
+        density="compact"
+        color="rgba(var(--v-theme-primary), 0.7)"
+      >
+        <template #loader="{ color, isActive }">
+          <VProgressLinear
+            v-if="isActive"
+            indeterminate
+            color="success"
+            height="2"
+          />
+        </template>
+        <VCardItem class="py-0 px-0">
+          <div class="pl-2 text-caption align-center">
+            Summary
+          </div>
+          <template #append>
+            <VBtn
+              icon
+              variant="plain"
+              size="x-small"
+            >
+              <VIcon
+                color="white"
+                icon="tabler-x"
+                size="default"
+                @click.prevent="(val) => isShow = false"
+              />
+            </VBtn>
+          </template>
+        </VCardItem>
+        <VCardText class="px-1 pr-2 pt-0 pb-2 text-caption">
+          <VTable>
+            <tr v-for="(item, i) in Object.keys(summary)">
+              <!-- :style="{ backgroundColor: 'rgba(var(--v-theme-primary), 0.85)' }"> -->
+              <td
+                class="pl-2 text-caption"
+                :style="{ minWidth: '45px' }"
+              >
+                {{ item === 'GOI2GR' ? 'GoI to GR' : item }}
+              </td>
+              <td>:</td>
+              <td
+                class="pl-2 text-right text-sm-subtitle-2"
+                :style="{ minWidth: '80px' }"
+              >
+                {{ is_number(summary[item])
+                  ? fmtNumber(summary[item],
+                              false, { mantissa: 2 })
+                  : '-'
+                }}
+              </td>
+              <td class="px-2 text-caption">
+                {{ i <= 1 ? '%' : (i == 3 ? '' : 'MUSD') }}
+              </td>
+            </tr>
+          </VTable>
+        </VCardText>
+      </VCard>
+    </VMenu>
+
+    <VTooltip
+      activator="parent"
+      scroll-strategy="close"
+    >
+      <span>Quick Summary</span>
+    </VTooltip>
+  </IconBtn>
+</template>
+
+<style lang="scss" scoped>
+.card-quick-shoot {}
+</style>

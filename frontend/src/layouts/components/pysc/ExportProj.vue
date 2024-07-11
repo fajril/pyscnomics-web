@@ -1,0 +1,52 @@
+<script setup lang="ts">
+import JsonExport from "@/views/components/jsonExport.vue"
+
+const jsonexportref = ref(null)
+const selectedItem = ref(null)
+
+const exportType = [
+  { name: "JSON File Format", icon: "tabler-json", value: "json" },
+  { name: "PDF File Format", icon: "tabler-pdf", value: "pdf" },
+]
+
+const ExportTo = value => {
+  if (value === 'json')
+    jsonexportref.value?.LoadJsonFormat()
+}
+</script>
+
+<template>
+  <IconBtn color="rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity))">
+    <VIcon
+      icon="tabler-file-export"
+      size="26"
+    />
+
+    <VTooltip
+      activator="parent"
+      open-delay="500"
+      scroll-strategy="close"
+    >
+      <span class="text-capitalize">{{ $t('Export') }}</span>
+    </VTooltip>
+    <VMenu
+      activator="parent"
+      offset="14px"
+    >
+      <VList>
+        <VListItem
+          v-for="{ name, icon, value } in exportType"
+          :key="name"
+          :value="value"
+          :prepend-icon="icon"
+          color="primary"
+          class="text-capitalize"
+          @click="() => ExportTo(value)"
+        >
+          {{ name }}
+        </VListItem>
+      </VList>
+    </VMenu>
+  </IconBtn>
+  <JsonExport ref="jsonexportref" />
+</template>
