@@ -70,9 +70,6 @@ const showSumm = () => {
     <VMenu
       v-model="isShow"
       activator="parent"
-      location="bottom end"
-      offset="13px"
-      :close-on-content-click="false"
       persistent
       class="position-fixed"
       @update:model-value="(val) => { if (val) showSumm(); else stopWatchHandle(); }"

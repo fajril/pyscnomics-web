@@ -1,26 +1,23 @@
 """
 This file containing the tools which utilized by API adapter.
 """
-
-from datetime import date, datetime
+from datetime import datetime, date
 from typing import Dict
 
-import numpy as np
 from pydantic import BaseModel
+import numpy as np
 
+from pyscnomics.econ.costs import CapitalCost, Intangible, OPEX, ASR
 from pyscnomics.dataset.sample import assign_lifting, read_fluid_type
-from pyscnomics.econ.costs import ASR, OPEX, Intangible, Tangible
-from pyscnomics.econ.selection import FTPTaxRegime, TaxRegime, TaxType
-from pyscnomics.tools.helper import (
-    get_depreciation_method_converter,
-    get_discounting_mode_converter,
-    get_inflation_applied_converter,
-    get_npv_mode_converter,
-    get_optimization_parameter_converter,
-    get_optimization_target_converter,
-    get_other_revenue_converter,
-    get_split_type_converter,
-)
+from pyscnomics.econ.selection import TaxRegime, TaxType, FTPTaxRegime, GrossSplitRegime
+from pyscnomics.tools.helper import (get_inflation_applied_converter,
+                                     get_npv_mode_converter,
+                                     get_discounting_mode_converter,
+                                     get_depreciation_method_converter,
+                                     get_other_revenue_converter,
+                                     get_split_type_converter,
+                                     get_optimization_target_converter,
+                                     get_optimization_parameter_converter)
 
 
 class SetupBM(BaseModel):
@@ -38,7 +35,6 @@ class SetupBM(BaseModel):
     gas_onstream_date: str | int | None
         The start date of gas production.
     """
-
     start_date: str | int = "01/01/2010"
     end_date: str | int = "31/12/2045"
     oil_onstream_date: str | int | None = "01/01/2023"
@@ -65,12 +61,12 @@ class SummaryArgumentsBM(BaseModel):
         The discounting mode used in the NPV calculation. The available option are: [End Year, Mid Year]
 
     """
-
     reference_year: int = 2022
-    inflation_rate: float | int = 0.1
+    inflation_rate: float | int | list = 0.1
     discount_rate: float | int = 0.1
     npv_mode: str = "SKK Full Cycle Nominal Terms"
     discounting_mode: str = "End Year"
+    profitability_discounted: bool = False
 
 
 class CostRecoveryBM(BaseModel):
@@ -124,7 +120,6 @@ class CostRecoveryBM(BaseModel):
     gas_dmo_holiday_duration: float
         The gas Domestic Market Obligation (DMO) Holiday duration.
     """
-
     oil_ftp_is_available: bool = True
     oil_ftp_is_shared: bool = True
     oil_ftp_portion: float | int = 0.2
@@ -206,7 +201,6 @@ class GrossSplitBM(BaseModel):
         The gas Domestic Market Obligation (DMO) Holiday duration.
 
     """
-
     field_status: str = "No POD"
     field_loc: str = "Onshore"
     res_depth: str = "<=2500"
@@ -273,7 +267,6 @@ class ContractArgumentsBM(BaseModel):
         [CAPEX, OPEX, CAPEX AND OPEX]
 
     """
-
     sulfur_revenue: str = "Addition to Oil Revenue"
     electricity_revenue: str = "Addition to Oil Revenue"
     co2_revenue: str = "Addition to Oil Revenue"
@@ -290,8 +283,9 @@ class ContractArgumentsBM(BaseModel):
     future_rate: float = 0.02
     inflation_rate_applied_to: str = "CAPEX"
     post_uu_22_year2001: bool = True
-    cum_production_split_offset: list | float | int
-    amortization: bool
+    cum_production_split_offset: list | float | int | None = None
+    amortization: bool = False
+    regime: str = "PERMEN_ESDM_12_2020"
 
 
 class ContractArgumentsTransitionBM(BaseModel):
@@ -303,7 +297,6 @@ class ContractArgumentsTransitionBM(BaseModel):
     unrec_portion: float
         The unrec portion that will be transferred into second contract.
     """
-
     unrec_portion: float | int
 
 
@@ -329,16 +322,18 @@ class LiftingBM(BaseModel):
         The list containing the Gross Heating Value (GHV) of the corresponding fluid.
     prod_rate: list[float] | None
         The list containing the production rate of the corresponding lifting.
+    prod_rate_baseline: list[float] | list[int] | None
+        The list containing the production rate baseline of the corresponding lifting.
     """
-
     start_year: int
     end_year: int
     lifting_rate: list[float] | list[int]
     price: list[float] | list[int]
     prod_year: list[int]
     fluid_type: str
-    ghv: list[float] | list[int] | None
-    prod_rate: list[float] | list[int] | None
+    ghv: list[float] | list[int] | None = None
+    prod_rate: list[float] | list[int] | None = None
+    prod_rate_baseline: list[float] | list[int] | None = None
 
 
 class TangibleBM(BaseModel):
@@ -428,7 +423,6 @@ class IntangibleBM(BaseModel):
     lbt_discount: list[float]
         The LBT discount to apply.
     """
-
     start_year: int
     end_year: int
     cost: list[float] | list[int]
@@ -474,7 +468,6 @@ class OpexBM(BaseModel):
     cost_per_volume: list
         Cost associated with production of a particular fluid type.
     """
-
     start_year: int
     end_year: int
     expense_year: list[int]
@@ -518,7 +511,6 @@ class AsrBM(BaseModel):
     lbt_discount: list[float]
         The LBT discount to apply.
     """
-
     start_year: int
     end_year: int
     cost: list[float] | list[int]
@@ -545,7 +537,6 @@ class OptimizationDictBM(BaseModel):
         The list of float containing the maximum boundary for the optimization variable.
 
     """
-
     parameter: list[str]
     min: list[float] | list[int]
     max: list[float] | list[int]
@@ -564,7 +555,6 @@ class OptimizationBM(BaseModel):
     target_parameter: str
         The targeted optimization parameter.
     """
-
     dict_optimization: OptimizationDictBM
     target_optimization: float | int
     target_parameter: str
@@ -581,7 +571,6 @@ class SensitivityBM(BaseModel):
     max: float
         The maximum value for the sensitivity
     """
-
     min: float | int
     max: float | int
 
@@ -601,7 +590,6 @@ class UncertaintyBM(BaseModel):
     std_dev: list[float]
         The standard deviation for the uncertainty model
     """
-
     number_of_simulation: int
     min: list[float] | list[int]
     max: list[float] | list[int]
@@ -643,7 +631,6 @@ class Data(BaseModel):
     result: dict = None
         The result of the running contract.
     """
-
     setup: SetupBM
     summary_arguments: SummaryArgumentsBM
     contract_arguments: ContractArgumentsBM
@@ -685,7 +672,6 @@ class TransitionBM(BaseModel):
     grosssplit: GrossSplitBM = None
         The gross split object in form of GrossSplit BaseModel.
     """
-
     setup: SetupBM
     contract_arguments: ContractArgumentsBM
     lifting: Dict[str, LiftingBM]
@@ -714,7 +700,6 @@ class DataTransition(BaseModel):
     result: dict = None
         The result of the running contract.
     """
-
     contract_1: TransitionBM
     contract_2: TransitionBM
     contract_arguments: ContractArgumentsTransitionBM
@@ -739,11 +724,11 @@ def convert_str_to_date(str_object: str | int) -> date | None:
         return None
     else:
         if isinstance(str_object, str):
-            return datetime.strptime(str_object, "%d/%m/%Y").date()
+            return datetime.strptime(str_object, '%d/%m/%Y').date()
         elif isinstance(str_object, int):
             value = datetime.fromtimestamp(str_object)
-            date_value = value.strftime("%d/%m/%Y")
-            return datetime.strptime(date_value, "%d/%m/%Y").date()
+            date_value = value.strftime('%d/%m/%Y')
+            return datetime.strptime(date_value, '%d/%m/%Y').date()
 
 
 def convert_list_to_array_float(data_list: list) -> np.ndarray:
@@ -763,24 +748,7 @@ def convert_list_to_array_float(data_list: list) -> np.ndarray:
     return np.array(data_list, dtype=float)
 
 
-def convert_to_float(data_input: float | int | str) -> float:  # add int/str converter
-    if isinstance(data_input, float):
-        return data_input
-
-    elif isinstance(data_input, int) or isinstance(data_input, str):
-        return (
-            float(data_input)
-            if isinstance(data_input, int)
-            or (isinstance(data_input, str) and data_input.strip() != "")
-            else 0
-        )
-    else:
-        0
-
-
-def convert_list_to_array_float_or_array(
-    data_input: list | float | int | str,
-) -> np.ndarray | float:
+def convert_list_to_array_float_or_array(data_input: list | float | int | str) -> np.ndarray | float:
     """
     The function to convert list or float into float or array of float.
 
@@ -801,16 +769,15 @@ def convert_list_to_array_float_or_array(
         return (
             float(data_input)
             if isinstance(data_input, int)
-            or (isinstance(data_input, str) and data_input.strip() != "")
+               or (isinstance(data_input, str) and data_input.strip() != "")
             else 0
         )
     else:
         return np.array(data_input, dtype=float)
 
 
-def convert_list_to_array_float_or_array_or_none(
-    data_list: list | float | int | str | None,
-) -> np.ndarray | float | None:
+def convert_list_to_array_float_or_array_or_none(data_list: list | float | int | str | None
+                                                 ) -> np.ndarray | float | None:
     """
     Function to convert list into array of float, None or array.
 
@@ -831,7 +798,7 @@ def convert_list_to_array_float_or_array_or_none(
         return (
             float(data_list)
             if isinstance(data_list, int)
-            or (isinstance(data_list, str) and data_list.strip() != "")
+               or (isinstance(data_list, str) and data_list.strip() != "")
             else None
         )
     elif data_list is None:
@@ -876,7 +843,7 @@ def convert_dict_to_lifting(data_raw: dict) -> tuple:
     return assign_lifting(data_raw=data_raw)
 
 
-def convert_dict_to_tangible(data_raw: dict) -> tuple:
+def convert_dict_to_capital(data_raw: dict) -> tuple:
     """
     The function to convert a dictionary into tuple of Tangible dataclass.
 
@@ -891,22 +858,22 @@ def convert_dict_to_tangible(data_raw: dict) -> tuple:
         tuple[Tangible]
     """
     tangible_list = [
-        Tangible(
-            start_year=data_raw[key]["start_year"],
-            end_year=data_raw[key]["end_year"],
-            cost=np.array(data_raw[key]["cost"]),
-            expense_year=np.array(data_raw[key]["expense_year"], dtype=int),
-            cost_allocation=read_fluid_type(fluid=data_raw[key]["cost_allocation"]),
-            description=data_raw[key]["description"],
-            vat_portion=np.array(data_raw[key]["vat_portion"]),
-            vat_discount=np.array(data_raw[key]["vat_discount"]),
-            lbt_portion=np.array(data_raw[key]["lbt_portion"]),
-            lbt_discount=np.array(data_raw[key]["lbt_discount"]),
-            pis_year=np.array(data_raw[key]["pis_year"]),
-            salvage_value=np.array(data_raw[key]["salvage_value"]),
-            useful_life=np.array(data_raw[key]["useful_life"]),
-            depreciation_factor=np.array(data_raw[key]["depreciation_factor"]),
-            is_ic_applied=data_raw[key]["is_ic_applied"],
+        CapitalCost(
+            start_year=data_raw[key]['start_year'],
+            end_year=data_raw[key]['end_year'],
+            cost=np.array(data_raw[key]['cost']),
+            expense_year=np.array(data_raw[key]['expense_year'], dtype=int),
+            cost_allocation=read_fluid_type(fluid=data_raw[key]['cost_allocation']),
+            description=data_raw[key]['description'],
+            vat_portion=np.array(data_raw[key]['vat_portion']),
+            vat_discount=np.array(data_raw[key]['vat_discount']),
+            lbt_portion=np.array(data_raw[key]['lbt_portion']),
+            lbt_discount=np.array(data_raw[key]['lbt_discount']),
+            pis_year=np.array(data_raw[key]['pis_year']),
+            salvage_value=np.array(data_raw[key]['salvage_value']),
+            useful_life=np.array(data_raw[key]['useful_life']),
+            depreciation_factor=np.array(data_raw[key]['depreciation_factor']),
+            is_ic_applied=data_raw[key]['is_ic_applied'],
         )
         for key in data_raw.keys()
     ]
@@ -930,16 +897,16 @@ def convert_dict_to_intangible(data_raw: dict) -> tuple:
     """
     intangible_list = [
         Intangible(
-            start_year=data_raw[key]["start_year"],
-            end_year=data_raw[key]["end_year"],
-            cost=np.array(data_raw[key]["cost"], dtype=float),
-            expense_year=np.array(data_raw[key]["expense_year"], dtype=int),
-            cost_allocation=read_fluid_type(fluid=data_raw[key]["cost_allocation"]),
-            description=data_raw[key]["description"],
-            vat_portion=np.array(data_raw[key]["vat_portion"], dtype=float),
-            vat_discount=np.array(data_raw[key]["vat_discount"], dtype=float),
-            lbt_portion=np.array(data_raw[key]["lbt_portion"], dtype=float),
-            lbt_discount=np.array(data_raw[key]["lbt_discount"], dtype=float),
+            start_year=data_raw[key]['start_year'],
+            end_year=data_raw[key]['end_year'],
+            cost=np.array(data_raw[key]['cost'], dtype=float),
+            expense_year=np.array(data_raw[key]['expense_year'], dtype=int),
+            cost_allocation=read_fluid_type(fluid=data_raw[key]['cost_allocation']),
+            description=data_raw[key]['description'],
+            vat_portion=np.array(data_raw[key]['vat_portion'], dtype=float),
+            vat_discount=np.array(data_raw[key]['vat_discount'], dtype=float),
+            lbt_portion=np.array(data_raw[key]['lbt_portion'], dtype=float),
+            lbt_discount=np.array(data_raw[key]['lbt_discount'], dtype=float),
         )
         for key in data_raw.keys()
     ]
@@ -963,18 +930,18 @@ def convert_dict_to_opex(data_raw: dict) -> tuple:
     """
     opex_list = [
         OPEX(
-            start_year=data_raw[key]["start_year"],
-            end_year=data_raw[key]["end_year"],
-            expense_year=np.array(data_raw[key]["expense_year"], dtype=int),
-            cost_allocation=read_fluid_type(fluid=data_raw[key]["cost_allocation"]),
-            description=data_raw[key]["description"],
-            vat_portion=np.array(data_raw[key]["vat_portion"], dtype=float),
-            vat_discount=np.array(data_raw[key]["vat_discount"], dtype=float),
-            lbt_portion=np.array(data_raw[key]["lbt_portion"], dtype=float),
-            lbt_discount=np.array(data_raw[key]["lbt_discount"], dtype=float),
-            fixed_cost=np.array(data_raw[key]["fixed_cost"], dtype=float),
-            prod_rate=np.array(data_raw[key]["prod_rate"], dtype=float),
-            cost_per_volume=np.array(data_raw[key]["cost_per_volume"], dtype=float),
+            start_year=data_raw[key]['start_year'],
+            end_year=data_raw[key]['end_year'],
+            expense_year=np.array(data_raw[key]['expense_year'], dtype=int),
+            cost_allocation=read_fluid_type(fluid=data_raw[key]['cost_allocation']),
+            description=data_raw[key]['description'],
+            vat_portion=np.array(data_raw[key]['vat_portion'], dtype=float),
+            vat_discount=np.array(data_raw[key]['vat_discount'], dtype=float),
+            lbt_portion=np.array(data_raw[key]['lbt_portion'], dtype=float),
+            lbt_discount=np.array(data_raw[key]['lbt_discount'], dtype=float),
+            fixed_cost=np.array(data_raw[key]['fixed_cost'], dtype=float),
+            prod_rate=np.array(data_raw[key]['prod_rate'], dtype=float),
+            cost_per_volume=np.array(data_raw[key]['cost_per_volume'], dtype=float),
         )
         for key in data_raw.keys()
     ]
@@ -998,16 +965,16 @@ def convert_dict_to_asr(data_raw: dict) -> tuple:
     """
     asr_list = [
         ASR(
-            start_year=data_raw[key]["start_year"],
-            end_year=data_raw[key]["end_year"],
-            cost=np.array(data_raw[key]["cost"], dtype=float),
-            expense_year=np.array(data_raw[key]["expense_year"], dtype=int),
-            cost_allocation=read_fluid_type(fluid=data_raw[key]["cost_allocation"]),
-            description=data_raw[key]["description"],
-            vat_portion=np.array(data_raw[key]["vat_portion"], dtype=float),
-            vat_discount=np.array(data_raw[key]["vat_discount"], dtype=float),
-            lbt_portion=np.array(data_raw[key]["lbt_portion"], dtype=float),
-            lbt_discount=np.array(data_raw[key]["lbt_discount"], dtype=float),
+            start_year=data_raw[key]['start_year'],
+            end_year=data_raw[key]['end_year'],
+            cost=np.array(data_raw[key]['cost'], dtype=float),
+            expense_year=np.array(data_raw[key]['expense_year'], dtype=int),
+            cost_allocation=read_fluid_type(fluid=data_raw[key]['cost_allocation']),
+            description=data_raw[key]['description'],
+            vat_portion=np.array(data_raw[key]['vat_portion'], dtype=float),
+            vat_discount=np.array(data_raw[key]['vat_discount'], dtype=float),
+            lbt_portion=np.array(data_raw[key]['lbt_portion'], dtype=float),
+            lbt_discount=np.array(data_raw[key]['lbt_discount'], dtype=float),
         )
         for key in data_raw.keys()
     ]
@@ -1159,7 +1126,7 @@ def convert_str_to_ftptaxregime(str_object: str):
     attrs = {
         "PDJP No.20 Tahun 2017": FTPTaxRegime.PDJP_20_2017,
         "Pre PDJP No.20 Tahun 2017": FTPTaxRegime.PRE_PDJP_20_2017,
-        "Direct Mode": FTPTaxRegime.DIRECT_MODE,
+        "Direct Mode": FTPTaxRegime.DIRECT_MODE
     }
 
     for key in attrs.keys():
@@ -1241,6 +1208,32 @@ def convert_str_to_inflationappliedto(str_object: str):
     return get_inflation_applied_converter(target=str_object)
 
 
+def convert_grosssplitregime_to_enum(target: str) -> GrossSplitRegime:
+    """
+    Converts a string representing the Gross Split Regime to its
+    corresponding enum value from the GrossSplitRegime enum class.
+
+    Parameters
+    ----------
+    target: str
+        The string representation of the gross split regime.
+
+    Returns
+    -------
+
+    """
+    attrs = {
+        "PERMEN_ESDM_8_2017": GrossSplitRegime.PERMEN_ESDM_8_2017,
+        "PERMEN_ESDM_52_2017": GrossSplitRegime.PERMEN_ESDM_52_2017,
+        "PERMEN_ESDM_20_2019": GrossSplitRegime.PERMEN_ESDM_20_2019,
+        "PERMEN_ESDM_12_2020": GrossSplitRegime.PERMEN_ESDM_12_2020,
+    }
+
+    for key in attrs.keys():
+        if target == key:
+            return attrs[key]
+
+
 def convert_summary_to_dict(dict_object: dict):
     """
     The function to convert the summary into skk executive summary format.
@@ -1256,41 +1249,39 @@ def convert_summary_to_dict(dict_object: dict):
 
     """
     summary_skk_format = {
-        "lifting_oil": dict_object["lifting_oil"],
-        "oil_wap": dict_object["oil_wap"],
-        "lifting_gas": dict_object["lifting_gas"],
-        "gas_wap": dict_object["gas_wap"],
-        "gross_revenue": dict_object["gross_revenue"],
-        "ctr_gross_share": dict_object["ctr_gross_share"],
-        "sunk_cost": dict_object["sunk_cost"],
-        "investment": dict_object["investment"],
-        "tangible": dict_object["tangible"],
-        "intangible": dict_object["intangible"],
-        "opex_and_asr": dict_object["opex_and_asr"],
-        "opex": dict_object["opex"],
-        "asr": dict_object["asr"],
-        "cost_recovery/deductible_cost": dict_object["cost_recovery / deductible_cost"],
-        "cost_recovery_over_gross_rev": dict_object["cost_recovery_over_gross_rev"],
-        "unrec_cost": dict_object["unrec_cost"],
-        "unrec_over_gross_rev": dict_object["unrec_over_gross_rev"],
-        "ctr_net_share": dict_object["ctr_net_share"],
-        "ctr_net_share_over_gross_share": dict_object["ctr_net_share_over_gross_share"],
-        "ctr_net_cashflow": dict_object["ctr_net_cashflow"],
-        "ctr_net_cashflow_over_gross_rev": dict_object[
-            "ctr_net_cashflow_over_gross_rev"
-        ],
-        "ctr_npv": dict_object["ctr_npv"],
-        "ctr_irr": dict_object["ctr_irr"],
-        "ctr_pot": dict_object["ctr_pot"],
-        "ctr_pv_ratio": dict_object["ctr_pv_ratio"],
-        "ctr_pi": dict_object["ctr_pi"],
-        "gov_gross_share": dict_object["gov_gross_share"],
-        "gov_ftp_share": dict_object["gov_ftp_share"],
-        "gov_ddmo": dict_object["gov_ddmo"],
-        "gov_tax_income": dict_object["gov_tax_income"],
-        "gov_take": dict_object["gov_take"],
-        "gov_take_over_gross_rev": dict_object["gov_take_over_gross_rev"],
-        "gov_take_npv": dict_object["gov_take_npv"],
+        'lifting_oil': dict_object['lifting_oil'],
+        'oil_wap': dict_object['oil_wap'],
+        'lifting_gas': dict_object['lifting_gas'],
+        'gas_wap': dict_object['gas_wap'],
+        'gross_revenue': dict_object['gross_revenue'],
+        'ctr_gross_share': dict_object['ctr_gross_share'],
+        'sunk_cost': dict_object['sunk_cost'],
+        'investment': dict_object['investment'],
+        'tangible': dict_object['tangible'],
+        'intangible': dict_object['intangible'],
+        'opex_and_asr': dict_object['opex_and_asr'],
+        'opex': dict_object['opex'],
+        'asr': dict_object['asr'],
+        'cost_recovery/deductible_cost': dict_object['cost_recovery / deductible_cost'],
+        'cost_recovery_over_gross_rev': dict_object['cost_recovery_over_gross_rev'],
+        'unrec_cost': dict_object['unrec_cost'],
+        'unrec_over_gross_rev': dict_object['unrec_over_gross_rev'],
+        'ctr_net_share': dict_object['ctr_net_share'],
+        'ctr_net_share_over_gross_share': dict_object['ctr_net_share_over_gross_share'],
+        'ctr_net_cashflow': dict_object['ctr_net_cashflow'],
+        'ctr_net_cashflow_over_gross_rev': dict_object['ctr_net_cashflow_over_gross_rev'],
+        'ctr_npv': dict_object['ctr_npv'],
+        'ctr_irr': dict_object['ctr_irr'],
+        'ctr_pot': dict_object['ctr_pot'],
+        'ctr_pv_ratio': dict_object['ctr_pv_ratio'],
+        'ctr_pi': dict_object['ctr_pi'],
+        'gov_gross_share': dict_object['gov_gross_share'],
+        'gov_ftp_share': dict_object['gov_ftp_share'],
+        'gov_ddmo': dict_object['gov_ddmo'],
+        'gov_tax_income': dict_object['gov_tax_income'],
+        'gov_take': dict_object['gov_take'],
+        'gov_take_over_gross_rev': dict_object['gov_take_over_gross_rev'],
+        'gov_take_npv': dict_object['gov_take_npv'],
     }
     return summary_skk_format
 
@@ -1353,3 +1344,19 @@ def convert_str_to_optimization_parameters(str_object: str):
 
     """
     return get_optimization_parameter_converter(target=str_object)
+
+
+def convert_to_float(target=int):
+    """
+    Function to convert integer into float.
+
+    Parameters
+    ----------
+    target: int
+        The target that will be converted.
+
+    Returns
+    -------
+    float
+    """
+    return float(target)
