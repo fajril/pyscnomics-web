@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { breakpointsVuetifyV3 } from '@vueuse/core'
-import * as math from 'mathjs'
-import { useDraggable } from 'vue-draggable-plus'
 import { useAppStore } from '@/stores/appStore'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { optimParamType, optimTarget, usePyscOptimStore } from '@/stores/optimStore'
@@ -12,6 +9,9 @@ import BarChartCompare from '@/views/components/chartBarCompare.vue'
 import ChartCompare from '@/views/components/chartCompare.vue'
 import ColCollapsible from '@/views/components/colCollapsible.vue'
 import TableCompare from '@/views/components/tableCompare.vue'
+import { breakpointsVuetifyV3 } from '@vueuse/core'
+import * as math from 'mathjs'
+import { useDraggable } from 'vue-draggable-plus'
 
 definePage({
   name: 'pysc-optim',
@@ -157,7 +157,7 @@ const buildDataParams = async (calcBase: boolean = false) => {
     })
 
     if (status !== 200)
-      throw [status, result]
+      throw { status, result }
     baseTarget.value.splice(0, baseTarget.value.length, ...[result.IRR * 100, result.NPV, result.PI])
   }
   catch (error) {
@@ -263,7 +263,7 @@ const CalcOptim = async () => {
     })
 
     if (status !== 200)
-      throw [status, result]
+      throw { status, result }
 
     if (result.state === true) {
       const optOut = JSON.parse(JSON.stringify(result.out))

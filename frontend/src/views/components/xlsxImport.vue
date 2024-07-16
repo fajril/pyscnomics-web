@@ -34,7 +34,7 @@ const resetData = () => {
 const isDialogVisible = computed({
   get: () => _isDialogVisible.value,
   set: val => {
-    resetData()
+    // resetData()
     _isDialogVisible.value = val
   },
 })
@@ -159,10 +159,17 @@ watch(selectXlsx, val => {
 
 const makeImport = (param: TImportData) => {
   defSheetName.value = param.SheetName
+  if (defSheetName.value && sheetNames.value.findIndex(s => s === defSheetName.value) !== -1)
+    nextTick(() => selectedSheet.value = defSheetName.value)
+
   callbackFunc.value = param.Callback
   ValidatorFmt.value = param.Format ?? []
   isDialogVisible.value = true
 }
+
+const DlgExpContainer = ref()
+const cardDlgExpContainer = ref()
+const cardDlgExpHeader = ref()
 
 defineExpose({
   makeImport,
@@ -171,18 +178,26 @@ defineExpose({
 
 <template>
   <VDialog
+    ref="DlgExpContainer"
     v-model="isDialogVisible"
     persistent
-    class="v-dialog-xl"
+    eager
+    class="v-dialog-sm"
   >
     <!-- Dialog close btn -->
     <DialogCloseBtn @click="isDialogVisible = !isDialogVisible" />
-
     <!-- Dialog Content -->
     <VCard
-      title="Import Data from XLSX"
+      ref="cardDlgExpContainer"
       :loading="IsLoading ? 'primary' : false"
     >
+      <VCardItem ref="cardDlgExpHeader">
+        <VCardTitle>
+          <slot name="title">
+            Import Data from XLSX
+          </slot>
+        </VCardTitle>
+      </VCardItem>
       <VCardText>
         <VRow>
           <VCol cols="12">

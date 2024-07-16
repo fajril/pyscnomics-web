@@ -55,7 +55,7 @@ const mainSetting = ref({
       nextTick(() => {
         if (ctype === 'numeric' && (typeof dataTan.value[row][+prop] === 'string') &&
           dataTan.value[row][+prop].indexOf('=') != -1) {
-          dataTan.value[row][+prop] = value
+          dataTan.value[row][+prop] = +(+value).toPrecision(15)
           refTableTangible.value.hotInstance.updateData(dataTan.value)
         }
       })

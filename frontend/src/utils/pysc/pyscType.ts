@@ -32,7 +32,19 @@ export const useNumbro = () => {
 }
 
 export const is_number = (val: any): boolean => {
-  return typeof val === 'number' && !isNaN(val) && !isNull(val)
+  return (typeof val === 'number' || typeof val === 'string') && !isEmpty(val) && !isNaN(+val) && !isNull(val)
+}
+
+export const toNumnber = (val: any): number => {
+  return is_number(val) ? +(+val).toPrecision(15) : 0
+}
+
+export const numb2Percent = (val: any): number => {
+  return +(+val * 100).toPrecision(15)
+}
+
+export const percent2Numb = (val: any): number => {
+  return +(+val / 100).toPrecision(15)
 }
 
 export const fmtNumber = (val: any, pretty: boolean = false, format_: numbro.Format = { thousandSeparated: true, mantissa: 2, negative: "parenthesis", spaceSeparated: true }) => {
@@ -104,29 +116,29 @@ export const VModelPercent = (model: Ref<number | null | undefined>) => computed
   },
 })
 
-export const extractError = (err: any) => {
-  try {
-    const error = isObject(err) && err.hasOwnProperty('state') ? err.state : err
-    const errorStatus = Array.isArray(error) && error.length === 2 ? error[0] : (isObject(error) && error.hasOwnProperty('status') ? error.status : '')
-    let errorMsg = Array.isArray(error) && error.length === 2 ? error[1] : (isObject(error) && error.hasOwnProperty('error') ? error.error : error)
-    if (Array.isArray(errorMsg))
-      errorMsg = errorMsg[0]
-    if (typeof errorMsg === 'string' && errorMsg.toLowerCase().includes("<html"))
-      errorMsg = "Unknown error"
+// export const extractError = (err: any) => {
+//   try {
+//     const error = isObject(err) && err.hasOwnProperty('state') ? err.state : err
+//     const errorStatus = Array.isArray(error) && error.length === 2 ? error[0] : (isObject(error) && error.hasOwnProperty('status') ? error.status : '')
+//     let errorMsg = Array.isArray(error) && error.length === 2 ? error[1] : (isObject(error) && error.hasOwnProperty('error') ? error.error : error)
+//     if (Array.isArray(errorMsg))
+//       errorMsg = errorMsg[0]
+//     if (typeof errorMsg === 'string' && errorMsg.toLowerCase().includes("<html"))
+//       errorMsg = "Unknown error"
 
-    return {
-      status: errorStatus,
-      msg: errorMsg,
-    }
-  }
-  catch (err) {
-  }
+//     return {
+//       status: errorStatus,
+//       msg: errorMsg,
+//     }
+//   }
+//   catch (err) {
+//   }
 
-  return {
-    status: '',
-    msg: 'Unknown error',
-  }
-}
+// return {
+//   status: '',
+//   msg: 'Unknown error',
+// }
+// }
 
 /**
  * Chart OPT
@@ -201,27 +213,27 @@ export const TableContextMenus = (menus: contextMenuType[] = defContextMenus) =>
         }
         : {
           [`${value.name === 'separator' ? (`sp${index}`) : value.name}`]:
-          value.name === 'separator'
-            ? { name: '---------' }
-            : (value.name === 'copy_with_column_headers'
-              ? {
-                    name: 'Copy with column(s) header',
-                    callback(key, selection, clickEvent) {
-                      this.getPlugin('copyPaste').copyWithAllColumnHeaders()
-                    }
-                  }
-              : (value.name === 'paste'
+            value.name === 'separator'
+              ? { name: '---------' }
+              : (value.name === 'copy_with_column_headers'
                 ? {
-                  name: 'Paste',
+                  name: 'Copy with column(s) header',
                   callback(key, selection, clickEvent) {
-                    const result = document.execCommand("paste", null, null)
-                    if (result)
-                      this.getPlugin('copyPaste').paste("xx")
-                    else
-                      alert("Not allowed to read from the clipboard system, use Ctrl+V instead")
+                    this.getPlugin('copyPaste').copyWithAllColumnHeaders()
                   }
                 }
-                : {})),
+                : (value.name === 'paste'
+                  ? {
+                    name: 'Paste',
+                    callback(key, selection, clickEvent) {
+                      const result = document.execCommand("paste", null, null)
+                      if (result)
+                        this.getPlugin('copyPaste').paste("xx")
+                      else
+                        alert("Not allowed to read from the clipboard system, use Ctrl+V instead")
+                    }
+                  }
+                  : {})),
         }),
     }
   })
@@ -385,21 +397,38 @@ export const ProducerType = {
   Electricity: "Electricity",
 } as const
 
+export const prodBase = (prodType: number): string => {
+  switch (prodType) {
+    case 0:
+      return "MSTB"
+    case 1:
+      return "BSCF"
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+      return "MT"
+    case 6:
+      return "M Unit"
+    default:
+      return "-"
+  }
+}
 export const prodUnit = (prodType: number): string => {
   switch (prodType) {
     case 0:
       return "MBOPY"
-  case 1:
+    case 1:
       return "BSCF"
-  case 3:
+    case 3:
     case 2:
       return "MT"
-  case 4:
+    case 4:
     case 5:
-      return "Ton"
-  case 6:
+      return "MT"
+    case 6:
       return "Unit"
-  default:
+    default:
       return "-"
   }
 }
@@ -408,16 +437,16 @@ export const prodPriceUnit = (prodType: number): string => {
   switch (prodType) {
     case 0:
       return "USD/BBL"
-  case 1:
+    case 1:
       return "USD/MMBTU"
-  case 3:
+    case 3:
     case 2:
       return "USD/T"
-  case 4:
+    case 4:
     case 5:
     case 6:
-      return "MMUSD/Unit"
-  default:
+      return "USD/Unit"
+    default:
       return "-"
   }
 }
@@ -426,19 +455,19 @@ export const ProdTypeSymbol = (tipe: number): string => {
   switch (tipe) {
     case 0:
       return "O"
-  case 1:
+    case 1:
       return "G"
-  case 2:
+    case 2:
       return "P"
-  case 3:
+    case 3:
       return "B"
-  case 4:
+    case 4:
       return "C"
-  case 5:
+    case 5:
       return "S"
-  case 6:
+    case 6:
       return "E"
-  default:
+    default:
       return "-"
   }
 }
@@ -461,6 +490,7 @@ export interface gsaBase {
 }
 export interface prodPriceBase {
   year: number | null
+  base?: number | null // new field at 7/11/24
   sales?: number | null
   price?: number | null
   condensate_sales?: number | null
@@ -504,16 +534,35 @@ export const defGenConfig = (): genConfig => ({
 })
 
 export const defProdPriceBase = (index, gsaNumb: number = 1): prodPriceBase[] => {
-  if (index == 0) { return [{ year: null, sales: null, price: null, condensate_sales: null, condensate_price: null }] }
+  if (index == 0) {
+    return [{
+      year: null,
+      base: null, // new field at 24/7/11
+      sales: null,
+      price: null,
+      condensate_sales: null,
+      condensate_price: null,
+    }]
+  }
   else if (index == 1) {
     let gsa_ = { vol1: null, ghv1: null, price1: null }
     for (let i = 1; i < gsaNumb; i++)
       gsa_ = { ...gsa_, ...{ [`vol${i + 1}`]: null, [`ghv${i + 1}`]: null, [`price${i + 1}`]: null } }
 
-    return [{ year: null, production: null, gsa: gsa_ }]
+    return [{
+      year: null,
+      base: null, // new field at 24/7/11
+      production: null,
+      gsa: gsa_,
+    }]
   }
 
-  return [{ year: null, sales: null, price: null }]
+  return [{
+    year: null,
+    base: null, // new field at 24/7/11
+    sales: null,
+    price: null,
+  }]
 }
 
 export const defProdConfig = (): producerConfig[] => [
@@ -640,8 +689,14 @@ export const defCostRec = (): costRec => ({
 export const FieldStat = {
   POD1: "POD I",
   POD2: "POD II",
+
+  // permen 08_2017
+  POD3: "POFD",
   NoPOD: "No POD",
+
 } as const
+
+export const FieldStatList = (regime_: number = 3) => Field2Array(FieldStat).filter(v => regime_ !== 0 ? v.value !== 2 : v.value >= 0)
 
 export const FieldLoc = {
   Onshore: "Onshore",
@@ -659,9 +714,16 @@ export const ResDepth = {
 
 export const InfAvail = {
   WellDev: "Well Developed",
+
+  // permen 52_2017
   Offshore: "New Frontier Offshore",
   Onshore: "New Frontier Onshore",
+
+  // permen 08_2017
+  frontier: "New Frontier",
 } as const
+
+export const InfAvailList = (regime_: number = 3) => Field2Array(InfAvail).filter(v => regime_ === 0 ? [0, 3].includes(v.value) : [0, 1, 2].includes(v.value))
 
 export const ResType = {
   Conv: "Conventional",
@@ -674,11 +736,15 @@ export const APiType = {
 } as const
 
 export const DCUType = {
-  DCU1: "x<30",
-  DCU2: "30<=x<50",
-  DCU3: "50<=x<70",
-  DCU4: "70<=x<100",
+  // permen 08_2017
+  DCU0: "<30",
+
+  DCU1: "30<=x<50",
+  DCU2: "50<=x<70",
+  DCU3: "70<=x<100",
 } as const
+
+export const DCUTypeList = (regime_: number = 3) => Field2Array(DCUType).filter(v => regime_ !== 0 ? v.value !== 0 : v.value >= 0)
 
 export const TahapProdType = {
   Tahap1: "Primary",
@@ -692,17 +758,27 @@ export const CO2Type = {
   CO2_3: "10<=x<20",
   CO2_4: "20<=x<40",
   CO2_5: "40<=x<60",
-  CO2_6: "60<=x",
+  CO2_6: "x>=60",
 } as const
 
 export const H2SType = {
   H2S_1: "<100",
+
+  // permen 52_2017
   H2S_2: "100<=x<1000",
   H2S_3: "1000<=x<2000",
   H2S_4: "2000<=x<3000",
   H2S_5: "3000<=x<4000",
-  H2S_6: "4000<=x",
+  H2S_6: "x>=4000",
+
+  // permen 08_2017
+  H2S_7: "100<=x<300",
+  H2S_8: "300<=x<500",
+  H2S_9: "x>=500",
+
 } as const
+
+export const H2STypeList = (regime_: number = 3) => Field2Array(H2SType).filter(v => regime_ === 0 ? [0, 6, 7, 8].includes(v.value) : [0, 1, 2, 3, 4, 5].includes(v.value))
 
 export interface GS {
   field_status: number
@@ -740,7 +816,7 @@ export const defGS = (): GS => ({
   infrastructure_availability: IndexOfField(InfAvail, InfAvail.WellDev),
   reservoir_type: IndexOfField(ResType, ResType.Conv),
   co2_content: IndexOfField(CO2Type, CO2Type.CO2_2),
-  h2s_content: IndexOfField(H2SType, H2SType.H2S_2),
+  h2s_content: IndexOfField(H2SType, H2SType.H2S_1),
   oil_api: IndexOfField(APiType, APiType.ApiDn),
   domestic_content_use: IndexOfField(DCUType, DCUType.DCU1),
   production_stage: IndexOfField(TahapProdType, TahapProdType.Tahap1),
@@ -847,6 +923,13 @@ export interface Depreciation {
   decline_factor: number // Decline Factor
 }
 
+export const GSRegimeType = {
+  PERMEN_ESDM_8_2017: 'Peraturan Menteri ESDM No. 8 Tahun 2017',
+  PERMEN_ESDM_52_2017: 'Peraturan Menteri ESDM No. 52 Tahun 2017',
+  PERMEN_ESDM_20_2019: 'Peraturan Menteri ESDM No. 20 Tahun 2019',
+  PERMEN_ESDM_12_2020: 'Peraturan Menteri ESDM No. 12 Tahun 2020',
+} as const
+
 export interface FiskalBase {
   transferred_unrec_cost: number // for 2nd project only
   Tax: Tax // Tax Object
@@ -878,6 +961,9 @@ export interface FiskalBase {
   co2_revenue_config: number // CO2 Revenue
 
   sunk_cost_reference_year: number // Sunk Cost Reference Year
+
+  regime?: number // add field (7/12/24) for grosssplit
+  profitability_discounted?: boolean // add field (7/12/24)
 }
 
 export interface Fiskal {
@@ -904,6 +990,9 @@ export const defFiskalBase = (): FiskalBase => ({
   co2_revenue_config: 2,
 
   sunk_cost_reference_year: dayjs.utc().year(),
+
+  regime: 3, // add field (7/12/24) for grosssplit
+  profitability_discounted: false, // add field (7/12/24)
 })
 
 export const defFiskal = (): Fiskal => ({

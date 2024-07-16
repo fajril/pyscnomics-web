@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/appStore';
-import { useDataStore } from '@/utils/pysc/useDataStore';
-import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue";
+import { useAppStore } from '@/stores/appStore'
+import { useDataStore } from '@/utils/pysc/useDataStore'
+
+// import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
 
 const appStore = useAppStore()
 
-const SelLocRef = ref(null)
+// const SelLocRef = ref(null)
 const isSaveProgress = ref(false)
 
 const PostDataProj = async (path: string) => {
@@ -23,21 +24,53 @@ const updateSelPath = (value: string) => {
 }
 
 const SaveProj = () => {
-  SelLocRef.value?.loadMyDris("save", appStore.curProjectPath ?? null)
+  appStore.showFileDialog(updateSelPath, 'save', appStore.curProjectPath ?? null)
+
+  // SelLocRef.value?.loadMyDris("save", appStore.curProjectPath ?? null)
 }
 </script>
 
 <template>
-  <div v-if="isSaveProgress" class="position-fixed" style="z-index: 9999; inset-block-start: 0; inset-inline: 0 0;">
-    <VProgressLinear indeterminate striped color="primary" height="3" bg-color="background" />
+  <div
+    v-if="isSaveProgress"
+    class="position-absolute"
+    style="z-index: 9999; inset-block-start: 0; inset-inline: 0 0;"
+  >
+    <VProgressLinear
+      indeterminate
+      striped
+      color="primary"
+      height="3"
+      bg-color="background"
+    />
   </div>
-  <IconBtn color="rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity))" @click="SaveProj">
-    <VIcon icon="tabler-device-floppy" size="26" class="position-fixed ms-2 mt-n2 text-primary" style="opacity: 90;" />
-    <VIcon icon="tabler-device-floppy" size="26" />
+  <IconBtn
+    color="rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity))"
+    @click="SaveProj"
+  >
+    <VIcon
+      icon="tabler-device-floppy"
+      size="26"
+      class="position-absolute ms-2 mt-n2 text-primary"
+      style="opacity: 90;"
+    />
+    <VIcon
+      icon="tabler-device-floppy"
+      size="26"
+    />
 
-    <VTooltip activator="parent" open-delay="500" scroll-strategy="close">
+    <VTooltip
+      activator="parent"
+      open-delay="500"
+      scroll-strategy="close"
+    >
       <span class="text-capitalize">{{ $t('SaveAs') }}</span>
     </VTooltip>
   </IconBtn>
-  <DirDialogs ref="SelLocRef" @update:path="updateSelPath" />
+  <!--
+    <DirDialogs
+    ref="SelLocRef"
+    @update:path="updateSelPath"
+    />
+  -->
 </template>

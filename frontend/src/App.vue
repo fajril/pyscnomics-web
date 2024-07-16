@@ -8,14 +8,15 @@ import { initConfigStore, useConfigStore } from '@core/stores/config'
 import { hexToRgb } from '@layouts/utils'
 import { useTheme } from 'vuetify'
 
+import { useWSStore } from '@/stores/wsStore'
 import SettDialogs from '@/pages/components/settPysc.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
-import { useWSStore } from '@/stores/wsStore'
 import * as Pysc from '@/utils/pysc/pyscType'
 import { useDataStore } from '@/utils/pysc/useDataStore'
+import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
 import XlsxImport from '@/views/components/xlsxImport.vue'
 
 const { global } = useTheme()
@@ -31,7 +32,7 @@ const wsStore = useWSStore()
 const PyscSens = usePyscSensStore()
 const PyscMonte = usePyscMonteStore()
 const PyscOptim = usePyscOptimStore()
-const { settFunc, alertFunc, xlsxImportFunc } = storeToRefs(appStore)
+const { settFunc, alertFunc, xlsxImportFunc, fileDialogFunc } = storeToRefs(appStore)
 const isShowAlert = ref(false)
 const dayjs = Pysc.useDayJs()
 
@@ -123,6 +124,17 @@ const XlsxImportRef = ref()
 
 xlsxImportFunc.value = (data: Pysc.TImportData) => XlsxImportRef.value?.makeImport(data)
 
+const fileBrowserRef = ref()
+const callbackDirs = ref((path: string) => {})
+
+const callbackCloseDirs = () => {
+  callbackDirs.value = (path: string) => {}
+}
+
+fileDialogFunc.value = (callback: (path: string) => void, mode: string, lookup: string | null) => {
+  callbackDirs.value = callback
+  fileBrowserRef.value?.loadMyDris(mode, lookup)
+}
 </script>
 
 <template>
@@ -144,6 +156,11 @@ xlsxImportFunc.value = (data: Pysc.TImportData) => XlsxImportRef.value?.makeImpo
       <ScrollToTop />
       <SettDialogs ref="RefSettDialogs" />
       <XlsxImport ref="XlsxImportRef" />
+      <DirDialogs
+        ref="fileBrowserRef"
+        @update:path="(path) => callbackDirs(path)"
+        @update:close-dialogs="callbackCloseDirs"
+      />
     </VApp>
   </VLocaleProvider>
 </template>

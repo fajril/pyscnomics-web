@@ -18,17 +18,17 @@ const hideTitleAndBadge = configStore.isVerticalNavMini()
     v-if="can(item.action, item.subject)"
     class="nav-link"
     :class="{ disabled: item.disable }"
-  >
+    >
     <Component
       :is="item.to ? 'RouterLink' : 'a'"
       v-bind="getComputedNavLinkToProp(item)"
       :class="{ 'router-link-active router-link-exact-active': isNavLinkActive(item, $router) }"
-    >
+      >
       <Component
         :is="layoutConfig.app.iconRenderer || 'div'"
         v-bind="item.icon || layoutConfig.verticalNav.defaultNavItemIconProps"
         class="nav-item-icon"
-      />
+        />
       <TransitionGroup name="transition-slide-x">
         <!-- 👉 Title -->
         <Component
@@ -55,6 +55,11 @@ const hideTitleAndBadge = configStore.isVerticalNavMini()
         </Component>
       </TransitionGroup>
     </Component>
+    <VSpacer v-if="item.divider" class="mx-4"
+    :style="{ 'border-bottom': '1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important', 
+        marginBottom:'10px',marginTop:'10px',
+      }"
+    />
   </li>
 </template>
 

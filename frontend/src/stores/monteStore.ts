@@ -1,11 +1,11 @@
-import { useStorage } from '@vueuse/core'
-import CryptoJS from 'crypto-js'
-import * as lzs from 'lz-string'
 import { useAppStore } from '@/stores/appStore'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { useDataStore } from '@/utils/pysc/useDataStore'
 import { useHTTP } from '@/utils/pysc/useHttp'
 import { namespaceConfig } from '@layouts/stores/config'
+import { useStorage } from '@vueuse/core'
+import CryptoJS from 'crypto-js'
+import * as lzs from 'lz-string'
 
 export const MonteDistType = {
   Uniform: 'Uniform',
@@ -59,15 +59,16 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
     const appStore = useAppStore()
     const PyscConf = usePyscConfStore()
 
+    IsOnCalc.value = true
+
     _data.forEach(v => {
       const idx = monteConfig.value.params.findIndex(row => row.id === v.id)
-      if (idx != -1) {
+      if (idx !== -1) {
         monteConfig.value.params.splice(idx, 1, {
           id: v.id, dist: Object.values(MonteDistType).indexOf(v.dist), min: v.min, base: v.base, max: v.max, stddev: v.stddev,
         })
       }
     })
-    IsOnCalc.value = true
     try {
       const MonteJson = {
         numsim: monteConfig.value.numsim,
@@ -93,7 +94,9 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
       })
 
       if (status !== 200)
-        throw [status, result]
+        throw { status, result }
+
+      return result.path
     }
     catch (err) {
       appStore.showAlert({
@@ -102,6 +105,8 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
       })
       IsOnCalc.value = false
     }
+
+    return false
   }
 
   const LoadResult = async (_id: number, _hashID: string | null = null, _showAlert: boolean = false) => {
@@ -122,7 +127,7 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
       })
 
       if (status !== 200)
-        throw [status, result]
+        throw { status, result }
       if (_showAlert) {
         appStore.showAlert({
           text: `Calculation Done${result.res ? "" : ", with error"}`,

@@ -6,7 +6,9 @@ import {
   Field2Array,
   TaxSplitType,
   costRec,
-  useDayJs,
+  numb2Percent,
+  percent2Numb,
+  useDayJs
 } from '@/utils/pysc/pyscType';
 import { useTooltip } from '@/utils/pysc/useTooltips';
 import TableEditor from '@/views/components/TableEditor.vue';
@@ -51,36 +53,36 @@ const dayjs = useDayJs()
 const contractValue = computed(() => (props.subProject ? <costRec>dataContr.value.second : dataContr.value.cr))
 
 const oil_ftp_portion = computed({
-  get: () => contractValue.value.oil_ftp.ftp_portion * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.oil_ftp.ftp_portion = +val / 100 }
+  get: () => numb2Percent(contractValue.value.oil_ftp.ftp_portion),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.oil_ftp.ftp_portion = percent2Numb(val) }
 })
 const gas_ftp_portion = computed({
-  get: () => contractValue.value.gas_ftp.ftp_portion * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.gas_ftp.ftp_portion = +val / 100 }
+  get: () => numb2Percent(contractValue.value.gas_ftp.ftp_portion),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.gas_ftp.ftp_portion = percent2Numb(val) }
 })
 const Tax_pre_tax_ctr_oil = computed({
-  get: () => contractValue.value.TaxSplit.pre_tax_ctr_oil * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.TaxSplit.pre_tax_ctr_oil = +val / 100 }
+  get: () => numb2Percent(contractValue.value.TaxSplit.pre_tax_ctr_oil),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.TaxSplit.pre_tax_ctr_oil = percent2Numb(val) }
 })
 const Tax_pre_tax_ctr_gas = computed({
-  get: () => contractValue.value.TaxSplit.pre_tax_ctr_gas * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.TaxSplit.pre_tax_ctr_gas = +val / 100 }
+  get: () => numb2Percent(contractValue.value.TaxSplit.pre_tax_ctr_gas),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.TaxSplit.pre_tax_ctr_gas = percent2Numb(val) }
 })
 const IC_ic_oil = computed({
-  get: () => contractValue.value.IC.ic_oil * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.IC.ic_oil = +val / 100 }
+  get: () => numb2Percent(contractValue.value.IC.ic_oil),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.IC.ic_oil = percent2Numb(val) }
 })
 const IC_ic_gas = computed({
-  get: () => contractValue.value.IC.ic_gas * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.IC.ic_gas = +val / 100 }
+  get: () => numb2Percent(contractValue.value.IC.ic_gas),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.IC.ic_gas = percent2Numb(val) }
 })
 const CR_oil_cr_cap_rate = computed({
-  get: () => contractValue.value.CR.oil_cr_cap_rate * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.CR.oil_cr_cap_rate = +val / 100 }
+  get: () => numb2Percent(contractValue.value.CR.oil_cr_cap_rate),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.CR.oil_cr_cap_rate = percent2Numb(val) }
 })
 const CR_gas_cr_cap_rate = computed({
-  get: () => contractValue.value.CR.gas_cr_cap_rate * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.CR.gas_cr_cap_rate = +val / 100 }
+  get: () => numb2Percent(contractValue.value.CR.gas_cr_cap_rate),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.CR.gas_cr_cap_rate = percent2Numb(val) }
 })
 </script>
 

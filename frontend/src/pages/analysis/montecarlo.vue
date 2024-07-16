@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
+import { useWSStore } from '@/stores/wsStore'
+import * as math from 'mathjs'
+import HyperFormula from 'hyperformula'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { MonteDistType, usePyscMonteStore } from '@/stores/monteStore'
-import { useWSStore } from '@/stores/wsStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
 import MonteResChart from '@/views/pages/analysis/monteResChart.vue'
 import MonteResTable from '@/views/pages/analysis/monteResTable.vue'
 import 'handsontable/dist/handsontable.full.min.css'
-import HyperFormula from 'hyperformula'
-import * as math from 'mathjs'
 
 definePage({
   name: 'pysc-monte',
@@ -25,6 +25,7 @@ const MonteStore = usePyscMonteStore()
 const wsStore = useWSStore()
 const isLoading = ref(false)
 const isLoadingRes = ref(false)
+const isStartCalc = ref(false)
 const isValid = ref(false)
 const cardParams = ref()
 const cardResult = ref()
@@ -91,19 +92,31 @@ const FillDataTable = () => {
   }))
   if (PyscConf.prodHasGas() && idxGas === -1)
     dataTable.value.splice(1, 0, { id: 1, name: 'Gas Price, <small>USD/MMBTU</small>', dist: 'Normal', min: null, max: null, base: null, stddev: 1.25 })
-  else if (!PyscConf.prodHasGas() && idxGas != -1)
+  else if (!PyscConf.prodHasGas() && idxGas !== -1)
     dataTable.value.splice(idxGas, idxGas)
 
+  const dataOpex = PyscConf.dataOpex.filter(r => Pysc.is_number(r[2])).map(v => v[2])
+  const dataTan = PyscConf.dataTan.filter(r => Pysc.is_number(r[2])).map(v => v[2])
+  const dataOil = oilProd ? oilProd.prod_price[0].filter(r => Pysc.is_number(r.sales)).map(v => v.sales) : []
+
   dataTable.value.forEach(el => {
-    if (el.id === 0) { el.base = (oilProd?.prod_price[0][oilProd?.prod_price[0].length - 1].price) ?? 65 }
+    if (el.id === 0) {
+      el.base = (oilProd?.prod_price[0][oilProd?.prod_price[0].length - 1].price) ?? 65
+    }
     else if (el.id === 1 && PyscConf.prodHasGas()) {
       const gasProd = PyscConf.getProducer(Pysc.ProducerType.Gas)
 
       el.base = (gasProd?.prod_price[0][gasProd?.prod_price[0].length - 1].price) ?? 4.5
     }
-    else if (el.id === 2) { el.base = math.sum(PyscConf.dataOpex.map(v => v[2])) }
-    else if (el.id === 3) { el.base = math.sum(PyscConf.dataTan.map(v => v[2])) }
-    else if (el.id === 4) { el.base = math.sum(oilProd?.prod_price[0].map(v => v.sales)) ?? 0 }
+    else if (el.id === 2) {
+      el.base = dataOpex.length ? math.sum(dataOpex) : 0
+    }
+    else if (el.id === 3) {
+      el.base = dataTan.length ? math.sum(dataTan) : 0
+    }
+    else if (el.id === 4) {
+      el.base = dataOil?.length ? math.sum(dataOil) : 0
+    }
 
     if (el.base) {
       if (el.min === null || el.min === undefined || el.min >= el.base)
@@ -174,7 +187,7 @@ const tableMonteConfig = computed(() => {
         nextTick(() => {
           if (ctype === 'numeric' && (typeof dataTable.value[row][prop] === 'string')
             && dataTable.value[row][prop].includes('=')) {
-            dataTable.value[row][prop] = value
+            dataTable.value[row][prop] = +(+value).toPrecision(15)
             refTableMonteCfg.value.hotInstance.updateData(dataTable.value)
           }
         })
@@ -268,23 +281,53 @@ const progress = ref(0)
 
 const addBroadCast = async () => {
   if (appStore.curSelCase) {
-    wsStore.addBroadCast('monte', appStore.curSelCase, (msg: any) => {
-      if (msg.id === curCaseID.value) {
-        if (msg.data.progress === -1) {
-          // done
-          MonteStore.$patch({ IsOnCalc: false })
-          nextTick(() => {
-            appStore.$patch(state => state.projects[appStore.IndexCase].state = 1)
-            LoadResult(msg.data.output, true)
-          })
+    wsStore.addBroadCast('module:monteCalc', appStore.curSelCase, msg => {
+      const { type, caseID, data } = msg.data
+      if (caseID === curCaseID.value) {
+        const { progress: recvProgress, path, status } = data
+        if (type === 'monteCalc:progress') {
+          isStartCalc.value = false
+          if (recvProgress === -1) {
+            progress.value = 100
+            nextTick(() => {
+              MonteStore.$patch({ IsOnCalc: false })
+              appStore.$patch(state => {
+                state.projects[appStore.IndexCase].state = 1
+              })
+              LoadResult(path, true)
+            })
+          }
+          else {
+            MonteStore.$patch({ IsOnCalc: recvProgress !== -500 })
+            if (recvProgress === -500)
+              appStore.showAlert({ text: 'Error calc montecarlo', isalert: true })
+            else progress.value = recvProgress
+          }
         }
-        else {
-          progress.value = msg.data.progress
-          if (!MonteStore.IsOnCalc)
-            MonteStore.$patch({ IsOnCalc: true })
+        else if (type === 'monteCalc:status' && !status) {
+          isStartCalc.value = false
+          MonteStore.$patch({ IsOnCalc: false })
         }
       }
     })
+
+    // wsStore.addBroadCast('monte', appStore.curSelCase, (msg: any) => {
+    //   if (msg.id === curCaseID.value) {
+    //     if (msg.data.progress === -1) {
+    //       // done
+    //       MonteStore.$patch({ IsOnCalc: false })
+    //       nextTick(() => {
+    //         appStore.$patch(state => state.projects[appStore.IndexCase].state = 1)
+    //         LoadResult(msg.data.output, true)
+    //       })
+    //     }
+    //     else {
+    //       progress.value = msg.data.progress
+    //       if (!MonteStore.IsOnCalc)
+    //         MonteStore.$patch({ IsOnCalc: true })
+    //     }
+    //   }
+    // })
     curCaseID.value = appStore.curSelCase
   }
 }
@@ -292,7 +335,22 @@ const addBroadCast = async () => {
 function Calc() {
   progress.value = 0
   if (ValidateData()) {
-    MonteStore.MonteCalc(curCaseID.value, dataTable.value)
+    const _numsim = monteCfg.value.numsim
+
+    isStartCalc.value = true
+    MonteStore.MonteCalc(curCaseID.value, dataTable.value).then(result => {
+      if (result !== false) {
+        wsStore.wseSend(btoa(JSON.stringify({
+          module: 'module:monteCalc',
+          id: wsStore.clientIDE,
+          data: { path: result, caseID: curCaseID.value, numSim: _numsim },
+        })), false)
+      }
+      else {
+        isStartCalc.value = false
+        MonteStore.$patch({ IsOnCalc: false })
+      }
+    })
   }
   else {
     appStore.showAlert({
@@ -315,9 +373,9 @@ const LoadResult = async (hashID: string | null = null, _showAlert: boolean = fa
       return {
         target: key + (key === 'IRR' ? ", %" : (key === 'P/I' ? "" : (key === "POT" ? ", Year" : ", MUSD"))),
         key,
-        p10: resMonte.res.P10[index + 1],
+        p10: resMonte.res.P90[index + 1],
         p50: resMonte.res.P50[index + 1],
-        p90: resMonte.res.P90[index + 1],
+        p90: resMonte.res.P10[index + 1],
       }
     }),
     )
@@ -343,7 +401,7 @@ const LoadResult = async (hashID: string | null = null, _showAlert: boolean = fa
 const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   console.log("monte trigger")
   if (curCaseID.value) {
-    wsStore.removeBroadCast('monte', curCaseID.value)
+    wsStore.removeBroadCast('module:monteCalc', curCaseID.value)
     MonteStore.$patch({
       IsOnCalc: false,
     })
@@ -372,7 +430,7 @@ onUnmounted(() => {
   watcherMonteCfg.stop()
   stopCaseID()
   if (curCaseID.value)
-    wsStore.removeBroadCast('monte', curCaseID.value)
+    wsStore.removeBroadCast('module:monteCalc', curCaseID.value)
 })
 </script>
 
@@ -383,11 +441,12 @@ onUnmounted(() => {
     :subtitle="$t('Analysis')"
   >
     <VCardText
-      v-if="MonteStore.IsOnCalc"
+      v-if="MonteStore.IsOnCalc || isStartCalc"
       class="py-0"
     >
       <VProgressLinear
-        indeterminate
+        v-model="progress"
+        :indeterminate="isStartCalc"
         striped
         color="rgba(var(--v-theme-success), 0.6)"
         height="5"
@@ -400,7 +459,7 @@ onUnmounted(() => {
         action-collapsed
         :title="$t('Parameter')"
         compact-header
-        :disabled="MonteStore.IsOnCalc"
+        :disabled="MonteStore.IsOnCalc || isStartCalc"
         style="z-index: 100; overflow: visible !important;"
       >
         <VCardText>

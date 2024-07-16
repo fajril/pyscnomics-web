@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import * as math from 'mathjs'
 import { useAppStore } from '@/stores/appStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
+import * as math from 'mathjs'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import { fmtNumber, is_number, useNumbro } from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import { useHTTP } from '@/utils/pysc/useHttp'
 import CardSumm from '@/views/pages/dashboard/cardSumm.vue'
 import CardSummFull from '@/views/pages/dashboard/cardSummFull.vue'
 import Project from '@/views/pages/dashboard/projectlist.vue'
@@ -27,7 +27,7 @@ const isLoading = ref(false)
 const isSensLoading = ref(false)
 
 const templatedata = [
-  { param: "Oil Production", unit: "MMSTB", ctrl: null },
+  { param: "Oil Production", unit: "MSTB", ctrl: null },
   { param: "Oil WAP	", unit: "US$/bbl", ctrl: null },
   { param: "Gas Production", unit: "TBTU", ctrl: null },
   { param: "Gas WAP", unit: "US$/MMBTU", ctrl: null },
@@ -168,17 +168,17 @@ const loadSummary = async () => {
     if (PyscConf.prodHasGas())
       DataJson.parameter.splice(1, 0, "Gas Price")
 
-    const { status, result } = await useHTTP().put({
+    const resp = await useHTTP().put({
       path: 'calc_ext_summ',
       body: {
         type: PyscConf.dataGConf.type_of_contract,
         json: btoa(JSON.stringify(DataJson)),
       },
-      onError: (error: any) => { throw error },
     }).finally(() => { })
 
+    const { status, result } = resp ?? { status: 500, result: 'unknown' }
     if (status !== 200)
-      throw [status, result]
+      throw resp
 
     if (!(isObject(result) && !isEmpty(result)))
       throw "Error Calculation"
@@ -205,6 +205,8 @@ const loadSummary = async () => {
     catch (error) {
       console.log(['error irr', error])
     }
+
+    // console.log(result.summary)
 
     dataSumm.value[0].ctrl = result.summary.lifting_oil
     dataSumm.value[1].ctrl = result.summary.oil_wap
@@ -327,7 +329,7 @@ onUnmounted(() => stopCaseID())
             >
               <CardSumm
                 title="Oil & Gas"
-                subtitle="MMSTB & TBTU"
+                subtitle="MSTB & TBTU"
                 :chart="0"
                 :mode="1"
                 color-card="success"
@@ -342,7 +344,7 @@ onUnmounted(() => stopCaseID())
             >
               <CardSumm
                 title="Production"
-                subtitle="MMSTB"
+                subtitle="MSTB"
                 :chart="0"
                 :mode="0"
                 color-card="info"

@@ -1,11 +1,5 @@
 <script setup lang="ts">
 import { useAppStore } from "@/stores/appStore"
-import { usePyscConfStore } from '@/stores/genfisStore'
-import { usePyscMonteStore } from '@/stores/monteStore'
-import { usePyscOptimStore } from '@/stores/optimStore'
-import { usePyscSensStore } from '@/stores/sensStore'
-import * as Pysc from "@/utils/pysc/pyscType"
-import { useDataStore } from '@/utils/pysc/useDataStore'
 import { useHTTP } from "@/utils/pysc/useHttp"
 import { BarChart, LineChart } from "echarts/charts"
 import {
@@ -23,9 +17,15 @@ import { useTheme } from 'vuetify'
 
 // import BarChartCompare from '@/views/components/chartBarCompare.vue';
 // import ChartCompare from '@/views/components/chartCompare.vue';
+import { hexToRgb } from '@layouts/utils'
+import { usePyscConfStore } from '@/stores/genfisStore'
+import { usePyscMonteStore } from '@/stores/monteStore'
+import { usePyscOptimStore } from '@/stores/optimStore'
+import { usePyscSensStore } from '@/stores/sensStore'
+import * as Pysc from "@/utils/pysc/pyscType"
+import { useDataStore } from '@/utils/pysc/useDataStore'
 import ColCollapsible from '@/views/components/colCollapsible.vue'
 import TableCombine from '@/views/components/tableCombine.vue'
-import { hexToRgb } from '@layouts/utils'
 import 'handsontable/dist/handsontable.full.css'
 
 const emit = defineEmits<Emit>()
@@ -194,24 +194,6 @@ const closeChips = (caseID: number) => {
   const index = CombineConf.value.comp.findIndex(e => e === caseID)
 
   CombineConf.value.comp.splice(index, 1)
-}
-
-const _toPercent = (val, _mantissa: int = 2) => {
-  try {
-    return typeof val === "number" ? numbro(val / 100).format({ mantissa: _mantissa, optionalMantissa: true, negative: 'sign', output: 'percent' }) : '-'
-  }
-  catch (error) {
-    return '-'
-  }
-}
-
-const _toNumber = (val, _mantissa: int = 2) => {
-  try {
-    return typeof val === "number" ? numbro(val).format({ mantissa: _mantissa, optionalMantissa: true, thousandSeparated: true, negative: 'sign' }) : '-'
-  }
-  catch (error) {
-    return '-'
-  }
 }
 
 function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
@@ -469,40 +451,13 @@ const chtDistOption = computed(() => {
   }
 })
 
-const execPartData = async (url: string, mode: string, param: object) => {
-  if (mode === 'GET') {
-    const { status, result } = await useHTTP().get({
-      path: url,
-      params: param,
-      onError: (error: any) => { throw error },
-    })
+// const loadData = async (urlpath: string, id: number, costmode: number | undefined = undefined) => {
+//   const resInit = await execPartData(urlpath, 'GET', costmode != undefined ? { wspath: appStore.curWS, mode: costmode, caseid: id } : { wspath: appStore.curWS, caseid: id })
+//   if (resInit.state !== true)
+//     throw `error ${urlpath}`
 
-    if (status !== 200)
-      throw { status, error: result }
-
-    return result
-  }
-  else {
-    const { status, result } = await useHTTP().put({
-      path: url,
-      body: param,
-      onError: (error: any) => { throw error },
-    })
-
-    if (status !== 200)
-      throw { status, error: result }
-
-    return result
-  }
-}
-
-const loadData = async (urlpath: string, id: number, costmode: number | undefined = undefined) => {
-  const resInit = await execPartData(urlpath, 'GET', costmode != undefined ? { wspath: appStore.curWS, mode: costmode, caseid: id } : { wspath: appStore.curWS, caseid: id })
-  if (resInit.state !== true)
-    throw `error ${urlpath}`
-
-  return JSON.parse(JSON.stringify(resInit.data))
-}
+//   return JSON.parse(JSON.stringify(resInit.data))
+// }
 
 const calcData = async () => {
   const CombOut = []
@@ -529,14 +484,14 @@ const calcData = async () => {
     const listCaseID = [CombineConf.value.source, ...CombineConf.value.comp]
     for (let i = 0; i < listCaseID.length; i++) {
       const _caseid = listCaseID[i]
-      const dGConf = _caseid === appStore.curSelCase ? PyscConf.generalConfig : (await loadData('rdgenconf', _caseid))
-      const dFisc = _caseid === appStore.curSelCase ? PyscConf.fiscal : (await loadData('rdfiscalconf', _caseid))
-      const dContr = _caseid === appStore.curSelCase ? PyscConf.contracts : (await loadData('rdcontracts', _caseid))
-      const dProd = _caseid === appStore.curSelCase ? PyscConf.producer : (await loadData('rdproducer', _caseid))
-      const dTan = _caseid === appStore.curSelCase ? PyscConf.tangible : (await loadData('rdcosts', _caseid, 0))
-      const dIntan = _caseid === appStore.curSelCase ? PyscConf.intangible : (await loadData('rdcosts', _caseid, 1))
-      const dOpex = _caseid === appStore.curSelCase ? PyscConf.opex : (await loadData('rdcosts', _caseid, 2))
-      const dASR = _caseid === appStore.curSelCase ? PyscConf.asr : (await loadData('rdcosts', _caseid, 3))
+      const dGConf = _caseid === appStore.curSelCase ? PyscConf.generalConfig : (await useDataStore().loadDataModule('rdgenconf', appStore.curWS, _caseid))
+      const dFisc = _caseid === appStore.curSelCase ? PyscConf.fiscal : (await useDataStore().loadDataModule('rdfiscalconf', appStore.curWS, _caseid))
+      const dContr = _caseid === appStore.curSelCase ? PyscConf.contracts : (await useDataStore().loadDataModule('rdcontracts', appStore.curWS, _caseid))
+      const dProd = _caseid === appStore.curSelCase ? PyscConf.producer : (await useDataStore().loadDataModule('rdproducer', appStore.curWS, _caseid))
+      const dTan = _caseid === appStore.curSelCase ? PyscConf.tangible : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 0))
+      const dIntan = _caseid === appStore.curSelCase ? PyscConf.intangible : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 1))
+      const dOpex = _caseid === appStore.curSelCase ? PyscConf.opex : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 2))
+      const dASR = _caseid === appStore.curSelCase ? PyscConf.asr : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 3))
 
       const dataJson = useDataStore().makeJSONofCase(_caseid,
         dGConf, dProd, dContr, dFisc, dTan, dIntan, dOpex, dASR, true)
@@ -648,18 +603,18 @@ watchDebounced(() => [CombineConf.value], val => {
 }, { deep: true, debounce: 500, maxWait: 1000 })
 
 const discount_rate = computed({
-  get: () => CombineConf.value.discount_rate * 100.0,
+  get: () => Pysc.numb2Percent(CombineConf.value.discount_rate),
   set: val => {
     if (!isNaN(+val))
-      CombineConf.value.discount_rate = +val / 100
+      CombineConf.value.discount_rate = Pysc.percent2Numb(val)
   },
 })
 
 const inflation_rate = computed({
-  get: () => CombineConf.value.inflation_rate * 100.0,
+  get: () => Pysc.numb2Percent(CombineConf.value.inflation_rate),
   set: val => {
     if (!isNaN(+val))
-      CombineConf.value.inflation_rate = +val / 100
+      CombineConf.value.inflation_rate = Pysc.percent2Numb(val)
   },
 })
 

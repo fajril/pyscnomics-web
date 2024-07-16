@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { BarChart, LineChart } from "echarts/charts"
+import { BarChart, LineChart, ScatterChart } from "echarts/charts"
 import { CanvasRenderer } from 'echarts/renderers'
 
+import { hexToRgb } from '@layouts/utils'
 import {
   AxisPointerComponent,
   GridComponent,
@@ -14,7 +15,6 @@ import { use } from "echarts/core"
 import VChart from "vue-echarts"
 import type { ThemeInstance } from 'vuetify'
 import { useTheme } from 'vuetify'
-import { hexToRgb } from '@layouts/utils'
 import * as Pysc from "@/utils/pysc/pyscType"
 
 const props = withDefaults(defineProps<Props>(), {
@@ -26,6 +26,7 @@ const numbro = Pysc.useNumbro()
 
 use([
   CanvasRenderer,
+  ScatterChart,
   LineChart,
   BarChart,
   TitleComponent,
@@ -73,7 +74,7 @@ const chtOption = computed(() => {
       trigger: 'item',
 
       axisPointer: {
-        axis: 'y',
+        axis: 'x',
         snap: true,
       },
       valueFormatter: (value, dataIndex) => {
@@ -125,7 +126,7 @@ const chtOption = computed(() => {
     },
     yAxis: {
       type: 'value',
-      name: 'Freq, %', // '%Probability (greater than)',
+      name: '%Probability (greater than)', // 'Freq, %',
       scale: true,
       splitLine: { show: true, lineStyle: { color: themeBorderColor } },
       axisLabel: {
@@ -148,72 +149,55 @@ const chtOption = computed(() => {
       {
         name: props.title,
         type: "line",
-
-        // triggerLineEvent: true,
+        symbol: 'none',
         data: [],
         zlevel: 1,
+        label: { show: false },
+      },
+      {
+        type: 'scatter',
+        symbol: 'pin',
+        label: { show: true, color: themePrimaryTextColor },
 
-        // symbol: 'none',
-        markPoint: {
-          symbol: 'pin',
-          data: [
-            {
-              coord: [10, 0.1],
+        symbolSize: 44,
+        data: [],
+        tooltip: {
+          valueFormatter: (value, dataIndex) => {
+            const valdata = dataIndex < chtOption.value.series[1].data.length ? (chtOption.value.series[1].data[dataIndex].value?.[0]) : null
 
-              // coord: 0.1,
-              symbol: 'pin',
-              valueIndex: 0,
-              label: {
-                show: true,
-                color: themePrimaryTextColor,
-                position: 'top',
-                distance: 18,
-
-                // formatter: params => params?.toFixed(0),
-
-              },
-              itemStyle: { color: "rgba(180,10,10,0.8)" },
-            },
-            {
-              coord: [50, 0.2],
-
-              // coord: 0.1,
-              symbol: 'pin',
-              valueIndex: 0,
-              label: {
-                show: true,
-                color: themePrimaryTextColor,
-                position: 'top',
-                distance: 18,
-              },
-              itemStyle: { color: "rgba(10,150,10,0.8)" },
-            },
-            {
-              coord: [90, 0.3],
-
-              // coord: 0.1,
-              symbol: 'pin',
-              valueIndex: 0,
-              label: {
-                show: true,
-                color: themePrimaryTextColor,
-                position: 'top',
-                distance: 18,
-              },
-              itemStyle: { color: "rgba(10,10,180,0.8)" },
-            },
-          ],
+            return Pysc.is_number(valdata) ? numbro(valdata).format({ mantissa: 2 }) : '-'
+          },
         },
+
       },
     ],
   }
 
-  // Opt.xAxis.data.splice(0, Opt.xAxis.data.length, ...props.dataChart.map(row => row[1]))
-  Opt.series[0].data.splice(0, Opt.series[0].data.length, ...props.dataChart.map((row, index) => ({ value: [row[1], (row[0] * 100).toFixed(0)], symbol: [10, 50, 90].includes(index) ? 'circle' : 'none', label: { show: [10, 50, 90].includes(index), position: 'top', color: themePrimaryTextColor, distance: 18 } })))
+  Opt.series[0].data.splice(0, Opt.series[0].data.length,
+    ...props.dataChart.map((row, index) => {
+      return {
+        value: [row[1], ((1 - row[0]) * 100).toFixed(0)],
+        symbol: [10, 50, 90].includes(index) ? 'circle' : 'none',
+      }
+    }))
   if (props.dataChart.length) {
-    Opt.series[0].markPoint.data[0].coord = [props.dataChart[10][1], (props.dataChart[10][0] * 100).toFixed(0)]
-    Opt.series[0].markPoint.data[1].coord = [props.dataChart[50][1], (props.dataChart[50][0] * 100).toFixed(0)]
-    Opt.series[0].markPoint.data[2].coord = [props.dataChart[90][1], (props.dataChart[90][0] * 100).toFixed(0)]
+    Opt.series[1].data.splice(0, Opt.series[1].data.length - 1, ...[
+      {
+        name: 'P90',
+        value: [props.dataChart[10][1], +((1 - props.dataChart[10][0]) * 100).toFixed(0)],
+        itemStyle: { color: "rgba(180,10,10,0.8)" },
+      },
+      {
+        name: 'P50',
+        value: [props.dataChart[50][1], +((1 - props.dataChart[50][0]) * 100).toFixed(0)],
+        itemStyle: { color: "rgba(10,150,10,0.8)" },
+      },
+      {
+        name: 'P10',
+        value: [props.dataChart[90][1], +((1 - props.dataChart[90][0]) * 100).toFixed(0)],
+        itemStyle: { color: "rgba(10,10,180,0.8)" },
+      },
+    ])
   }
 
   return Opt

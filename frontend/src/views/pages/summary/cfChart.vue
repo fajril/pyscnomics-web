@@ -1,34 +1,41 @@
 <script setup lang="ts">
-import * as Pysc from "@/utils/pysc/pyscType";
-import { hexToRgb } from '@layouts/utils';
-import { BarChart, LineChart } from "echarts/charts";
+import { hexToRgb } from '@layouts/utils'
+import { BarChart, LineChart } from "echarts/charts"
 import {
   GridComponent,
   LegendComponent,
   TitleComponent,
   TooltipComponent,
-} from "echarts/components";
-import { use } from "echarts/core";
-import { CanvasRenderer } from "echarts/renderers";
-import * as math from 'mathjs';
-import VChart from "vue-echarts";
-import type { ThemeInstance } from 'vuetify';
-import { useTheme } from 'vuetify';
+} from "echarts/components"
+import { use } from "echarts/core"
+import { CanvasRenderer } from "echarts/renderers"
+import * as math from 'mathjs'
+import VChart from "vue-echarts"
+import type { ThemeInstance } from 'vuetify'
+import { useTheme } from 'vuetify'
+import * as Pysc from "@/utils/pysc/pyscType"
+
+const props = withDefaults(defineProps<Props>(), {
+  multiContract: false,
+  isContract2: false,
+})
 
 const numbro = Pysc.useNumbro()
 
 use([
   CanvasRenderer,
-  BarChart, LineChart,
+  BarChart,
+  LineChart,
   TitleComponent,
   GridComponent,
   TooltipComponent,
-  LegendComponent
-]);
+  LegendComponent,
+])
 
 // provide(THEME_KEY, "dark")
 
 const vuetifyTheme = useTheme()
+
 const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] = vuetifyTheme.current.value) => {
   const themeSecondaryTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['medium-emphasis-opacity']})`
   const themeDisabledTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['disabled-opacity']})`
@@ -38,21 +45,16 @@ const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] 
   return { themeSecondaryTextColor, themeDisabledTextColor, themeBorderColor, themePrimaryTextColor }
 }
 
-
 interface Props {
+
   // dataTable: Pysc.TableCFOption
   dataChart: Pysc.TableCFOption
   type: 'Oil' | 'Gas' | 'Cons'
-  contractType: 'CR' | 'GS'
+  contractType: 'CR' | 'GS' | 'BASE'
   title: string
   multiContract?: boolean
   isContract2?: boolean
 }
-const props = withDefaults(defineProps<Props>(), {
-  multiContract: false,
-  isContract2: false
-})
-
 const chartCF = ref()
 
 const chtOption = computed(() => {
@@ -62,28 +64,30 @@ const chtOption = computed(() => {
     title: {
       text: props.title,
       left: "center",
-      textStyle: { color: themePrimaryTextColor }
+      textStyle: { color: themePrimaryTextColor },
     },
     tooltip: {
       trigger: 'axis',
-      valueFormatter: (value) => value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value,
-      axisPointer: { type: 'cross' }
+      valueFormatter: value => value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value,
+      axisPointer: { type: 'cross' },
     },
     legend: {
-      left: "center", top: 'bottom',
+      left: "center",
+      top: 'bottom',
       textStyle: { width: 80, color: themePrimaryTextColor, overflow: 'truncate' },
       tooltip: { show: true },
     },
     grid: {
       show: true,
       borderColor: themeBorderColor,
-      left: 90, right: 90
+      left: 90,
+      right: 90,
     },
     xAxis: {
       name: 'Year',
       data: [],
       axisTick: {
-        alignWithLabel: true
+        alignWithLabel: true,
       },
       axisLine: {
         onZero: false,
@@ -92,11 +96,11 @@ const chtOption = computed(() => {
         color: themeDisabledTextColor,
         verticalAlign: "top",
         align: "center",
-        padding: 10
+        padding: 10,
       },
       scale: true,
       nameLocation: "middle",
-      axisLabel: { color: themePrimaryTextColor, align: 'center', },
+      axisLabel: { color: themePrimaryTextColor, align: 'center' },
       splitLine: { show: false, lineStyle: { color: themeBorderColor } },
 
     },
@@ -105,6 +109,7 @@ const chtOption = computed(() => {
       min: undefined,
       max: undefined,
       minInterval: undefined,
+
       // minInterval: 200000,
       // maxInterval: 200000,
       // splitNumber: 5,
@@ -117,7 +122,7 @@ const chtOption = computed(() => {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
           return value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value
-        }
+        },
       },
       nameTextStyle: {
         color: themeDisabledTextColor,
@@ -125,7 +130,7 @@ const chtOption = computed(() => {
         align: "left",
       },
       nameLocation: "end",
-      axisTick: { show: true, },
+      axisTick: { show: true },
     },
     {
       type: 'value',
@@ -134,6 +139,7 @@ const chtOption = computed(() => {
       min: undefined,
       max: undefined,
       minInterval: undefined,
+
       // splitNumber: 5,
       // minInterval: 200000,
       // maxInterval: 200000,
@@ -145,7 +151,7 @@ const chtOption = computed(() => {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
           return value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value
-        }
+        },
       },
       nameTextStyle: {
         color: themeDisabledTextColor,
@@ -153,7 +159,7 @@ const chtOption = computed(() => {
         align: "right",
       },
       nameLocation: "end",
-      axisTick: { show: true, },
+      axisTick: { show: true },
     }],
     series: [
       {
@@ -163,6 +169,7 @@ const chtOption = computed(() => {
         data: [],
         symbol: 'none',
       },
+
       // {
       //   name: "Gov. Cumm. Cashflow",
       //   type: "line",
@@ -176,28 +183,31 @@ const chtOption = computed(() => {
         yAxisIndex: 1,
         data: [],
       },
+
       // {
       //   name: "Gov. Cashflow",
       //   type: "bar",
       //   yAxisIndex: 1,
       //   data: [],
       // }
-    ]
+    ],
   }
-  const lenData = props.dataChart.data.length
-  const contCF_col = props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1)
-  const contcumCF_col = props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1)
 
-  let interV = [contcumCF_col.length ? (math.max(contcumCF_col) - math.min(contcumCF_col)) / 4 : 0, contCF_col.length ? (math.max(contCF_col) - math.min(contCF_col)) / 4 : 0]
+  const lenData = props.dataChart.data.length
+  const contCF_col = props.contractType === 'BASE' ? props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1) : props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1)
+  const contcumCF_col = props.contractType === 'BASE' ? (!isEmpty(contCF_col) ? math.cumsum(contCF_col.map(d => Pysc.is_number(d) ? d : 0)) : []) : props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1)
+
+  const interV = [contcumCF_col.length ? (math.max(contcumCF_col) - math.min(contcumCF_col)) / 4 : 0, contCF_col.length ? (math.max(contCF_col) - math.min(contCF_col)) / 4 : 0]
+
   interV.forEach((el, index) => {
     const txInterV = numbro(math.abs(el)).format({ average: true, mantissa: 1 })
-    if (txInterV.indexOf('k') !== -1)
+    if (txInterV.includes('k'))
       interV[index] = (+txInterV.slice(0, txInterV.indexOf(" k"))) * 1000
-    else if (txInterV.indexOf('m') !== -1)
+    else if (txInterV.includes('m'))
       interV[index] = (+txInterV.slice(0, txInterV.indexOf(" m"))) * 1e6
-    else if (txInterV.indexOf('b') !== -1)
+    else if (txInterV.includes('b'))
       interV[index] = (+txInterV.slice(0, txInterV.indexOf(" b"))) * 1e9
-    else if (txInterV.indexOf('t') !== -1)
+    else if (txInterV.includes('t'))
       interV[index] = (+txInterV.slice(0, txInterV.indexOf(" t"))) * 1e12
   })
   Opt.yAxis[0].minInterval = interV[0]
@@ -210,7 +220,7 @@ const chtOption = computed(() => {
   // const govCF_col = math.subtract(GovTake_col, math.add(Tangible_col, NonCap_col))
   // const govcumCF_col = math.cumsum(govCF_col)
 
-  //calc min/max
+  // calc min/max
   // const allcol = [...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]
   // let vmin = allcol.length ? math.min([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
   // let vmax = allcol.length ? math.max([...contCF_col, ...contcumCF_col/*, ...govCF_col, ...govcumCF_col*/]) : 0
@@ -242,8 +252,10 @@ const chtOption = computed(() => {
   //   a.max = vmax
   // })
   Opt.series[0].data = contcumCF_col
+
   // Opt.series[1].data = govcumCF_col
   Opt.series[1].data = contCF_col
+
   // Opt.series[3].data = govCF_col
 
   return Opt
@@ -257,26 +269,34 @@ function updateChart() {
 }
 
 const refContainer = ref()
-useResizeObserver(refContainer, (entries) => {
+
+useResizeObserver(refContainer, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
-  if (refContainer.value) nextTick(() => chartCF.value?.resize())
+  if (refContainer.value)
+    nextTick(() => chartCF.value?.resize())
 }, { box: 'device-pixel-content-box' })
 
 onMounted(() => updateChart())
 
 defineExpose({
 
-  updateChart
+  updateChart,
 })
 </script>
 
 <template>
   <AppCardActions
     :title="$props.title + ($props.multiContract ? ($props.isContract2 ? ' 2nd Contract' : ' 1st Contract') : '')"
-    actionCollapsed compact-header>
+    action-collapsed
+    compact-header
+  >
     <VCardText ref="refContainer">
-      <v-chart ref="chartCF" class="cf-chart" :option="chtOption" />
+      <VChart
+        ref="chartCF"
+        class="cf-chart"
+        :option="chtOption"
+      />
     </VCardText>
   </AppCardActions>
 </template>

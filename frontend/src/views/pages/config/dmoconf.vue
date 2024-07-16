@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { dmoRec, useDayJs } from '@/utils/pysc/pyscType';
+import { dmoRec, numb2Percent, percent2Numb, useDayJs } from '@/utils/pysc/pyscType';
 import { useTooltip } from '@/utils/pysc/useTooltips';
 
 interface Props {
@@ -9,12 +9,12 @@ const { getToolTip } = useTooltip()
 const dmo = defineModel<dmoRec>({ required: true })
 const props = defineProps<Props>()
 const dmo_volume = computed({
-  get: () => dmo.value.volume * 100,
-  set: (val) => { if (!isNaN(+val)) dmo.value.volume = +val / 100 }
+  get: () => numb2Percent(dmo.value.volume),
+  set: (val) => { if (!isNaN(+val)) dmo.value.volume = percent2Numb(val) }
 })
 const dmo_fee = computed({
-  get: () => dmo.value.fee * 100,
-  set: (val) => { if (!isNaN(+val)) dmo.value.fee = +val / 100 }
+  get: () => numb2Percent(dmo.value.fee),
+  set: (val) => { if (!isNaN(+val)) dmo.value.fee = percent2Numb(val) }
 })
 const dayjs = useDayJs()
 </script>

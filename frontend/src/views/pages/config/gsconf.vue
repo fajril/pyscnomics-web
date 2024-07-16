@@ -4,18 +4,20 @@ import { usePyscConfStore } from '@/stores/genfisStore';
 import {
   APiType,
   CO2Type,
-  DCUType,
+  DCUTypeList,
   ExcelColumnType,
   Field2Array,
   FieldLoc,
-  FieldStat,
+  FieldStatList,
   GS,
-  H2SType,
-  InfAvail,
+  H2STypeList,
+  InfAvailList,
+  numb2Percent,
+  percent2Numb,
   ResDepth,
   ResType,
   TahapProdType,
-  useDayJs,
+  useDayJs
 } from '@/utils/pysc/pyscType';
 import TableEditor from '@/views/components/TableEditor.vue';
 import { isNull } from 'mathjs';
@@ -36,20 +38,41 @@ const dayjs = useDayJs()
 const { prodHasGas } = PyscConf
 const { dataContr } = storeToRefs(PyscConf)
 const dataGConf = computed(() => PyscConf.dataGConf)
+const dataFiscal = computed(() => props.subProject ? PyscConf.fiscal.Fiskal:PyscConf.fiscal.Fiskal2)
 
 const contractValue = computed(() => (props.subProject ? <GS>dataContr.value.second : dataContr.value.gs))
 
 const ministry_discretion_split = computed({
-  get: () => contractValue.value.ministry_discretion_split * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.ministry_discretion_split = +val / 100 }
+  get: () => numb2Percent(contractValue.value.ministry_discretion_split),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.ministry_discretion_split = percent2Numb(val) }
 })
 const oil_base_split = computed({
-  get: () => contractValue.value.oil_base_split * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.oil_base_split = +val / 100 }
+  get: () => numb2Percent(contractValue.value.oil_base_split),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.oil_base_split = percent2Numb(val) }
 })
 const gas_base_split = computed({
-  get: () => contractValue.value.gas_base_split * 100,
-  set: (val) => { if (!isNaN(+val)) contractValue.value.gas_base_split = +val / 100 }
+  get: () => numb2Percent(contractValue.value.gas_base_split),
+  set: (val) => { if (!isNaN(+val)) contractValue.value.gas_base_split = percent2Numb(val) }
+})
+
+const field_status = computed({
+  get: () => FieldStatList(dataFiscal.value.regime).findIndex(v=>v.value===contractValue.value.field_status)!==-1 ? contractValue.value.field_status:null,
+  set: (val) => { contractValue.value.field_status = val }
+})
+
+const infrastructure_availability = computed({
+  get: () => InfAvailList(dataFiscal.value.regime).findIndex(v=>v.value===contractValue.value.infrastructure_availability)!==-1 ? contractValue.value.infrastructure_availability:null,
+  set: (val) => { contractValue.value.infrastructure_availability = val }
+})
+
+const h2s_content = computed({
+  get: () => H2STypeList(dataFiscal.value.regime).findIndex(v=>v.value===contractValue.value.h2s_content)!==-1 ? contractValue.value.h2s_content:null,
+  set: (val) => { contractValue.value.h2s_content = val }
+})
+
+const domestic_content_use = computed({
+  get: () => DCUTypeList(dataFiscal.value.regime).findIndex(v=>v.value===contractValue.value.domestic_content_use)!==-1 ? contractValue.value.domestic_content_use:null,
+  set: (val) => { contractValue.value.domestic_content_use = val }
 })
 
 const { t, locale } = useI18n({ useScope: 'global' })
@@ -88,23 +111,23 @@ const cum_production_split = computed(() => {
   <VRow no-gutters>
     <VCol cols="12" class="ms-4 pe-4">
       <span class="ml-n4 font-weight-bold text-primary">Split Configuration</span>
-      <AppSelect v-model="contractValue.field_status" :items="Field2Array(FieldStat)" item-props variant="outlined"
+      <AppSelect v-model="field_status" :items="FieldStatList(dataFiscal.regime)" item-props variant="outlined"
         label-placeholder="Split Type" class="mt-4" />
       <AppSelect v-model="contractValue.field_location" :items="Field2Array(FieldLoc)" item-props variant="outlined"
         label-placeholder="Location" class="mt-4" />
       <AppSelect v-model="contractValue.reservoir_depth" :items="Field2Array(ResDepth)" item-props variant="outlined"
         label-placeholder="Reservoir Depth, m" class="mt-4" />
-      <AppSelect v-model="contractValue.infrastructure_availability" :items="Field2Array(InfAvail)" item-props
+      <AppSelect v-model="infrastructure_availability" :items="InfAvailList(dataFiscal.regime)" item-props
         label-placeholder="Infrastructure" class="mt-4" />
       <AppSelect v-model="contractValue.reservoir_type" :items="Field2Array(ResType)" item-props variant="outlined"
         label-placeholder="Reservoir Type" class="mt-4" />
       <AppSelect v-model="contractValue.co2_content" :items="Field2Array(CO2Type)" item-props variant="outlined"
         label-placeholder="CO2 Content" class="mt-4" />
-      <AppSelect v-model="contractValue.h2s_content" :items="Field2Array(H2SType)" item-props variant="outlined"
+      <AppSelect v-model="h2s_content" :items="H2STypeList(dataFiscal.regime)" item-props variant="outlined"
         label-placeholder="H2S Content" class="mt-4" />
       <AppSelect v-model="contractValue.oil_api" :items="Field2Array(APiType)" item-props variant="outlined"
         label-placeholder="Oil API" class="mt-4" />
-      <AppSelect v-model="contractValue.domestic_content_use" :items="Field2Array(DCUType)" item-props
+      <AppSelect v-model="domestic_content_use" :items="DCUTypeList(dataFiscal.regime)" item-props
         variant="outlined" label-placeholder="Domestic Content Use" class="mt-4" />
       <AppSelect v-model="contractValue.production_stage" :items="Field2Array(TahapProdType)" item-props
         variant="outlined" label-placeholder="Production Stage" class="mt-4" />

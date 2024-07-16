@@ -204,7 +204,8 @@ const calcSens = async () => {
     })
 
     if (status !== 200)
-      throw [status, result]
+      throw { status, result }
+
     if (!(isObject(result) && !isEmpty(result)))
       throw "Error Calculation"
 

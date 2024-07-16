@@ -49,7 +49,7 @@ const mainSetting = ref({
       nextTick(() => {
         if (ctype === 'numeric' && (typeof dataASR.value[row][+prop] === 'string') &&
           dataASR.value[row][+prop].indexOf('=') != -1) {
-          dataASR.value[row][+prop] = value
+          dataASR.value[row][+prop] = +(+value).toPrecision(15)
           refTableASR.value.hotInstance.updateData(dataASR.value)
         }
       })

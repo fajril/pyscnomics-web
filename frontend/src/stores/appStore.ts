@@ -1,9 +1,11 @@
-import { ProjectBase, TImportData, tCompareType, useDayJs } from '@/utils/pysc/pyscType';
-import { useHTTP } from '@/utils/pysc/useHttp';
-import { namespaceConfig } from '@layouts/stores/config';
-import { useStorage } from '@vueuse/core';
-//import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl'
-import * as lzs from 'lz-string';
+import { useHTTP } from '@/utils/pysc/useHttp'
+import { namespaceConfig } from '@layouts/stores/config'
+import { useStorage } from '@vueuse/core'
+
+// import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl'
+import type { ProjectBase, TImportData, tCompareType } from '@/utils/pysc/pyscType'
+import { useDayJs } from '@/utils/pysc/pyscType'
+import * as lzs from 'lz-string'
 
 export interface tAlert {
   header?: string
@@ -14,74 +16,87 @@ export interface tAlert {
   variant?: "tonal" | "flat" | "text" | "elevated" | "outlined" | "plain"
 }
 
-
 export const useAppStore = defineStore('pyscConfig', () => {
   const dayjs = useDayJs()
-  const appPort = ref(null)
-  const osConf = ref({ sep: '/', os: 'win' })
+
+  // const appPort = ref(null)
+  const osConf = ref({ sep: '/', os: 'win', port: null })
   const appver = useStorage<number>(namespaceConfig('app-ver'), 1)
   const headerTitle = ref<string | undefined>(undefined)
   const curProject = useStorage<number | null>(namespaceConfig('current-project'), null)
   const curProjectPath = useStorage<string | null>(namespaceConfig('project-path'), null)
+
   const projects = useStorage<ProjectBase[]>(namespaceConfig('cases'), [
     { id: Math.floor(Math.random() * (2000000 - 1000)) + 1000, name: "Case-1", type: 1, description: 'description...', updated_at: dayjs.utc().valueOf(), state: 0, multicase: [], evaluator: '', evaluator_date: dayjs.utc().valueOf() },
   ], undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [
-        { id: Math.floor(Math.random() * (2000000 - 1000)) + 1000, name: "Case-1", type: 1, description: 'description...', updated_at: dayjs.utc().valueOf(), state: 0, multicase: [], evaluator: '', evaluator_date: dayjs.utc().valueOf() },
-      ],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      read: (v: any) => v
+        ? JSON.parse(lzs.decompressFromUTF16(v))
+        : [
+          { id: Math.floor(Math.random() * (2000000 - 1000)) + 1000, name: "Case-1", type: 1, description: 'description...', updated_at: dayjs.utc().valueOf(), state: 0, multicase: [], evaluator: '', evaluator_date: dayjs.utc().valueOf() },
+        ],
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const caseCompare = useStorage<tCompareType[]>(namespaceConfig('case-compare'), [])
   const caseCombine = useStorage<tCompareType[]>(namespaceConfig('case-combine2'), [])
 
-  const apiURL = computed(() => `http://127.0.0.1:${appPort.value}/api`)
+  const apiURL = computed(() => `http://127.0.0.1:${osConf.value.port}/api`)
 
-  /*reactive for selected case*/
+  /* reactive for selected case */
   const curSelCase = useStorage<number | null>(namespaceConfig('sel-case'), null, undefined, {
     serializer: {
       read: (v: any) => typeof v === 'string' ? +v : v,
-      write: (v: any) => v
+      write: (v: any) => v,
     },
   })
+
   const mainCallbackCaseID = ref<Function>(() => { })
+
   const watcherSelCase = pausableWatch(curSelCase, (value, oldValue) => {
     watcherSelCase.pause()
     mainCallbackCaseID.value(value, oldValue)
   })
+
   const curWS = useStorage<string | null>(namespaceConfig('project-ws'), null)
 
-
-  const taxSett = useStorage<{ year: number, tax: number }[]>(namespaceConfig('pysc-sett-tax'), [
-    { year: 2013, tax: 0.44 }, { year: 2016, tax: 0.42 }, { year: 2020, tax: 0.40 }
+  const taxSett = useStorage<{ year: number; tax: number }[]>(namespaceConfig('pysc-sett-tax'), [
+    { year: 2013, tax: 0.44 }, { year: 2016, tax: 0.42 }, { year: 2020, tax: 0.40 },
   ], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [{ year: 2013, tax: 0.44 }, { year: 2016, tax: 0.42 }, { year: 2020, tax: 0.40 }],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const gsSett = useStorage<number[]>(namespaceConfig('pysc-sett-gs'), [0.05, 0.03, 0, 0, 0.08, 0.1, 0.12, 0.14, 0.16, 0, 0.01, 0, 0.02, 0.04, 0, 0.16, 0.01, 0, 0, 0.02, 0.03, 0.04, 0, 0.06, 0.1, 0, 0.005, 0.01, 0.015, 0.02, 0.04, 0, 0.01, 0.02, 0.03, 0.04, 0.05],
     undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [0.05, 0.03, 0, 0, 0.08, 0.1, 0.12, 0.14, 0.16, 0, 0.01, 0, 0.02, 0.04, 0, 0.16, 0.01, 0, 0, 0.02, 0.03, 0.04, 0, 0.06, 0.1, 0, 0.005, 0.01, 0.015, 0.02, 0.04, 0, 0.01, 0.02, 0.03, 0.04, 0.05],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
 
   const alertFunc = ref<tAlert | null>(null)
 
   const settFunc = ref<Function | null>(null)
-
   function showSetting(tab: number) {
-    if (typeof settFunc.value === 'function') settFunc.value(tab)
+    if (typeof settFunc.value === 'function')
+      settFunc.value(tab)
+  }
+
+  const fileDialogFunc = ref<((callback: (path: string) => void, mode: string, lookup: string | null) => void) | null>(null)
+  function showFileDialog(callback: (path: string) => void, mode: string, lookup: string | null) {
+    if (typeof fileDialogFunc.value === 'function')
+      fileDialogFunc.value(callback, mode, lookup)
   }
 
   const xlsxImportFunc = ref<Function | null>(null)
   function showXlsxImport(data: TImportData) {
-    if (typeof xlsxImportFunc.value === 'function') xlsxImportFunc.value(data)
+    if (typeof xlsxImportFunc.value === 'function')
+      xlsxImportFunc.value(data)
   }
-
 
   const extractProject = async (projSource: string, wsPath: string) => {
     const oWS = curWS.value
@@ -94,33 +109,38 @@ export const useAppStore = defineStore('pyscConfig', () => {
             json: btoa(JSON.stringify({
               path: projSource,
               oldWS: oWS,
-              newWS: wsPath
-            }))
+              newWS: wsPath,
+            })),
           },
-          onError: (error: any) => { throw error }
+          onError: (error: any) => { throw error },
         })
-        if (status !== 200) throw [status, result]
+
+        if (status !== 200)
+          throw { status, result }
         resultExtact = result.state
-      } else
-        resultExtact = true
+      }
+      else { resultExtact = true }
       curWS.value = wsPath
-    } catch (error) {
+    }
+    catch (error) {
       return false
     }
+
     return resultExtact
   }
-
-
 
   function $reset() {
     curProject.value = null
     curProjectPath.value = null
     curWS.value = null
-    const _id = Math.floor(Math.random() * (2000000 - 1000)) + 1000;
+
+    const _id = Math.floor(Math.random() * (2000000 - 1000)) + 1000
+
     projects.value.splice(0, projects.value.length, ...[
       { id: _id, name: "Case-1", type: 1, description: 'description...', updated_at: dayjs.utc().valueOf(), state: 0, multicase: [] },
     ])
-    //put in last 
+
+    // put in last
     curSelCase.value = _id
   }
 
@@ -142,13 +162,15 @@ export const useAppStore = defineStore('pyscConfig', () => {
 
   const caseByID = (caseID: number | null | undefined) => {
     const index = projects.value.findIndex(e => e.id === caseID)
+
     return index != -1 ? projects.value[index] : null
   }
 
   const IndexCase = computed(() => projects.value.findIndex(e => e.id === +curSelCase.value))
 
-  const selectedCase = computed(() => IndexCase.value !== -1 ? projects.value[IndexCase.value] :
-    { id: Math.floor(Math.random() * (2000000 - 1000)) + 1000, name: "Case-1", type: 1, description: 'description...', updated_at: dayjs.utc().valueOf(), state: 0, multicase: [] })
+  const selectedCase = computed(() => IndexCase.value !== -1
+    ? projects.value[IndexCase.value]
+    : { id: Math.floor(Math.random() * (2000000 - 1000)) + 1000, name: "Case-1", type: 1, description: 'description...', updated_at: dayjs.utc().valueOf(), state: 0, multicase: [] })
 
   const dataChanges = () => {
     projects.value[IndexCase.value].updated_at = dayjs.utc().valueOf()
@@ -159,9 +181,10 @@ export const useAppStore = defineStore('pyscConfig', () => {
     const { status, result } = await useHTTP().get({
       path: 'projects',
       params: { q: param },
-      onError: (error: any) => { throw error }
-    }
+      onError: (error: any) => { throw error },
+    },
     )
+
     return result
   }
 
@@ -169,37 +192,42 @@ export const useAppStore = defineStore('pyscConfig', () => {
     const { status, result } = await useHTTP().put({
       path: 'update_projects',
       body: { json: param },
-      onError: (error: any) => { throw error }
+      onError: (error: any) => { throw error },
     })
+
     return result
   }
 
   function showAlert(params: tAlert | string) {
-    if (typeof params === 'string')
+    if (typeof params === 'string') {
       alertFunc.value = {
         text: params,
         isalert: true,
       }
-    else
+    }
+    else {
       alertFunc.value = {
         header: params.header,
         text: params.text,
         isalert: params.isalert,
         position: params.position,
         color: params.color,
-        variant: params.variant
+        variant: params.variant,
       }
+    }
   }
 
   const getCompare = (caseid: number): tCompareType => {
     const idx_case = caseCompare.value.findIndex(v => v.source === caseid)
     if (idx_case === -1) {
       caseCompare.value.push({ source: caseid, comp: [] })
+
       return caseCompare.value[caseCompare.value.length - 1]
     }
-    else
-      caseCompare.value[idx_case].comp.splice(0, caseCompare.value[idx_case].comp.length, ...
-        caseCompare.value[idx_case].comp.filter(v => projects.value.findIndex(c => c.id === v) !== -1))
+    else {
+      caseCompare.value[idx_case].comp.splice(0, caseCompare.value[idx_case].comp.length, ...caseCompare.value[idx_case].comp.filter(v => projects.value.findIndex(c => c.id === v) !== -1))
+    }
+
     return caseCompare.value[idx_case]
   }
 
@@ -215,31 +243,38 @@ export const useAppStore = defineStore('pyscConfig', () => {
         npv_mode: 3,
         discounting_mode: 0,
       })
+
       return caseCombine.value[caseCombine.value.length - 1]
     }
-    else
-      caseCombine.value[idx_case].comp.splice(0, caseCombine.value[idx_case].comp.length, ...
-        caseCombine.value[idx_case].comp.filter(v => projects.value.findIndex(c => c.id === v) !== -1))
+    else {
+      caseCombine.value[idx_case].comp.splice(0, caseCombine.value[idx_case].comp.length, ...caseCombine.value[idx_case].comp.filter(v => projects.value.findIndex(c => c.id === v) !== -1))
+    }
+
     return caseCombine.value[idx_case]
   }
 
-  const appReady = computed(() => appPort.value)
+  const appReady = computed(() => osConf.value.port)
 
   return {
     osConf,
     appReady,
-    appPort,
+
+    // appPort,
     apiURL,
     $reset,
     appver,
     chgVer,
     curProject,
     curProjectPath,
-    curWS, extractProject,
+    curWS,
+    extractProject,
     headerTitle,
-    curSelCase, mainCallbackCaseID, watcherSelCase,
+    curSelCase,
+    mainCallbackCaseID,
+    watcherSelCase,
     IndexCase,
-    projects, selectedCase,
+    projects,
+    selectedCase,
     caseList,
     fetchProjects,
     postProjects,
@@ -253,12 +288,17 @@ export const useAppStore = defineStore('pyscConfig', () => {
     settFunc,
     showSetting,
 
+    fileDialogFunc,
+    showFileDialog,
+
     xlsxImportFunc,
     showXlsxImport,
 
     dataChanges,
 
-    caseCompare, getCompare,
-    caseCombine, getCombine,
+    caseCompare,
+    getCompare,
+    caseCombine,
+    getCombine,
   }
 })

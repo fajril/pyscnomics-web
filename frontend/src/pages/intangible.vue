@@ -50,7 +50,7 @@ const mainSetting = ref({
       nextTick(() => {
         if (ctype === 'numeric' && (typeof dataIntan.value[row][+prop] === 'string') &&
           dataIntan.value[row][+prop].indexOf('=') != -1) {
-          dataIntan.value[row][+prop] = value
+          dataIntan.value[row][+prop] = +(+value).toPrecision(15)
           refTableIntangible.value.hotInstance.updateData(dataIntan.value)
         }
       })

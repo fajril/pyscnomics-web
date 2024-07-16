@@ -1,11 +1,13 @@
-import { router } from '@/plugins/1.router';
-import { useAppStore } from '@/stores/appStore';
-import { usePyscConfStore } from '@/stores/genfisStore';
-import { tmonteConfig, usePyscMonteStore } from '@/stores/monteStore';
-import { optimCfg, usePyscOptimStore } from '@/stores/optimStore';
-import { usePyscSensStore } from '@/stores/sensStore';
-import * as Pysc from '@/utils/pysc/pyscType';
-import { useHTTP } from './useHttp';
+import { router } from '@/plugins/1.router'
+import { useAppStore } from '@/stores/appStore'
+import { usePyscConfStore } from '@/stores/genfisStore'
+import type { tmonteConfig } from '@/stores/monteStore'
+import { usePyscMonteStore } from '@/stores/monteStore'
+import type { optimCfg } from '@/stores/optimStore'
+import { usePyscOptimStore } from '@/stores/optimStore'
+import { usePyscSensStore } from '@/stores/sensStore'
+import * as Pysc from '@/utils/pysc/pyscType'
+import { useHTTP } from './useHttp'
 
 export const useDataStore = () => {
   const appStore = useAppStore()
@@ -23,61 +25,147 @@ export const useDataStore = () => {
         params: param,
         onError: (error: any) => { throw error },
       })
-      if (status !== 200) throw { status: status, error: result }
+
+      if (status !== 200)
+        throw { status, result }
+
       return result
-    } else {
+    }
+    else {
       const { status, result } = await useHTTP().put({
         path: url,
         body: param,
         onError: (error: any) => { throw error },
       })
-      if (status !== 200) throw { status: status, error: result }
+
+      if (status !== 200)
+        throw { status, result }
+
       return result
     }
+  }
+
+  const loadDataModule = async (urlpath: string, wsPath_: string, id: number, costmode: number | undefined = undefined) => {
+    const { status, result } = await useHTTP().get({
+      path: urlpath,
+      params: costmode !== undefined ? { wspath: wsPath_, mode: costmode, caseid: id } : { wspath: wsPath_, caseid: id },
+    })
+
+    if (status !== 200 || result.state !== true)
+      throw new Error(`${urlpath} can't read data: please re-open project files`)
+
+    // const resInit = await execPartData(urlpath, 'GET', costmode !== undefined ? { wspath: wsPath_, mode: costmode, caseid: id } : { wspath: wsPath_, caseid: id })
+    // if (resInit.state !== true)
+    //   throw `error ${urlpath}: can't read data: please re-open project files`
+    const respData = JSON.parse(JSON.stringify(result.data))
+
+    // update data
+    if (urlpath === 'rdgenconf') {
+      // update DataEco.genConf
+      const genConf_ = respData as Pysc.genConfig
+      if (!Object.keys(genConf_).includes("delayAccMode")) {
+        genConf_["delayAccMode"] = 0
+        genConf_["delayAccYear"] = 0
+      }
+    }
+    else if (urlpath === 'rdfiscalconf') {
+      const fiscal_ = respData as Pysc.Fiskal
+      const fiscKey = Object.keys(fiscal_.Fiskal)
+      const fiscKey2 = Object.keys(fiscal_.Fiskal2)
+      if (!fiscKey.includes("regime"))
+        fiscal_.Fiskal["regime"] = 3
+      if (!fiscKey.includes("profitability_discounted"))
+        fiscal_.Fiskal["profitability_discounted"] = false
+      if (!fiscKey2.includes("regime"))
+        fiscal_.Fiskal2["regime"] = 3
+      if (!fiscKey2.includes("profitability_discounted"))
+        fiscal_.Fiskal2["profitability_discounted"] = false
+    }
+    else if (urlpath === 'rdproducer') {
+      const producer_ = respData as Array<Pysc.producerConfig>
+
+      const liftingHasBase = !isEmpty(producer_) && !isEmpty(producer_[0]) && !isEmpty(producer_[0].prod_price)
+        && !isEmpty(producer_[0].prod_price[0]) && Object.keys(producer_[0].prod_price[0]).includes("base")
+
+      if (!liftingHasBase) {
+        producer_.forEach(_lifting => {
+          _lifting?.prod_price.forEach(_rows => {
+            _rows.forEach(cols => {
+              if (cols)
+                cols["base"] = null
+            })
+          })
+        })
+      }
+    }
+    else if (urlpath === 'rdcontracts') {
+      const contract_ = respData as Pysc.Contracts
+      const _keysCtr = Object.keys(contract_.gs)
+      if (!_keysCtr.includes("cum_production_split_offset"))
+        contract_.gs["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
+      if (!_keysCtr.includes("amortization"))
+        contract_.gs["amortization"] = false
+      if (contract_.second) {
+        const _keysec = Object.keys(contract_.second)
+        if (_keysec.includes("field_status")) {
+          if (!_keysec.includes("cum_production_split_offset"))
+            (contract_.second as Pysc.GS)["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
+          if (!_keysec.includes("amortization"))
+            (contract_.second as Pysc.GS)["amortization"] = false
+        }
+      }
+    }
+
+    return respData
   }
 
   const useWatchCaseID = (_callback: Function) => {
     const curSelCase = computed(() => appStore.curSelCase)
     const watcherSelCase = computed(() => appStore.watcherSelCase.isActive)
+
     const watchCaseID = pausableWatch(curSelCase, (value, oldValue) => {
-      if (watcherSelCase.value) _callback(value)
+      if (watcherSelCase.value)
+        _callback(value)
     })
 
     const stopCaseID = () => {
       watchCaseID.stop()
     }
+
     const resumeCaseID = () => {
       watchCaseID.resume()
     }
+
     const pauseCaseID = () => {
       watchCaseID.pause()
     }
+
     const CallableFunc = () => {
       nextTick(() => {
-        if (watcherSelCase.value) _callback(curSelCase.value)
+        if (watcherSelCase.value)
+          _callback(curSelCase.value)
       })
     }
 
-    watch(watcherSelCase, (value) => {
+    watch(watcherSelCase, value => {
       if (value) {
         resumeCaseID()
         _callback(curSelCase.value)
       }
-      else
-        pauseCaseID()
+      else { pauseCaseID() }
     }, { deep: true })
 
     return {
       stopCaseID,
       resumeCaseID,
       pauseCaseID,
-      CallableFunc
+      CallableFunc,
     }
   }
 
   const resetDataStore = (newVer: number, newWS: string, _incVer: boolean = true, _incProjPath: boolean = false) => {
-    appStore.$patch((state) => {
-      PyscConf.$patch((state) => {
+    appStore.$patch(state => {
+      PyscConf.$patch(state => {
         state.tangible.splice(0, state.tangible.length, ...[Array(9).fill(null)])
         state.intangible.splice(0, state.intangible.length, ...[Array(5).fill(null)])
         state.opex.splice(0, state.opex.length, ...[Array(8).fill(null)])
@@ -89,26 +177,30 @@ export const useDataStore = () => {
         state.contracts = JSON.parse(JSON.stringify(Pysc.defContracts()))
       })
 
-      PyscSens.$patch((state) => {
+      PyscSens.$patch(state => {
         state.sensConfig.splice(0, state.sensConfig.length, ...[80, 80])
       })
-      PyscMonte.$patch((state) => {
+      PyscMonte.$patch(state => {
         state.monteConfig = JSON.parse(JSON.stringify(PyscMonte.defParam))
       })
 
-      PyscOptim.$patch((state) => {
+      PyscOptim.$patch(state => {
         state.optimConfig = JSON.parse(JSON.stringify(PyscOptim.defOptimCfg()))
       })
 
-      if (_incVer) state.appver = newVer
+      if (_incVer)
+        state.appver = newVer
       state.curWS = newWS
       state.curProject = null
-      if (_incProjPath) state.curProjectPath = null
-      const _id = Math.floor(Math.random() * (2000000 - 1000)) + 1000;
+      if (_incProjPath)
+        state.curProjectPath = null
+      const _id = Math.floor(Math.random() * (2000000 - 1000)) + 1000
+
       state.projects.splice(0, state.projects.length, ...[
         { id: _id, name: "Case-1", type: 1, description: 'tes case 1', updated_at: dayjs.utc().valueOf(), state: 1, multicase: [], evaluator: '', evaluator_date: dayjs.utc().valueOf() },
       ])
-      //put in last 
+
+      // put in last
       state.curSelCase = _id
       state.caseCompare.splice(0, state.caseCompare.length, ...[])
       state.caseCombine.splice(0, state.caseCombine.length, ...[])
@@ -116,7 +208,7 @@ export const useDataStore = () => {
   }
 
   const applyCase = async (wsPath: string, _caselists: Pysc.ProjectBase[] = [], dataOnly: boolean = false) => {
-    //check curselID
+    // check curselID
     interface dataEco {
       tangible: Array<number | string | null>[]
       intangible: Array<number | string | null>[]
@@ -149,77 +241,54 @@ export const useDataStore = () => {
 
     let DataLoaded = false
     const cases = dataOnly ? appStore.projects : _caselists
-    let curSelCase = typeof appStore.curSelCase === 'string' ? +appStore.curSelCase : appStore.curSelCase
+    let curSelCase = +appStore.curSelCase
     if (cases.findIndex(el => el.id === curSelCase) === -1)
       curSelCase = cases[0].id
     try {
-      let resInit = await execPartData('rdgenconf', 'GET', { wspath: wsPath, caseid: curSelCase })
-      if (resInit.state !== true) throw "error reading data: please re-open project files"
-      DataEco.genConf = JSON.parse(JSON.stringify(resInit.data))
+      DataEco.genConf = await loadDataModule('rdgenconf', wsPath, curSelCase)
+      DataEco.fiscal = await loadDataModule('rdfiscalconf', wsPath, curSelCase)
+      DataEco.producer = await loadDataModule('rdproducer', wsPath, curSelCase)
+      DataEco.contracts = await loadDataModule('rdcontracts', wsPath, curSelCase)
 
-      resInit = await execPartData('rdfiscalconf', 'GET', { wspath: wsPath, caseid: curSelCase })
-      if (resInit.state !== true) throw "error reading data: please re-open project files"
-      DataEco.fiscal = JSON.parse(JSON.stringify(resInit.data))
+      DataEco.tangible = await loadDataModule('rdcosts', wsPath, curSelCase, 0)
+      DataEco.intangible = await loadDataModule('rdcosts', wsPath, curSelCase, 1)
+      DataEco.opex = await loadDataModule('rdcosts', wsPath, curSelCase, 2)
+      DataEco.asr = await loadDataModule('rdcosts', wsPath, curSelCase, 3)
 
-      resInit = await execPartData('rdproducer', 'GET', { wspath: wsPath, caseid: curSelCase })
-      if (resInit.state !== true) throw "error reading data: please re-open project files"
-      DataEco.producer = JSON.parse(JSON.stringify(resInit.data))
+      // sensitivity
+      DataSens.params = await loadDataModule('rdsens', wsPath, curSelCase)
 
-      resInit = await execPartData('rdcontracts', 'GET', { wspath: wsPath, caseid: curSelCase })
-      if (resInit.state !== true) throw "error reading data: please re-open project files"
-      DataEco.contracts = JSON.parse(JSON.stringify(resInit.data))
+      // montecarlo
+      DataMonte.params = await loadDataModule('rdmonte', wsPath, curSelCase)
 
-      resInit = await execPartData('rdcosts', 'GET', { wspath: wsPath, mode: 0, caseid: curSelCase })
-      if (resInit.state !== true) throw "error reading data: please re-open project files"
-      DataEco.tangible = JSON.parse(JSON.stringify(resInit.data))
+      // optim
+      DataOptim.params = await loadDataModule('rdoptim', wsPath, curSelCase)
 
-      resInit = await execPartData('rdcosts', 'GET', { wspath: wsPath, mode: 1, caseid: curSelCase })
-      if (resInit.state !== true) throw "error error reading data: please re-open project files"
-      DataEco.intangible = JSON.parse(JSON.stringify(resInit.data))
+      // compare
+      DataCompare.params = await loadDataModule('rdcompare', wsPath, curSelCase)
 
-      resInit = await execPartData('rdcosts', 'GET', { wspath: wsPath, mode: 2, caseid: curSelCase })
-      if (resInit.state !== true) throw "error error reading data: please re-open project files"
-      DataEco.opex = JSON.parse(JSON.stringify(resInit.data))
-
-      resInit = await execPartData('rdcosts', 'GET', { wspath: wsPath, mode: 3, caseid: curSelCase })
-      if (resInit.state !== true) throw "error error reading data: please re-open project files"
-      DataEco.asr = JSON.parse(JSON.stringify(resInit.data))
-
-      //sensitivity
-      resInit = await execPartData('rdsens', 'GET', { wspath: wsPath, caseid: curSelCase })
-      DataSens.params = JSON.parse(JSON.stringify(resInit.data))
-      //montecarlo
-      resInit = await execPartData('rdmonte', 'GET', { wspath: wsPath, caseid: curSelCase })
-      DataMonte.params = JSON.parse(JSON.stringify(resInit.data))
-      //optim
-      resInit = await execPartData('rdoptim', 'GET', { wspath: wsPath, caseid: curSelCase })
-      DataOptim.params = JSON.parse(JSON.stringify(resInit.data))
-
-      //compare
-      resInit = await execPartData('rdcompare', 'GET', { wspath: wsPath })
-      DataCompare.params = JSON.parse(JSON.stringify(resInit.data))
-
-      //combine
-      resInit = await execPartData('rdcombine', 'GET', { wspath: wsPath })
-      DataCombine.params = JSON.parse(JSON.stringify(resInit.data))
+      // combine
+      DataCombine.params = await loadDataModule('rdcombine', wsPath, curSelCase)
 
       DataLoaded = true
-
-    } catch (error) {
-      console.log(error)
+    }
+    catch (error) {
+      // console.log([error.message, typeof error])
       try {
         const { status, result } = useHTTP().extractError(error)
+
         appStore.showAlert({
           text: `Error ${status}: ${result}`,
-          isalert: true
+          isalert: true,
         })
-      } catch (error) { }
+      }
+      catch (err) { }
     }
 
-    //apply data cases
+    // apply data cases
     const applyData = () => {
       if (DataLoaded) {
-        PyscConf.$patch((state) => {
+        PyscConf.$patch(state => {
           state.tangible.splice(0, state.tangible.length, ...JSON.parse(JSON.stringify(DataEco.tangible)))
           state.intangible.splice(0, state.intangible.length, ...JSON.parse(JSON.stringify(DataEco.intangible)))
           state.opex.splice(0, state.opex.length, ...JSON.parse(JSON.stringify(DataEco.opex)))
@@ -231,24 +300,23 @@ export const useDataStore = () => {
           state.contracts = JSON.parse(JSON.stringify(DataEco.contracts))
         })
 
-        PyscSens.$patch((state) => {
+        PyscSens.$patch(state => {
           state.sensConfig.splice(0, state.sensConfig.length, ...DataSens.params)
         })
 
-        PyscMonte.$patch((state) => {
+        PyscMonte.$patch(state => {
           state.monteConfig = JSON.parse(JSON.stringify(DataMonte.params))
         })
 
-        PyscOptim.$patch((state) => {
+        PyscOptim.$patch(state => {
           state.optimConfig = JSON.parse(JSON.stringify(DataOptim.params))
         })
       }
     }
 
-    if (dataOnly)
-      applyData()
-    else
-      appStore.$patch((state) => {
+    if (dataOnly) { applyData() }
+    else {
+      appStore.$patch(state => {
         appStore.curSelCase = curSelCase
         state.projects.splice(0, state.projects.length, ...cases)
 
@@ -256,7 +324,7 @@ export const useDataStore = () => {
         state.caseCombine.splice(0, state.caseCombine.length, ...DataCombine.params)
         applyData()
       })
-
+    }
   }
 
   const saveCaseData = async (curWS: string, caseID: number,
@@ -270,87 +338,101 @@ export const useDataStore = () => {
       await execPartData('wrtgenconf', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        gc: btoa(JSON.stringify(gConf))
+        gc: btoa(JSON.stringify(gConf)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     try {
       await execPartData('wrtfiscalconf', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        gc: btoa(JSON.stringify(fiscal))
+        gc: btoa(JSON.stringify(fiscal)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     try {
       await execPartData('wrtproducer', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        gc: btoa(JSON.stringify(producer))
+        gc: btoa(JSON.stringify(producer)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     try {
       await execPartData('wrtcontract', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        gc: btoa(JSON.stringify(contracts))
+        gc: btoa(JSON.stringify(contracts)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     try {
       await execPartData('wrtcost', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        mode: 0, gc: btoa(JSON.stringify(tangible))
+        mode: 0,
+        gc: btoa(JSON.stringify(tangible)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     try {
       await execPartData('wrtcost', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        mode: 1, gc: btoa(JSON.stringify(intangible))
+        mode: 1,
+        gc: btoa(JSON.stringify(intangible)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     try {
       await execPartData('wrtcost', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        mode: 2, gc: btoa(JSON.stringify(opex))
+        mode: 2,
+        gc: btoa(JSON.stringify(opex)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     try {
       await execPartData('wrtcost', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        mode: 3, gc: btoa(JSON.stringify(asr))
+        mode: 3,
+        gc: btoa(JSON.stringify(asr)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
 
     // sensitivity
     try {
       await execPartData('wrtsens', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        gc: btoa(JSON.stringify(sensConfig))
+        gc: btoa(JSON.stringify(sensConfig)),
       })
-    } catch (err) { }
-    //montecarlo
+    }
+    catch (err) { }
+
+    // montecarlo
     try {
       await execPartData('wrtmonte', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        gc: btoa(JSON.stringify(monteConfig))
+        gc: btoa(JSON.stringify(monteConfig)),
       })
-    } catch (err) { }
-    //optimasi
+    }
+    catch (err) { }
+
+    // optimasi
     try {
       await execPartData('wrtoptim', 'PUT', {
         wspath: curWS,
         caseid: caseID,
-        gc: btoa(JSON.stringify(optimComfig))
+        gc: btoa(JSON.stringify(optimComfig)),
       })
-    } catch (err) { }
-
-
+    }
+    catch (err) { }
   }
-
 
   const extractProject = async (projSource: string | null, wsPath: string, _oldwsPath: string | null = null) => {
     let resExtract = { state: false, cases: [] }
@@ -361,37 +443,43 @@ export const useDataStore = () => {
           json: btoa(JSON.stringify({
             path: projSource,
             oldWS: _oldwsPath ?? appStore.curWS,
-            newWS: wsPath
-          }))
+            newWS: wsPath,
+          })),
         },
         onError: (error: any) => { throw error },
       })
-      if (status !== 200) throw { state: result ?? false }
-      resExtract = isObject(result) && result.hasOwnProperty("state") ? result : { state: false, cases: [] }
+
+      if (status !== 200)
+        throw { status, result }
+      resExtract = isObject(result) && result.state ? result : { state: false, cases: [] }
     }
-    if (resExtract.state === true && resExtract.hasOwnProperty("cases") && resExtract.cases.length) {
+    if (resExtract.state === true && resExtract.cases && resExtract.cases.length) {
       await applyCase(wsPath, JSON.parse(JSON.stringify(resExtract.cases)))
-    } else {
+    }
+    else {
 
     }
+
     return resExtract.state
   }
 
-
   const newProject = async () => {
     const oldWS = appStore.curWS
-    const newWS = "D" + Math.random().toString(36).slice(2)
+    const newWS = `D${Math.random().toString(36).slice(2)}`
+
     appStore.watcherSelCase.pause()
     PyscConf.watcherAllData.pause()
     try {
       resetDataStore(appStore.appver, newWS, false, true)
-      //warite case and clear old temp project
+
+      // warite case and clear old temp project
       let resInit = await execPartData('newproject', 'PUT', {
         wspath: newWS,
-        data: btoa(JSON.stringify(appStore.projects))
+        data: btoa(JSON.stringify(appStore.projects)),
       })
       resInit = await execPartData('clearprojtmp', 'PUT', { wspath: oldWS })
-    } catch (err) {
+    }
+    catch (err) {
     }
     appStore.watcherSelCase.resume()
     PyscConf.watcherAllData.resume()
@@ -399,50 +487,56 @@ export const useDataStore = () => {
 
   const openProject = async (path: string) => {
     let dataLoaded = false
-    const newWS = "D" + Math.random().toString(36).slice(2)
+    const newWS = `D${Math.random().toString(36).slice(2)}`
 
     appStore.watcherSelCase.pause()
     PyscConf.watcherAllData.pause()
     try {
       const extractState: any = await extractProject(path, newWS, appStore.curWS)
+
       dataLoaded = extractState === true
-      if (dataLoaded)
+      if (dataLoaded) {
         appStore.showAlert({
           text: { name: "Data loaded successfully" },
-          isalert: false
+          isalert: false,
         })
-      else throw extractState
-    } catch (err) {
+      }
+      else { throw extractState }
+    }
+    catch (err) {
       appStore.showAlert({
         text: `Error ${(err?.status) ?? ''}: ${(err?.result) ?? 'unknown'}`,
-        isalert: true
+        isalert: true,
       })
       dataLoaded = false
     }
-    if (dataLoaded)
-      appStore.$patch((state) => {
+    if (dataLoaded) {
+      appStore.$patch(state => {
         state.curWS = newWS
         state.curProjectPath = path
       })
+    }
 
     appStore.watcherSelCase.resume()
     PyscConf.watcherAllData.resume()
+
     return dataLoaded
   }
 
   const saveProject = async (path: string) => {
-
     let validSave = false
-    const curWS = !isEmpty(appStore.curWS) ? appStore.curWS : ("D" + Math.random().toString(36).slice(2))
+    const curWS = !isEmpty(appStore.curWS) ? appStore.curWS : (`D${Math.random().toString(36).slice(2)}`)
+
     appStore.watcherSelCase.pause()
     PyscConf.watcherAllData.pause()
     try {
-      //save cases
+      // save cases
       const wrtcases = await execPartData('wrtcases', 'PUT', {
         pathfile: curWS,
         istmp: 1,
-        gc: btoa(JSON.stringify(appStore.projects))
+        gc: btoa(JSON.stringify(appStore.projects)),
       })
+
       // if (isEmpty(appStore.curWS) || appStore.selectedCase.state === 1) {
       await saveCaseData(curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
@@ -451,25 +545,28 @@ export const useDataStore = () => {
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)
+
       // }
 
       try {
-        const caseCompare = appStore.caseCompare.filter(v => appStore.projects.findIndex(p => p.id === v.source) !== -1).
-          map(c => {
+        const caseCompare = appStore.caseCompare.filter(v => appStore.projects.findIndex(p => p.id === v.source) !== -1)
+          .map(c => {
             return {
               source: c.source,
               comp: c.comp.filter(i => appStore.projects.findIndex(p => p.id === i) !== -1),
             }
           })
+
         const wrtcompare = await execPartData('wrtcompare', 'PUT', {
           wspath: curWS,
-          gc: btoa(JSON.stringify(caseCompare))
+          gc: btoa(JSON.stringify(caseCompare)),
         })
-      } catch (error) { }
+      }
+      catch (error) { }
 
       try {
-        const caseCombine = appStore.caseCombine.filter(v => appStore.projects.findIndex(p => p.id === v.source) !== -1).
-          map(c => {
+        const caseCombine = appStore.caseCombine.filter(v => appStore.projects.findIndex(p => p.id === v.source) !== -1)
+          .map(c => {
             return {
               source: c.source,
               comp: c.comp.filter(i => appStore.projects.findIndex(p => p.id === i) !== -1),
@@ -480,37 +577,43 @@ export const useDataStore = () => {
               discounting_mode: c.discounting_mode,
             }
           })
+
         const wrtcombine = await execPartData('wrtcombine', 'PUT', {
           wspath: curWS,
-          gc: btoa(JSON.stringify(caseCombine))
+          gc: btoa(JSON.stringify(caseCombine)),
         })
-      } catch (error) { }
+      }
+      catch (error) { }
 
       const wrtproject = await execPartData('wrtproject', 'PUT', {
         wspath: curWS,
-        targetfile: btoa(path)
+        targetfile: btoa(path),
       })
-      if (wrtproject.state !== true) throw "save data failed"
+
+      if (wrtproject.state !== true)
+        throw "save data failed"
 
       appStore.showAlert({
         text: { name: 'Project saved to', arg: [path] },
-        isalert: false
+        isalert: false,
       })
 
-      appStore.$patch((state) => {
+      appStore.$patch(state => {
         state.curWS = curWS
         state.curProjectPath = path
         state.projects.forEach(el => el.state = 0)
       })
       validSave = true
-    } catch (err) {
+    }
+    catch (err) {
       appStore.showAlert({
         text: `Error ${(err?.status) ?? ''}: ${(err?.result) ?? 'unknown'}`,
-        isalert: true
+        isalert: true,
       })
     }
     appStore.watcherSelCase.resume()
     PyscConf.watcherAllData.resume()
+
     return validSave
   }
 
@@ -520,13 +623,11 @@ export const useDataStore = () => {
 
   const expXlsxProject = () => {
 
-
   }
 
   const importFrPySC = async (pathfile: string | null, caseLst: number[] = []) => {
-
-    //chk
-    const curWS = !isEmpty(appStore.curWS) ? appStore.curWS : ("D" + Math.random().toString(36).slice(2))
+    // chk
+    const curWS = !isEmpty(appStore.curWS) ? appStore.curWS : (`D${Math.random().toString(36).slice(2)}`)
     let dataLoaded = false
     const newcaseID = caseLst.map(el => Math.floor(Math.random() * (2000000 - 1000)) + 1000)
 
@@ -535,55 +636,66 @@ export const useDataStore = () => {
     try {
       const resImport = await execPartData("importcase", "PUT",
         { wspath: curWS, data: btoa(JSON.stringify({ path: pathfile, caseid: caseLst, newcaseid: newcaseID })) })
-      if (resImport.state !== true) throw resImport
+
+      if (resImport.state !== true)
+        throw resImport
 
       const selCase = resImport.selcase
 
       // change case id
       selCase.forEach((el: any, index: number) => el.id = newcaseID[index])
-      //merge with current case
-      appStore.$patch((state) => {
+
+      // merge with current case
+      appStore.$patch(state => {
         state.projects.push(...JSON.parse(JSON.stringify(selCase)))
       })
-      //save caselist
+
+      // save caselist
       const resSaveCase = await execPartData("wrtcases", "PUT", {
         pathfile: curWS,
         istmp: 1,
-        gc: btoa(JSON.stringify(appStore.projects))
+        gc: btoa(JSON.stringify(appStore.projects)),
       })
-      if (resImport.state !== true) throw resSaveCase
+
+      if (resImport.state !== true)
+        throw resSaveCase
 
       dataLoaded = true
 
       appStore.showAlert({
         text: { name: "Data imported successfully" },
-        isalert: false
+        isalert: false,
       })
-    } catch (err) {
+    }
+    catch (err) {
       appStore.showAlert({
         text: `Error ${(err?.status) ?? ''}: ${(err?.result) ?? 'unknown'}`,
-        isalert: true
+        isalert: true,
       })
     }
     appStore.watcherSelCase.resume()
     PyscConf.watcherAllData.resume()
+
     return dataLoaded
   }
 
   const addCase = async (param: Pysc.ProjectBase) => {
     appStore.watcherSelCase.pause()
-    appStore.$patch((state) => {
+    appStore.$patch(state => {
       state.projects.push(JSON.parse(JSON.stringify(param)))
     })
     try {
-      //save caselist
+      // save caselist
       await execPartData("wrtcases", "PUT", {
         pathfile: appStore.curWS,
         istmp: 1,
-        gc: btoa(JSON.stringify(appStore.projects))
+        gc: btoa(JSON.stringify(appStore.projects)),
       })
+
       const ngc = Pysc.defGenConfig()
+
       ngc.type_of_contract = param.type
+
       const ctr = Pysc.defContracts()
       const _fiscal = Pysc.defFiskal()
       if (ngc.type_of_contract === 2) {
@@ -600,14 +712,16 @@ export const useDataStore = () => {
         ngc, Pysc.defProdConfig(), ctr, _fiscal,
         [Array(9).fill(null)], [Array(5).fill(null)], [Array(8).fill(null)], [Array(4).fill(null)],
         [80, 80], JSON.parse(JSON.stringify(PyscMonte.defParam)), JSON.parse(JSON.stringify(PyscOptim.defOptimCfg())))
-
-    } catch (err) {
+    }
+    catch (err) {
 
     }
-    if (!appStore.watcherSelCase.isActive) appStore.watcherSelCase.resume()
-    if (!PyscConf.watcherAllData.isActive) PyscConf.watcherAllData.resume()
+    if (!appStore.watcherSelCase.isActive)
+      appStore.watcherSelCase.resume()
+    if (!PyscConf.watcherAllData.isActive)
+      PyscConf.watcherAllData.resume()
     nextTick(() => {
-      appStore.$patch((state) => {
+      appStore.$patch(state => {
         state.curSelCase = param.id
       })
     })
@@ -617,38 +731,39 @@ export const useDataStore = () => {
     dGConf: Pysc.genConfig, dProd: Pysc.producerConfig[], dContr: Pysc.Contracts, dFisc: Pysc.Fiskal,
     dTan: Array<number | string | null>[], dIntan: Array<number | string | null>[],
     dOpex: Array<number | string | null>[], dASR: Array<number | string | null>[]) => {
-
     appStore.watcherSelCase.pause()
     PyscConf.watcherAllData.pause()
 
-    appStore.$patch((state) => {
+    appStore.$patch(state => {
       state.projects.push(JSON.parse(JSON.stringify(param)))
     })
     try {
-      //save caselist
+      // save caselist
       await execPartData("wrtcases", "PUT", {
         pathfile: appStore.curWS,
         istmp: 1,
-        gc: btoa(JSON.stringify(appStore.projects))
+        gc: btoa(JSON.stringify(appStore.projects)),
       })
 
       await saveCaseData(appStore.curWS, param.id,
         dGConf, dProd, dContr, dFisc,
         dTan, dIntan, dOpex, dASR, [80, 80],
         JSON.parse(JSON.stringify(PyscMonte.defParam)), JSON.parse(JSON.stringify(PyscOptim.defOptimCfg())))
-    } catch (err) {
+    }
+    catch (err) {
 
     }
-    if (!appStore.watcherSelCase.isActive) appStore.watcherSelCase.resume()
-    if (!PyscConf.watcherAllData.isActive) PyscConf.watcherAllData.resume()
+    if (!appStore.watcherSelCase.isActive)
+      appStore.watcherSelCase.resume()
+    if (!PyscConf.watcherAllData.isActive)
+      PyscConf.watcherAllData.resume()
     nextTick(() => {
       router.replace('/').finally(() =>
-        appStore.$patch((state) => {
+        appStore.$patch(state => {
           state.curSelCase = param.id
-        })
+        }),
       )
     })
-
   }
 
   const cloneCase = async (param: Pysc.ProjectBase, cloneID: any) => {
@@ -659,28 +774,32 @@ export const useDataStore = () => {
         sourceid: cloneID,
         targetid: param.id,
         ctrType: param.type,
-        typechg: appStore.projects[appStore.projects.findIndex(v => v.id === cloneID)].type !== param.type
+        typechg: appStore.projects[appStore.projects.findIndex(v => v.id === cloneID)].type !== param.type,
       })
-    } catch (err) { }
-    appStore.$patch((state) => {
+    }
+    catch (err) { }
+    appStore.$patch(state => {
       state.projects.push(JSON.parse(JSON.stringify(param)))
     })
     appStore.watcherSelCase.resume()
     nextTick(() => {
-      appStore.$patch((state) => {
+      appStore.$patch(state => {
         state.curSelCase = param.id
       })
     })
   }
 
   const delCase = async (caseID: number) => {
-    if (appStore.projects.length === 1) return;
+    if (appStore.projects.length === 1)
+      return
     appStore.watcherSelCase.pause()
     PyscConf.watcherAllData.pause()
+
     const oldCaseID = appStore.curSelCase
     try {
-      appStore.$patch((state) => {
+      appStore.$patch(state => {
         const caseindex = state.projects.findIndex(v => v.id === caseID)
+
         state.projects.splice(caseindex, 1)
         if (oldCaseID === caseID) {
           if (caseindex + 1 < state.projects.length)
@@ -689,19 +808,20 @@ export const useDataStore = () => {
             state.curSelCase = state.projects[caseindex - 1].id
         }
       })
-      //save project list
+
+      // save project list
       await execPartData("wrtcases", "PUT", {
         pathfile: appStore.curWS,
         istmp: 1,
-        gc: btoa(JSON.stringify(appStore.projects))
+        gc: btoa(JSON.stringify(appStore.projects)),
       })
-    } catch (err) {
+    }
+    catch (err) {
     }
     if (oldCaseID != appStore.curSelCase) {
-      //load data
-      if (typeof appStore.mainCallbackCaseID === 'function') {
+      // load data
+      if (typeof appStore.mainCallbackCaseID === 'function')
         await appStore.mainCallbackCaseID(appStore.curSelCase, -1)
-      }
     }
     appStore.watcherSelCase.resume()
     PyscConf.watcherAllData.resume()
@@ -709,23 +829,25 @@ export const useDataStore = () => {
 
   const changeCtrType = (mode: number, value: number, oldValue: number) => {
     if (value != oldValue) {
-      appStore.$patch((state) => {
-        if (mode === 1) //from genconf
+      appStore.$patch(state => {
+        if (mode === 1) // from genconf
           state.projects[appStore.IndexCase].type = value
         state.projects[appStore.IndexCase].state = 1
       })
-      PyscConf.$patch((state) => {
-        if (mode === 0) //from case of project
+      PyscConf.$patch(state => {
+        if (mode === 0) // from case of project
           state.generalConfig.type_of_contract = value
         if (value >= 3) {
           if ([3, 6].includes(value)) {
             if (!(state.contracts.second?.hasOwnProperty('oil_ftp')))
               state.contracts.second = Object.assign({}, JSON.parse(JSON.stringify(state.contracts.cr)))
-          } else if ([4, 5].includes(value)) {
+          }
+          else if ([4, 5].includes(value)) {
             if (!(state.contracts.second?.hasOwnProperty('field_status')))
               state.contracts.second = Object.assign({}, JSON.parse(JSON.stringify(state.contracts.gs)))
           }
-        } else {
+        }
+        else {
           if (state.contracts.second?.hasOwnProperty('oil_ftp') && ![3, 4].includes(oldValue))
             state.contracts.cr = Object.assign({}, JSON.parse(JSON.stringify(<Pysc.costRec>state.contracts.second)))
           else if (state.contracts.second?.hasOwnProperty('field_status') && ![5, 6].includes(oldValue))
@@ -742,51 +864,57 @@ export const useDataStore = () => {
       const projIndex = appStore.projects.findIndex(v => v.id === param.id)
       const oldCtrType = appStore.projects[projIndex].type
       const castTypeChg = oldCtrType !== param.type
-      appStore.$patch((state) => {
+
+      appStore.$patch(state => {
         state.projects[projIndex] = Object.assign({}, JSON.parse(JSON.stringify(param)))
         if (param.id === appStore.curSelCase)
           state.projects[projIndex].state = 1
       })
 
       if (castTypeChg) {
-        if (param.id === appStore.curSelCase)
-          changeCtrType(0, param.type, oldCtrType)
+        if (param.id === appStore.curSelCase) { changeCtrType(0, param.type, oldCtrType) }
         else {
-          //change in file
+          // change in file
           try {
             await execPartData("chgctrtype", "PUT", {
               wspath: appStore.curWS,
               sourceid: param.id,
-              oldCtrType: oldCtrType,
+              oldCtrType,
               newCtrType: param.type,
             })
-          } catch (err) { }
+          }
+          catch (err) { }
         }
       }
-      //save caselist
+
+      // save caselist
       await execPartData("wrtcases", "PUT", {
         pathfile: appStore.curWS,
         istmp: 1,
-        gc: btoa(JSON.stringify(appStore.projects))
+        gc: btoa(JSON.stringify(appStore.projects)),
       })
-    } catch (err) { }
+    }
+    catch (err) { }
     appStore.watcherSelCase.resume()
   }
 
   const table2Array = (table: any[], istartY: number, iendY: number, keys: string[] = ["year", "rate"]) => {
-    //filter not unempty row
+    // filter not unempty row
     const rateTab: Pysc.GlobalTabValue[] = JSON.parse(JSON.stringify(table)).filter(row => !isEmpty(row[keys[0]]) && !isEmpty(row[keys[1]]))
+
     rateTab.sort((a, b) => a[keys[0]] - b[keys[0]])
+
     const mapY = Array.from({ length: iendY - istartY + 1 }, (_, i) => (istartY - 1) + i + 1)
     let retvalue = Array<number | null>(iendY - istartY + 1).fill(0.0)
     rateTab.forEach((y, idx) => {
-      if (y[keys[0]] && y[keys[0]] < istartY) retvalue = retvalue.fill(y[keys[1]])
+      if (y[keys[0]] && y[keys[0]] < istartY) { retvalue = retvalue.fill(y[keys[1]]) }
       else {
         const idxY = mapY.findIndex(e => e === y[keys[0]])
         if (idxY != -1)
           retvalue = retvalue.fill(y[keys[1]], idxY)
       }
     })
+
     return retvalue
   }
 
@@ -797,10 +925,12 @@ export const useDataStore = () => {
     useDate: boolean = true) => {
     const caseIndex = appStore.projects.findIndex(e => e.id === id)
     let jsonres = {}
-    if (caseIndex === -1) return jsonres
+    if (caseIndex === -1)
+      return jsonres
 
     const getProducer = (tipe: typeof Pysc.ProducerType[keyof typeof Pysc.ProducerType]) => {
       const selProd = dProd.filter(item => item.Tipe == Object.keys(Pysc.ProducerType).indexOf(tipe))
+
       return selProd.length ? selProd[0] : null
     }
 
@@ -812,7 +942,9 @@ export const useDataStore = () => {
     const type_of_contract = dGConf.type_of_contract
     const startY = Pysc.useDayJs().utc(dGConf.start_date_project).local().year()
     const endY = Pysc.useDayJs().utc(dGConf.end_date_project).local().year()
+
     dGConf.start_date_project_second = Pysc.useDayJs().utc(dGConf.end_date_project).add(1, 'day').valueOf()
+
     const start2Y = Pysc.useDayJs().utc(dGConf.start_date_project_second).local().year()
     const end2Y = Pysc.useDayJs().utc(dGConf.end_date_project_second).local().year()
 
@@ -824,31 +956,33 @@ export const useDataStore = () => {
       return {
         oil_ftp_is_available: cr.oil_ftp.ftp_availability,
         oil_ftp_is_shared: cr.oil_ftp.ftp_is_shared,
-        oil_ftp_portion: +cr.oil_ftp.ftp_portion,
+        oil_ftp_portion: Pysc.toNumnber(cr.oil_ftp.ftp_portion),
         gas_ftp_is_available: cr.gas_ftp.ftp_availability,
         gas_ftp_is_shared: cr.gas_ftp.ftp_is_shared,
-        gas_ftp_portion: +cr.gas_ftp.ftp_portion,
-        tax_split_type: 'Conventional',//Object.values(Pysc.TaxSplitType)[cr.TaxSplit.split_type],
+        gas_ftp_portion: Pysc.toNumnber(cr.gas_ftp.ftp_portion),
+        tax_split_type: 'Conventional', // Object.values(Pysc.TaxSplitType)[cr.TaxSplit.split_type],
         condition_dict: {},
         indicator_rc_icp_sliding: [],
-        oil_ctr_pretax_share: +cr.TaxSplit.pre_tax_ctr_oil,
-        gas_ctr_pretax_share: +cr.TaxSplit.pre_tax_ctr_gas,
-        oil_ic_rate: +cr.IC.ic_oil,
-        gas_ic_rate: +cr.IC.ic_gas,
+        oil_ctr_pretax_share: Pysc.toNumnber(cr.TaxSplit.pre_tax_ctr_oil),
+        gas_ctr_pretax_share: Pysc.toNumnber(cr.TaxSplit.pre_tax_ctr_gas),
+        oil_ic_rate: Pysc.toNumnber(cr.IC.ic_oil),
+        gas_ic_rate: Pysc.toNumnber(cr.IC.ic_gas),
         ic_is_available: cr.IC.ic_availability,
-        oil_cr_cap_rate: +cr.CR.oil_cr_cap_rate,
-        gas_cr_cap_rate: +cr.CR.gas_cr_cap_rate,
-        oil_dmo_volume_portion: +cr.OilDMO.volume,
-        oil_dmo_fee_portion: +cr.OilDMO.fee,
+        oil_cr_cap_rate: Pysc.toNumnber(cr.CR.oil_cr_cap_rate),
+        gas_cr_cap_rate: Pysc.toNumnber(cr.CR.gas_cr_cap_rate),
+        oil_dmo_volume_portion: Pysc.toNumnber(cr.OilDMO.volume),
+        oil_dmo_fee_portion: Pysc.toNumnber(cr.OilDMO.fee),
         oil_dmo_holiday_duration: cr.OilDMO.holiday ? +cr.OilDMO.period : 0,
-        gas_dmo_volume_portion: +cr.GasDMO.volume,
-        gas_dmo_fee_portion: +cr.GasDMO.fee,
+        gas_dmo_volume_portion: Pysc.toNumnber(cr.GasDMO.volume),
+        gas_dmo_fee_portion: Pysc.toNumnber(cr.GasDMO.fee),
         gas_dmo_holiday_duration: cr.GasDMO.holiday ? +cr.GasDMO.period : 0,
       }
     }
+
     const getGS_split_offset = (gs: Pysc.GS, iStart: number, iendY: number) => {
-      return gs.cum_production_split_offset.mode === 1 ?
-        table2Array(gs.cum_production_split_offset.split, iStart, iendY, ["year", "split"]) : gs.cum_production_split_offset.offset
+      return gs.cum_production_split_offset.mode === 1
+        ? table2Array(gs.cum_production_split_offset.split, iStart, iendY, ["year", "split"])
+        : gs.cum_production_split_offset.offset
     }
 
     const gs2json = (gs: Pysc.GS, hasGas: boolean, icontract: number = 0) => {
@@ -865,72 +999,86 @@ export const useDataStore = () => {
         prod_stage: Object.values(Pysc.TahapProdType)[gs.production_stage],
         co2_content: Object.values(Pysc.CO2Type)[gs.co2_content],
         h2s_content: Object.values(Pysc.H2SType)[gs.h2s_content],
-        base_split_ctr_oil: +gs.oil_base_split,
-        base_split_ctr_gas: +gs.gas_base_split,
-        split_ministry_disc: +gs.ministry_discretion_split,
-        oil_dmo_volume_portion: +gs.OilDMO.volume,
-        oil_dmo_fee_portion: +gs.OilDMO.fee,
-        oil_dmo_holiday_duration: gs.OilDMO.holiday ? +gs.OilDMO.period : 0,
-        gas_dmo_volume_portion: +gs.GasDMO.volume,
-        gas_dmo_fee_portion: +gs.GasDMO.fee,
+        base_split_ctr_oil: Pysc.toNumnber(gs.oil_base_split),
+        base_split_ctr_gas: Pysc.toNumnber(gs.gas_base_split),
+        split_ministry_disc: Pysc.toNumnber(gs.ministry_discretion_split),
+        oil_dmo_volume_portion: Pysc.toNumnber(gs.OilDMO.volume),
+        oil_dmo_fee_portion: Pysc.toNumnber(gs.OilDMO.fee),
+        oil_dmo_holiday_duration: gs.OilDMO.holiday ? Pysc.toNumnber(gs.OilDMO.period) : 0,
+        gas_dmo_volume_portion: Pysc.toNumnber(gs.GasDMO.volume),
+        gas_dmo_fee_portion: Pysc.toNumnber(gs.GasDMO.fee),
         gas_dmo_holiday_duration: gs.GasDMO.holiday ? +gs.GasDMO.period : 0,
+
         // cum_production_split_offset: gs.cum_production_split_offset.mode === 0 ? gs.cum_production_split_offset.offset : splitTable
       }
     }
+
     const contrArg2json = (fiscal: Pysc.FiskalBase, isCR: boolean, genconf: Pysc.genConfig, dmo_is_weighted: boolean, hasGas: boolean, isTransition: boolean = false, icontract: number = 0) => {
       return {
-        sulfur_revenue: Object.values(Pysc.OthRevType)[fiscal.sulfur_revenue_config],
-        electricity_revenue: Object.values(Pysc.OthRevType)[fiscal.electricity_revenue_config],
-        co2_revenue: Object.values(Pysc.OthRevType)[fiscal.co2_revenue_config],
-        is_dmo_end_weighted: dmo_is_weighted,
-        tax_regime: fiscal.Tax.tax_mode > 2 ? Object.values(Pysc.TaxType)[fiscal.Tax.tax_mode] : 'nailed down',
-        tax_rate: fiscal.Tax.tax_mode === 1 ?
-          table2Array(fiscal.Tax.multi_tax_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) :
-          (fiscal.Tax.tax_mode === 0 ? +fiscal.Tax.tax_rate_init : getTaxRegime(isTransition && icontract === 1 ? start2Y : startY)),
-        ftp_tax_regime: isCR ? Object.values(Pysc.TaxPaymentType)[fiscal.tax_payment_config] : undefined,
-        sunk_cost_reference_year: (isTransition && icontract === 1 ? null : (DelAccYear !== 0 ? (+fiscal.sunk_cost_reference_year + DelAccYear) : +fiscal.sunk_cost_reference_year)),
-        depr_method: Object.values(Pysc.DepreciationType)[fiscal.Depreciation.depreciation_method],
-        decline_factor: +fiscal.Depreciation.decline_factor,
-        vat_rate: fiscal.VAT.vat_mode === 1 ? table2Array(fiscal.VAT.multi_vat_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : +fiscal.VAT.vat_rate_init,
-        lbt_rate: fiscal.LBT.lbt_mode === 1 ? table2Array(fiscal.LBT.multi_lbt_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : +fiscal.LBT.lbt_rate_init,
-        inflation_rate: fiscal.Inflation.inflation_rate_mode === 1 ? table2Array(fiscal.Inflation.multi_inflation_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : +fiscal.Inflation.inflation_rate_init,
-        future_rate: +fiscal.asr_future_rate,
-        inflation_rate_applied_to: Object.values(Pysc.InflateToType)[genconf.inflation_rate_applied_to],
-        post_uu_22_year2001: (isCR ? (icontract === 0 ? dContr.cr.post_uu_22_year2001 :
-          (isTransition && dContr.second?.hasOwnProperty('post_uu_22_year2001') ? (<Pysc.costRec>dContr.second).post_uu_22_year2001 : undefined)) : undefined),
-        cum_production_split_offset: (!isCR ?
-          (icontract === 0 ?
-            getGS_split_offset(dContr.gs, startY, endY) : getGS_split_offset(<Pysc.GS>dContr.second, start2Y, end2Y)) : undefined),
-        amortization: !isCR ? (icontract === 0 ? (dContr.gs.amortization ?? false) : ((<Pysc.GS>dContr.second).amortization ?? false)) : undefined
+        sulfur_revenue: type_of_contract === 0 ? Pysc.OthRevType.OthRev2 : (Object.values(Pysc.OthRevType)[fiscal.sulfur_revenue_config]),
+        electricity_revenue: type_of_contract === 0 ? Pysc.OthRevType.OthRev1 : (Object.values(Pysc.OthRevType)[fiscal.electricity_revenue_config]),
+        co2_revenue: type_of_contract === 0 ? Pysc.OthRevType.OthRev2 : (Object.values(Pysc.OthRevType)[fiscal.co2_revenue_config]),
+        is_dmo_end_weighted: type_of_contract === 0 ? undefined : dmo_is_weighted,
+        tax_regime: type_of_contract === 0 ? undefined : (fiscal.Tax.tax_mode > 2 ? Object.values(Pysc.TaxType)[fiscal.Tax.tax_mode] : 'nailed down'),
+        tax_rate: type_of_contract === 0
+          ? undefined
+          : (fiscal.Tax.tax_mode === 1
+            ? table2Array(fiscal.Tax.multi_tax_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY))
+            : (fiscal.Tax.tax_mode === 0 ? Pysc.toNumnber(fiscal.Tax.tax_rate_init) : getTaxRegime(isTransition && icontract === 1 ? start2Y : startY))),
+        ftp_tax_regime: type_of_contract === 0 ? undefined : (isCR ? Object.values(Pysc.TaxPaymentType)[fiscal.tax_payment_config] : undefined),
+        sunk_cost_reference_year: type_of_contract === 0 ? startY : ((isTransition && icontract === 1 ? null : (DelAccYear !== 0 ? (+fiscal.sunk_cost_reference_year + DelAccYear) : +fiscal.sunk_cost_reference_year))),
+        depr_method: type_of_contract === 0 ? undefined : (Object.values(Pysc.DepreciationType)[fiscal.Depreciation.depreciation_method]),
+        decline_factor: type_of_contract === 0 ? undefined : (Pysc.toNumnber(fiscal.Depreciation.decline_factor)),
+        vat_rate: type_of_contract === 0 ? 0.0 : (fiscal.VAT.vat_mode === 1 ? table2Array(fiscal.VAT.multi_vat_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : Pysc.toNumnber(fiscal.VAT.vat_rate_init)),
+        lbt_rate: type_of_contract === 0 ? 0.0 : (fiscal.LBT.lbt_mode === 1 ? table2Array(fiscal.LBT.multi_lbt_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : Pysc.toNumnber(fiscal.LBT.lbt_rate_init)),
+        inflation_rate: type_of_contract === 0 ? 0.0 : (fiscal.Inflation.inflation_rate_mode === 1 ? table2Array(fiscal.Inflation.multi_inflation_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : Pysc.toNumnber(fiscal.Inflation.inflation_rate_init)),
+        future_rate: type_of_contract === 0 ? 0.02 : (Pysc.toNumnber(fiscal.asr_future_rate)),
+        inflation_rate_applied_to: type_of_contract === 0 ? Pysc.InflateToType.Capex : (Object.values(Pysc.InflateToType)[genconf.inflation_rate_applied_to]),
+        post_uu_22_year2001: type_of_contract === 0
+          ? undefined
+          : ((isCR
+            ? (icontract === 0
+              ? dContr.cr.post_uu_22_year2001
+              : (isTransition && dContr.second?.hasOwnProperty('post_uu_22_year2001') ? (<Pysc.costRec>dContr.second).post_uu_22_year2001 : undefined))
+            : undefined)),
+        cum_production_split_offset: type_of_contract === 0
+          ? undefined
+          : ((!isCR
+            ? (icontract === 0
+              ? getGS_split_offset(dContr.gs, startY, endY)
+              : getGS_split_offset(<Pysc.GS>dContr.second, start2Y, end2Y))
+            : undefined)),
+        amortization: type_of_contract === 0 ? undefined : (!isCR ? (icontract === 0 ? (dContr.gs.amortization ?? false) : ((<Pysc.GS>dContr.second).amortization ?? false)) : undefined),
+
+        // add field (7/12/24) GS Only
+        regime: type_of_contract === 0 ? undefined : (!isCR ? Object.keys(Pysc.GSRegimeType)[fiscal.regime ?? 3] : undefined),
       }
     }
 
     const lifting2Json = (prod: Pysc.producerConfig[], hasGas: boolean, isTransistion: boolean = false, icontract: number = 0) => {
       let lifting = {}
       prod.forEach((value, index) => {
-        for (var i = 0; i < value.ProdNumber; i++) {
-          //Filtering data is has values
+        for (let i = 0; i < value.ProdNumber; i++) {
+          // Filtering data is has values
           const prod_price: Pysc.prodPriceBase[] = JSON.parse(JSON.stringify(value.prod_price[i])).filter(row => {
-            if (value.Tipe === 0)
-              return (!isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price) &&
-                row.sales > 0 && !isNaN(+row.sales) &&
-                row.price > 0 && !isNaN(+row.price)) ||
-                (!isEmpty(row.year) && !isEmpty(row.condensate_sales) && !isEmpty(row.condensate_price) &&
-                  row.condensate_sales > 0 && !isNaN(+row.condensate_sales) &&
-                  row.condensate_price > 0 && !isNaN(+row.condensate_price))
-            else if (value.Tipe === 1)
-              return !isEmpty(row.year) && !isEmpty(row.production) &&
-                row.production > 0 && !isNaN(+row.production)
-            else
-              return !isEmpty(row.year) && !isEmpty(row.sales) && !isEmpty(row.price) &&
-                row.sales > 0 && !isNaN(+row.sales) &&
-                row.price > 0 && !isNaN(+row.price)
+            if (value.Tipe === 0) {
+              return (Pysc.is_number(row.year) && Pysc.is_number(row.sales) && Pysc.is_number(row.price)
+                && +row.sales > 0 && +row.price > 0)
+                || (Pysc.is_number(row.year) && Pysc.is_number(row.condensate_sales) && Pysc.is_number(row.condensate_price)
+                  && +row.condensate_sales > 0
+                  && +row.condensate_price > 0)
+            }
+            else if (value.Tipe === 1) { return Pysc.is_number(row.year) && Pysc.is_number(row.production) && +row.production > 0 }
+            else { return Pysc.is_number(row.year) && Pysc.is_number(row.sales) && +row.sales > 0 && +row.price > 0 }
           })
+
           prod_price.sort((a, b) => a.year - b.year)
-          //add condisiton of delayed/Acc
+
+          // add condisiton of delayed/Acc
           if (DelAccYear !== 0 && prod_price.length) {
             prod_price.map(p => p.year += DelAccYear)
-            //cut project
+
+            // cut project
             if (dGConf.delayAccMode === 1) {
               const del_index = prod_price.findIndex(p => p.year > (isTransistion ? end2Y : endY))
               if (del_index != -1)
@@ -945,89 +1093,112 @@ export const useDataStore = () => {
 
           if (isTransistion) {
             prod_price.splice(0, prod_price.length, ...prod_price.filter(row => {
-              return +row.year >= (icontract === 0 ? startY : start2Y) &&
-                (icontract === 0 ? +row.year <= endY : true)
+              return +row.year >= (icontract === 0 ? startY : start2Y)
+                && (icontract === 0 ? +row.year <= endY : true)
             }))
+
             const dM = [Pysc.useDayJs().utc(dGConf.end_date_project).local().date(), Pysc.useDayJs().utc(dGConf.end_date_project).local().month()]
             if (dM[0] !== 31 && dM[1] !== 12) {
               const factorD = Pysc.useDayJs().utc(dGConf.end_date_project).local().dayOfYear() / 365.0
+
               prod_price.splice(0, prod_price.length, ...prod_price.map(row => {
                 if (row.year === endY) {
                   if (value.Tipe === 1) {
-                    if (row.production !== null) row.production *= (icontract === 0 ? factorD : (1 - factorD))
-                    for (var ii = 0; ii < value.GSANumber; ii++) {
-                      //if (row.gsa[`ghv${ii + 1}`] !== null) row.gsa[`ghv${ii + 1}`] *= (icontract === 0 ? factorD : (1 - factorD))
-                      if (row.gsa[`vol${ii + 1}`] !== null) row.gsa[`vol${ii + 1}`] *= (icontract === 0 ? factorD : (1 - factorD))
+                    if (row.production !== null)
+                      row.production *= (icontract === 0 ? factorD : (1 - factorD))
+                    for (let ii = 0; ii < value.GSANumber; ii++) {
+                      // if (row.gsa[`ghv${ii + 1}`] !== null) row.gsa[`ghv${ii + 1}`] *= (icontract === 0 ? factorD : (1 - factorD))
+                      if (row.gsa[`vol${ii + 1}`] !== null)
+                        row.gsa[`vol${ii + 1}`] *= (icontract === 0 ? factorD : (1 - factorD))
                     }
-                  } else {
-                    if (row.sales !== null) row.sales *= (icontract === 0 ? factorD : (1 - factorD))
+                  }
+                  else {
+                    if (row.sales !== null)
+                      row.sales *= (icontract === 0 ? factorD : (1 - factorD))
                   }
                 }
+
                 return row
               }))
             }
           }
           if (value.Tipe === 1) {
-            //GAS
+            // GAS
             for (var ii = 0; ii < value.GSANumber; ii++) {
               lifting = {
                 ...lifting,
-                [`GSA${value.ProdNumber ? (' ' + (i + 1)) : ''}${value.GSANumber ? (' ' + (ii + 1)) : ''}`]: prod_price.length ? {
-                  start_year: (isTransistion && icontract === 1 ? start2Y : startY),
-                  end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                  lifting_rate: prod_price.map(v => v.production),
-                  price: prod_price.map(v => v.gsa[`price${ii + 1}`] ?? 0),
-                  prod_year: prod_price.map(v => v.year),
-                  ghv: prod_price.map(v => v.gsa[`ghv${ii + 1}`] ?? 0),
-                  prod_rate: prod_price.map(v => v.gsa[`vol${ii + 1}`] ?? 0),
-                  fluid_type: "Gas",
-                } : undefined,
+                [`GSA${value.ProdNumber ? (` ${i + 1}`) : ''}${value.GSANumber ? (` ${ii + 1}`) : ''}`]: prod_price.length
+                  ? {
+                    start_year: (isTransistion && icontract === 1 ? start2Y : startY),
+                    end_year: (isTransistion && icontract === 1 ? end2Y : endY),
+                    prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                    lifting_rate: prod_price.map(v => v.production),
+                    price: prod_price.map(v => v.gsa[`price${ii + 1}`] ?? 0),
+                    prod_year: prod_price.map(v => v.year),
+                    ghv: prod_price.map(v => v.gsa[`ghv${ii + 1}`] ?? 0),
+                    prod_rate: prod_price.map(v => v.gsa[`vol${ii + 1}`] ?? 0),
+                    fluid_type: "Gas",
+                  }
+                  : undefined,
               }
             }
-          } else if (value.Tipe === 0) {
-            const oilData = prod_price.filter(row => !isEmpty(row.sales) && !isEmpty(row.price) &&
-              row.sales > 0 && !isNaN(+row.sales) &&
-              row.price > 0 && !isNaN(+row.price))
-            const condsData = prod_price.filter(row => !isEmpty(row.condensate_sales) && !isEmpty(row.condensate_price) &&
-              row.condensate_sales > 0 && !isNaN(+row.condensate_sales) &&
-              row.condensate_price > 0 && !isNaN(+row.condensate_price))
+          }
+          else if (value.Tipe === 0) {
+            const oilData = prod_price.filter(row => Pysc.is_number(row.sales) && Pysc.is_number(row.price)
+              && +row.sales > 0 && +row.price > 0)
+
+            const condsData = prod_price.filter(row => Pysc.is_number(row.condensate_sales) && Pysc.is_number(row.condensate_price)
+              && +row.condensate_sales > 0 && +row.condensate_price > 0)
+
             if (oilData.length) {
               lifting = {
                 ...lifting,
-                [`${Object.values(Pysc.ProducerType)[value.Tipe]}${value.ProdNumber ? (' ' + (i + 1)) : ''}`]: oilData.length ? {
-                  start_year: (isTransistion && icontract === 1 ? start2Y : startY),
-                  end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                  lifting_rate: oilData.map(v => v.sales),
-                  price: oilData.map(v => v.price),
-                  prod_year: oilData.map(v => v.year),
-                  fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
-                } : undefined,
+                [`${Object.values(Pysc.ProducerType)[value.Tipe]}${value.ProdNumber ? (` ${i + 1}`) : ''}`]: oilData.length
+                  ? {
+                    start_year: (isTransistion && icontract === 1 ? start2Y : startY),
+                    end_year: (isTransistion && icontract === 1 ? end2Y : endY),
+                    prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                    prod_rate: null,
+                    lifting_rate: oilData.map(v => v.sales),
+                    price: oilData.map(v => v.price),
+                    prod_year: oilData.map(v => v.year),
+                    fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
+                  }
+                  : undefined,
               }
             }
             if (condsData.length) {
               lifting = {
                 ...lifting,
-                [`Condensate${value.ProdNumber ? (' ' + (i + 1)) : ''}`]: condsData.length ? {
-                  start_year: (isTransistion && icontract === 1 ? start2Y : startY),
-                  end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                  lifting_rate: condsData.map(v => v.condensate_sales),
-                  price: condsData.map(v => v.condensate_price),
-                  prod_year: condsData.map(v => v.year),
-                  fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
-                } : undefined,
+                [`Condensate${value.ProdNumber ? (` ${i + 1}`) : ''}`]: condsData.length
+                  ? {
+                    start_year: (isTransistion && icontract === 1 ? start2Y : startY),
+                    end_year: (isTransistion && icontract === 1 ? end2Y : endY),
+                    prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                    prod_rate: null,
+                    lifting_rate: condsData.map(v => v.condensate_sales),
+                    price: condsData.map(v => v.condensate_price),
+                    prod_year: condsData.map(v => v.year),
+                    fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
+                  }
+                  : undefined,
               }
             }
-          } else {
+          }
+          else {
             lifting = {
               ...lifting,
-              [`${Object.values(Pysc.ProducerType)[value.Tipe]}${value.ProdNumber ? (' ' + (i + 1)) : ''}`]: prod_price.length ? {
-                start_year: (isTransistion && icontract === 1 ? start2Y : startY),
-                end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                lifting_rate: prod_price.map(v => v.sales),
-                price: prod_price.map(v => v.price),
-                prod_year: prod_price.map(v => v.year),
-                fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
-              } : undefined,
+              [`${[2, 3].includes(value.Tipe) ? 'Gas ' : ''}${Object.values(Pysc.ProducerType)[value.Tipe]}${value.ProdNumber ? (` ${i + 1}`) : ''}`]: prod_price.length
+                ? {
+                  start_year: (isTransistion && icontract === 1 ? start2Y : startY),
+                  end_year: (isTransistion && icontract === 1 ? end2Y : endY),
+                  prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                  lifting_rate: prod_price.map(v => v.sales),
+                  price: prod_price.map(v => v.price),
+                  prod_year: prod_price.map(v => v.year),
+                  fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
+                }
+                : undefined,
             }
           }
         }
@@ -1037,16 +1208,17 @@ export const useDataStore = () => {
     }
 
     const cost2Json = (name: string, tcost: number, icost: Array<number | string | null>[],
-      isTransistion: boolean = false, icontract: number = 0
+      isTransistion: boolean = false, icontract: number = 0,
     ) => {
-      const toValue = (val: any, def: number | null = 0.0) => (+val) ? val : def
+      const toValue = (val: any, def: number | null = 0.0) => Pysc.is_number(val) ? Pysc.toNumnber(val) : def
 
       const cost_data = JSON.parse(JSON.stringify(icost)).filter(row => {
         return !isEmpty(row[0]) && !isEmpty(row[1]) && !isEmpty(row[2])
       })
+
       cost_data.sort((a, b) => a[0] - b[0])
 
-      //add condisiton of delayed/Acc
+      // add condisiton of delayed/Acc
       if (DelAccYear !== 0 && cost_data.length) {
         cost_data.map(c => {
           c[0] += DelAccYear
@@ -1067,16 +1239,18 @@ export const useDataStore = () => {
 
       if (isTransistion) {
         cost_data.splice(0, cost_data.length, ...cost_data.filter(row => {
-          return +row[0] >= (icontract === 1 ? start2Y : startY) &&
-            (icontract === 0 ? (+row[0] <= endY) : true)
+          return Pysc.toNumnber(row[0]) >= (icontract === 1 ? start2Y : startY)
+            && (icontract === 0 ? (Pysc.toNumnber(row[0]) <= endY) : true)
         }))
+
         const dM = [Pysc.useDayJs().utc(dGConf.end_date_project).local().date(), Pysc.useDayJs().utc(dGConf.end_date_project).local().month()]
         if (dM[0] !== 31 && dM[1] !== 12) {
           const factorD = Pysc.useDayJs().utc(dGConf.end_date_project).local().dayOfYear() / 365.0
+
           cost_data.splice(0, cost_data.length, ...cost_data.map(row => {
-            if (row[0] === endY) {
+            if (row[0] === endY)
               row[2] *= (icontract === 0 ? factorD : (1 - factorD))
-            }
+
             return row
           }))
         }
@@ -1101,30 +1275,44 @@ export const useDataStore = () => {
           "is_ic_applied": tcost === 0 ? (cost_data.length ? cost_data.map(e => e[6] === 'Yes') : [false]) : undefined,
           "prod_rate": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[3])) : [0.0]) : undefined,
           "cost_per_volume": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[4])) : [0.0]) : undefined,
-        }
+        },
       }
     }
 
-    const vlifting = (type_of_contract < 3 ? lifting2Json(dProd, !!Gas) : {
-      first: lifting2Json(dProd, !!Gas, true, 0),
-      second: lifting2Json(dProd, !!Gas, true, 1)
-    })
-    const vtangible = (type_of_contract < 3 ? cost2Json(appStore.projects[caseIndex].name, 0, dTan) : {
-      first: cost2Json(appStore.projects[caseIndex].name, 0, dTan, true, 0),
-      second: cost2Json(appStore.projects[caseIndex].name, 0, dTan, true, 1)
-    })
-    const vintangible = (type_of_contract < 3 ? cost2Json(appStore.projects[caseIndex].name, 1, dIntan) : {
-      first: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, true, 0),
-      second: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, true, 1)
-    })
-    const vopex = (type_of_contract < 3 ? cost2Json(appStore.projects[caseIndex].name, 2, dOpex) : {
-      first: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, true, 0),
-      second: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, true, 1)
-    })
-    const vasr = (type_of_contract < 3 ? cost2Json(appStore.projects[caseIndex].name, 3, dASR) : {
-      first: cost2Json(appStore.projects[caseIndex].name, 3, dASR, true, 0),
-      second: cost2Json(appStore.projects[caseIndex].name, 3, dASR, true, 1)
-    })
+    const vlifting = (type_of_contract < 3
+      ? lifting2Json(dProd, !!Gas)
+      : {
+        first: lifting2Json(dProd, !!Gas, true, 0),
+        second: lifting2Json(dProd, !!Gas, true, 1),
+      })
+
+    const vtangible = (type_of_contract < 3
+      ? cost2Json(appStore.projects[caseIndex].name, 0, dTan)
+      : {
+        first: cost2Json(appStore.projects[caseIndex].name, 0, dTan, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 0, dTan, true, 1),
+      })
+
+    const vintangible = (type_of_contract < 3
+      ? cost2Json(appStore.projects[caseIndex].name, 1, dIntan)
+      : {
+        first: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, true, 1),
+      })
+
+    const vopex = (type_of_contract < 3
+      ? cost2Json(appStore.projects[caseIndex].name, 2, dOpex)
+      : {
+        first: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, true, 1),
+      })
+
+    const vasr = (type_of_contract < 3
+      ? cost2Json(appStore.projects[caseIndex].name, 3, dASR)
+      : {
+        first: cost2Json(appStore.projects[caseIndex].name, 3, dASR, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 3, dASR, true, 1),
+      })
 
     let oil_onstream_date_ = Oil ? Pysc.useDayJs().utc(Oil.onstream_date).local().add(DelAccYear, 'year') : null
     let gas_onstream_date_ = Gas ? Pysc.useDayJs().utc(Gas.onstream_date).local().add(DelAccYear, 'year') : null
@@ -1141,8 +1329,15 @@ export const useDataStore = () => {
           oil_onstream_date: oil_onstream_date_ ? (useDate ? oil_onstream_date_.format('DD/MM/YYYY') : oil_onstream_date_) : null,
           gas_onstream_date: gas_onstream_date_ ? (useDate ? gas_onstream_date_.format('DD/MM/YYYY') : gas_onstream_date_) : null,
         },
+        contract_arguments: contrArg2json(dFisc.Fiskal, true, dGConf, true ? dContr.cr.dmo_is_weighted : dContr.gs.dmo_is_weighted, !!Gas),
+        lifting: vlifting,
+        tangible: vtangible,
+        intangible: vintangible,
+        opex: vopex,
+        asr: vasr,
       }
-    } else if (type_of_contract < 3)
+    }
+    else if (type_of_contract < 3) {
       jsonres = {
         ...jsonres,
         setup: {
@@ -1154,9 +1349,10 @@ export const useDataStore = () => {
         summary_arguments: {
           reference_year: +dGConf.discount_rate_start_year,
           inflation_rate: dFisc.Fiskal.Inflation.inflation_rate_mode === 1 ? table2Array(dFisc.Fiskal.Inflation.multi_inflation_init, startY, endY) : +dFisc.Fiskal.Inflation.inflation_rate_init,
-          discount_rate: +dGConf.discount_rate,
+          discount_rate: Pysc.toNumnber(dGConf.discount_rate),
           npv_mode: Object.values(Pysc.NVPType)[dFisc.Fiskal.npv_mode],
-          discounting_mode: Object.values(Pysc.DiscType)[dFisc.Fiskal.discounting_mode]
+          discounting_mode: Object.values(Pysc.DiscType)[dFisc.Fiskal.discounting_mode],
+          profitability_discounted: dFisc.Fiskal.profitability_discounted ?? false,
         },
         costrecovery: type_of_contract === 1 ? cr2json(dContr.cr, !!Gas) : undefined,
         grosssplit: type_of_contract === 2 ? gs2json(dContr.gs, !!Gas) : undefined,
@@ -1167,15 +1363,16 @@ export const useDataStore = () => {
         opex: vopex,
         asr: vasr,
       }
-    else if (type_of_contract >= 3)
+    }
+    else if (type_of_contract >= 3) {
       jsonres = {
         ...jsonres,
         contract_1: {
           setup: {
             start_date: useDate ? Pysc.useDayJs().utc(dGConf.start_date_project).local().format('DD/MM/YYYY') : dGConf.start_date_project,
             end_date: useDate ? Pysc.useDayJs().utc(dGConf.end_date_project).local().format('DD/MM/YYYY') : dGConf.end_date_project,
-            oil_onstream_date: null, //Oil ? (useDate ? Pysc.useDayJs().utc(Oil.onstream_date).local().format('DD/MM/YYYY') : Oil.onstream_date) : null,
-            gas_onstream_date: null, //Gas ? (useDate ? Pysc.useDayJs().utc(Gas.onstream_date).local().format('DD/MM/YYYY') : Gas.onstream_date) : null,
+            oil_onstream_date: null, // Oil ? (useDate ? Pysc.useDayJs().utc(Oil.onstream_date).local().format('DD/MM/YYYY') : Oil.onstream_date) : null,
+            gas_onstream_date: null, // Gas ? (useDate ? Pysc.useDayJs().utc(Gas.onstream_date).local().format('DD/MM/YYYY') : Gas.onstream_date) : null,
           },
           costrecovery: [3, 4].includes(type_of_contract) ? cr2json(dContr.cr, !!Gas) : null,
           grosssplit: [5, 6].includes(type_of_contract) ? gs2json(dContr.gs, !!Gas, 0) : null,
@@ -1192,8 +1389,8 @@ export const useDataStore = () => {
           setup: {
             start_date: useDate ? Pysc.useDayJs().utc(dGConf.start_date_project_second).local().format('DD/MM/YYYY') : dGConf.start_date_project_second,
             end_date: useDate ? Pysc.useDayJs().utc(dGConf.end_date_project_second).local().format('DD/MM/YYYY') : dGConf.end_date_project_second,
-            oil_onstream_date: null, //Oil ? (useDate ? Pysc.useDayJs().utc(Oil.onstream_date).local().format('DD/MM/YYYY') : Oil.onstream_date) : null,
-            gas_onstream_date: null, //Gas ? (useDate ? Pysc.useDayJs().utc(Gas.onstream_date).local().format('DD/MM/YYYY') : Gas.onstream_date) : null,
+            oil_onstream_date: null, // Oil ? (useDate ? Pysc.useDayJs().utc(Oil.onstream_date).local().format('DD/MM/YYYY') : Oil.onstream_date) : null,
+            gas_onstream_date: null, // Gas ? (useDate ? Pysc.useDayJs().utc(Gas.onstream_date).local().format('DD/MM/YYYY') : Gas.onstream_date) : null,
           },
           costrecovery: [3, 6].includes(type_of_contract) ? cr2json(<Pysc.costRec>dContr.second, !!Gas) : null,
           grosssplit: [4, 5].includes(type_of_contract) ? gs2json(<Pysc.GS>dContr.second, !!Gas, 1) : null,
@@ -1207,16 +1404,19 @@ export const useDataStore = () => {
           asr: vasr.second,
         },
         "contract_arguments": {
-          unrec_portion: dFisc.Fiskal2.transferred_unrec_cost
+          unrec_portion: dFisc.Fiskal2.transferred_unrec_cost,
         },
         "summary_arguments": {
           reference_year: dGConf.discount_rate_start_year,
-          inflation_rate: dFisc.Fiskal.Inflation.inflation_rate_mode === 1 ? table2Array(dFisc.Fiskal.Inflation.multi_inflation_init, startY, endY) : +dFisc.Fiskal.Inflation.inflation_rate_init,
-          discount_rate: +dGConf.discount_rate,
+          inflation_rate: dFisc.Fiskal.Inflation.inflation_rate_mode === 1 ? table2Array(dFisc.Fiskal.Inflation.multi_inflation_init, startY, endY) : Pysc.toNumnber(dFisc.Fiskal.Inflation.inflation_rate_init),
+          discount_rate: Pysc.toNumnber(dGConf.discount_rate),
           npv_mode: Object.values(Pysc.NVPType)[dFisc.Fiskal.npv_mode],
-          discounting_mode: Object.values(Pysc.DiscType)[dFisc.Fiskal.discounting_mode]
-        }
+          discounting_mode: Object.values(Pysc.DiscType)[dFisc.Fiskal.discounting_mode],
+          profitability_discounted: dFisc.Fiskal.profitability_discounted ?? false,
+        },
       }
+    }
+
     return jsonres
   }
 
@@ -1230,6 +1430,7 @@ export const useDataStore = () => {
   return {
     resetDataStore,
     extractProject,
+    loadDataModule,
     applyCase,
     useWatchCaseID,
     newProject,
@@ -1241,8 +1442,15 @@ export const useDataStore = () => {
 
     changeCtrType,
 
-    addCase, cloneCase, delCase, updateCase, saveCaseData, addOptimCase,
+    addCase,
+    cloneCase,
+    delCase,
+    updateCase,
+    saveCaseData,
+    addOptimCase,
 
-    table2Array, makeJSONofCase, curCase2Json
+    table2Array,
+    makeJSONofCase,
+    curCase2Json,
   }
 }

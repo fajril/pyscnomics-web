@@ -1,4 +1,4 @@
-import { useAppStore } from '@/stores/appStore';
+import { useAppStore } from '@/stores/appStore'
 
 export interface THTTPparams {
   path: string
@@ -13,110 +13,161 @@ export interface THTTPresult {
 }
 export const useHTTP = () => {
   const appStore = useAppStore()
+
+  const extractError = (errDict: any) => {
+    const errStatus = errDict && typeof errDict !== 'string' && !Array.isArray(errDict) ? (errDict.status ?? 500) : 500
+
+    if (errDict && typeof errDict !== 'string' && !Array.isArray(errDict) && errDict._data?.detail)
+      return { status: errStatus, result: Array.isArray(errDict._data.detail) ? errDict._data.detail[0] : errDict._data.detail }
+
+    const extractMsg = (msgDict: any) => {
+      if (typeof msgDict === 'string' && msgDict.toLowerCase().includes('<html'))
+        return 'Unknown'
+
+      return msgDict
+    }
+
+    const extractObject = (msgDict: any) => {
+      try {
+        const errorStatus = msgDict.status ? msgDict.status : msgDict.statusCode ? msgDict.statusCode : msgDict.state ? msgDict.state : 500
+        const errorMsg = msgDict.result ? extractMsg(msgDict.result) : msgDict.error ? extractMsg(msgDict.error) : msgDict.msg ? extractMsg(msgDict.msg) : msgDict.message ? extractMsg(msgDict.message) : 'Unknown'
+
+        return { status: errorStatus, result: errorMsg }
+      }
+      catch (error) { }
+
+      return { status: 500, result: 'unknown' }
+    }
+
+    const extractArray = (msgDict: any) => {
+      try {
+        const errorStatus = msgDict.length === 2 ? msgDict[0] : 500
+        const errorMsg = msgDict.length === 2 ? extractMsg(msgDict[1]) : 'Unknown'
+
+        return { status: errorStatus, result: errorMsg }
+      }
+      catch (error) {
+
+      }
+
+      return { status: 500, result: 'unknown' }
+    }
+
+    // console.log([typeof errDict, errDict])
+
+    if (typeof errDict === 'string') {
+      return { status: errStatus, result: extractMsg(errDict) }
+    }
+    else if (errDict.message) {
+      if (typeof errDict.message === 'string')
+        return { status: errStatus, result: extractMsg(errDict.message) }
+      if (typeof errDict.message === 'object')
+        return extractObject(errDict.message)
+      if (Array.isArray(errDict.message))
+        return extractArray(errDict.message)
+    }
+    else if (errDict.error) {
+      if (typeof errDict.error === 'string')
+        return { status: errStatus, result: extractMsg(errDict.error) }
+      if (typeof errDict.error === 'object')
+        return extractObject(errDict.error)
+      if (Array.isArray(errDict.error))
+        return extractArray(errDict.error)
+    }
+    else if (typeof errDict === 'object') {
+      return extractObject(errDict)
+    }
+    else if (Array.isArray(errDict)) {
+      return extractArray(errDict)
+    }
+
+    return { status: errStatus, result: 'Unknown error' }
+  }
+
   const get = async (enth: THTTPparams) => {
+    let errDict = null
     try {
       const response_ = await $api(`/auth/${enth.path}`, {
-        // baseURL: appStore.apiURL,
+        baseURL: appStore.apiURL,
         ...(enth.params ? { params: enth.params } : {}),
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         onResponseError({ error, response }) {
-          console.log([error, response])
-          const dict_err = extractError({ status: response.status, error: response._data.detail })
-          if (enth.onError) enth.onError(dict_err)
-          throw dict_err
+          errDict = extractError(response)
+          throw errDict
         },
       })
+
       if (enth.onSuccess)
         enth.onSuccess(response_)
+
       return { status: 200, result: response_ }
-      // else {
-      //   let text_ = await response_.text()
-      //   try {
-      //     text_ = text_ && JSON.parse(text_);
-      //   } catch (error) { }
-      //   const dict_err = {
-      //     status: response_.status, result: (typeof text_ === 'object' && text_.hasOwnProperty('_data') ?
-      //       (text_._data.hasOwnProperty('detail') ? text_._data.detail : text_._data) : text_)
-      //   }
-      //   if (enth.onError)
-      //     enth.onError(dict_err)
-      //   throw dict_err
-      // }
-    } catch (error) {
-      return error
     }
-  }
-  const put = async (enth: THTTPparams) => {
-    try {
-      const response_ = await $api(`/auth/${enth.path}`, {
-        // baseURL: appStore.apiURL,
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        ...(enth.params ? { params: enth.params } : {}),
-        ...(enth.body ? { body: JSON.stringify(enth.body) } : {}),
-        onResponseError({ error, response }) {
-          console.log([error, response])
-          const dict_err = extractError({ status: response.status, error: response._data.detail })
-          if (enth.onError) enth.onError(dict_err)
-          throw dict_err
-        },
-      })
-      if (enth.onSuccess)
-        enth.onSuccess(response_)
-      return { status: 200, result: response_ }
-    } catch (error) {
-      return error
-    }
-  }
-  const post = async (enth: THTTPparams) => {
-    try {
-      const response_ = await $api(`/auth/${enth.path}`, {
-        // baseURL: appStore.apiURL,
-        ...(enth.params ? { params: enth.params } : {}),
-        ...(enth.body ? { body: JSON.stringify(enth.body) } : {}),
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        onResponseError({ error, response }) {
-          console.log([error, response])
-          const dict_err = extractError({ status: response.status, error: response._data.detail })
-          if (enth.onError) enth.onError(dict_err)
-          throw dict_err
-        },
-      })
-      if (enth.onSuccess)
-        enth.onSuccess(response_)
-      return { status: 200, result: response_ }
-    } catch (error) {
-      return error
+    catch (error) {
+      if (enth.onError && errDict)
+        enth.onError(errDict)
+      else
+        return error
     }
   }
 
-  const extractError = (errDict: any) => {
-    const extractMsg = (msgDict: any) => {
-      if (typeof msgDict === 'string' && msgDict.toLowerCase().indexOf('<html') != -1)
-        return 'Unknown'
-      return msgDict
+  const put = async (enth: THTTPparams) => {
+    let errDict = null
+    try {
+      const response_ = await $api(`/auth/${enth.path}`, {
+        baseURL: appStore.apiURL,
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        ...(enth.params ? { params: enth.params } : {}),
+        ...(enth.body ? { body: JSON.stringify(enth.body) } : {}),
+        onResponseError({ error, response }) {
+          errDict = extractError(response)
+          throw errDict
+        },
+      })
+
+      if (enth.onSuccess)
+        enth.onSuccess(response_)
+
+      return { status: 200, result: response_ }
     }
-    if (typeof errDict === 'string')
-      return { status: 500, result: extractMsg(errDict) }
-    else if (Array.isArray(errDict)) {
-      const errorStatus = errDict.length === 2 ? errDict[0] : 500
-      const errorMsg = errDict.length === 2 ? extractMsg(errDict[1]) : 'Unknown'
-      return { status: errorStatus, result: errorMsg }
-    } else if (typeof errDict === 'object') {
-      try {
-        const key = Object.keys(errDict)
-        const errorStatus = key.includes('status') ? errDict.status : (key.includes('statusCode') ? errDict.statusCode : (key.includes('state') ? errDict.state : 500))
-        const errorMsg = key.includes('result') ? extractMsg(errDict.result) : (key.includes('error') ? extractMsg(errDict.error) :
-          (key.includes('msg') ? extractMsg(errDict.msg) : 'Unknown'))
-        return { status: errorStatus, result: errorMsg }
-      } catch (error) { }
+    catch (error) {
+      if (enth.onError && errDict)
+        enth.onError(errDict)
+      else
+        return error
     }
-    return { status: 500, result: 'Unknown error' }
+  }
+
+  const post = async (enth: THTTPparams) => {
+    let errDict = null
+    try {
+      const response_ = await $api(`/auth/${enth.path}`, {
+        baseURL: appStore.apiURL,
+        ...(enth.params ? { params: enth.params } : {}),
+        ...(enth.body ? { body: JSON.stringify(enth.body) } : {}),
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        onResponseError({ error, response }) {
+          errDict = extractError(response)
+          throw errDict
+        },
+      })
+
+      if (enth.onSuccess)
+        enth.onSuccess(response_)
+
+      return { status: 200, result: response_ }
+    }
+    catch (error) {
+      if (enth.onError && errDict)
+        enth.onError(errDict)
+      else
+        return error
+    }
   }
 
   return {
-    get, put, post, extractError
+    get, put, post, extractError,
   }
 }

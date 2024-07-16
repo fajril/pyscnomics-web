@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { TransitionGroup } from 'vue'
 import { layoutConfig } from '@layouts'
 import { TransitionExpand, VerticalNavLink } from '@layouts/components'
 import { canViewNavMenuGroup } from '@layouts/plugins/casl'
@@ -7,6 +6,7 @@ import { useLayoutConfigStore } from '@layouts/stores/config'
 import { injectionKeyIsVerticalNavHovered } from '@layouts/symbols'
 import type { NavGroup } from '@layouts/types'
 import { getDynamicI18nProps, isNavGroupActive, openGroups } from '@layouts/utils'
+import { TransitionGroup } from 'vue'
 
 defineOptions({
   name: 'VerticalNavGroup',
@@ -251,6 +251,11 @@ const isMounted = useMounted()
         />
       </ul>
     </TransitionExpand>
+    <VSpacer v-if="item.divider" class="mx-4"
+    :style="{ 'border-bottom': '1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important', 
+        marginBottom:'10px',marginTop:'10px',
+      }"
+    />
   </li>
 </template>
 

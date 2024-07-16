@@ -3,22 +3,17 @@ export default [
     title: 'Home',
     to: { name: 'dashboard' },
     icon: { icon: 'tabler-smart-home' },
-    fixed: true
+    fixed: true,
   },
   { heading: 'Project', fixed: true },
   {
-    control: 'cases', fixed: true
+    control: 'cases', fixed: true,
   },
   { heading: 'Configuration' },
   {
-    title: 'GenFisTitle',
+    title: 'GenTitle',
     icon: { icon: 'tabler-settings-dollar' },
     to: { name: 'pysc-conf' },
-  },
-  {
-    title: 'CR/GS',
-    icon: { icon: 'tabler-basket-dollar' },
-    to: { name: 'pysc-crgs' },
   },
   {
     title: 'Lifting',
@@ -28,6 +23,7 @@ export default [
   {
     title: 'Costs',
     icon: { icon: 'tabler-file-dollar' },
+    divider: true,
     children: [
       {
         title: 'Capital',
@@ -49,7 +45,17 @@ export default [
         icon: { icon: 'tabler-circle-4-filled', size: '21' },
         to: { name: 'pysc-asr' },
       },
-    ]
+    ],
+  },
+  {
+    title: 'FisTitle',
+    icon: { icon: 'tabler-user-dollar' },
+    to: { name: 'pysc-fis' },
+  },
+  {
+    title: 'CR/GS',
+    icon: { icon: 'tabler-basket-dollar' },
+    to: { name: 'pysc-crgs' },
   },
   { heading: 'Summary' },
   {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import * as Pysc from "@/utils/pysc/pyscType";
-import 'handsontable/dist/handsontable.full.min.css';
-import { isNull } from "mathjs";
+import * as Pysc from "@/utils/pysc/pyscType"
+import 'handsontable/dist/handsontable.full.min.css'
+import { isNull } from "mathjs"
 
 interface Props {
   dataTable: Pysc.TableCFOption
@@ -23,8 +23,17 @@ const dataTable = computed(() => props.dataTable)
 
 function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
   if (col === 0) {
-    td.classList.add("text-center")
-    td.innerText = value
+    const div = document.createElement('div')
+
+    div.classList.add("d-flex")
+    div.classList.add("justify-center")
+
+    const span = document.createElement('span')
+
+    span.innerHTML = `${value ?? ""}<small></small>`
+    div.appendChild(span)
+    td.innerText = ""
+    td.appendChild(div)
   }
   else {
     if (row < dataTable.value?.data.length && col < dataTable.value?.data[row].length && !isNull(dataTable.value?.data[row][col])) {
@@ -84,10 +93,18 @@ defineExpose({
 <template>
   <AppCardActions
     :title="$props.title + ($props.multiContract ? ($props.isContract2 ? ' 2nd Contract' : ' 1st Contract') : '')"
-    action-collapsed compact-header :collapsed="collapsed" @collapsed="val => collapsed = val">
+    action-collapsed
+    compact-header
+    :collapsed="collapsed"
+    @collapsed="val => collapsed = val"
+  >
     <VCardText>
-      <HotTable ref="refTableCF" :settings="tableCFConfig" class="not_to_dimmed"
-        license-key="non-commercial-and-evaluation" />
+      <HotTable
+        ref="refTableCF"
+        :settings="tableCFConfig"
+        class="not_to_dimmed"
+        license-key="non-commercial-and-evaluation"
+      />
     </VCardText>
   </AppCardActions>
 </template>

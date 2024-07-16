@@ -54,7 +54,7 @@ const mainSetting = ref({
       nextTick(() => {
         if (ctype === 'numeric' && (typeof dataOpex.value[row][+prop] === 'string') &&
           dataOpex.value[row][+prop].indexOf('=') != -1) {
-          dataOpex.value[row][+prop] = value
+          dataOpex.value[row][+prop] = +(+value).toPrecision(15)
           refTableOpex.value.hotInstance.updateData(dataOpex.value)
         }
       })

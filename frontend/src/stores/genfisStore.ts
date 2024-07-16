@@ -1,33 +1,98 @@
-import { useAppStore } from "@/stores/appStore";
-import { Contracts, Fiskal, ProducerType, defContracts, defFiskal, defGenConfig, defProdConfig, genConfig, producerConfig } from '@/utils/pysc/pyscType';
-import { useDataStore } from "@/utils/pysc/useDataStore";
-import { namespaceConfig } from '@layouts/stores/config';
-import { useStorage } from '@vueuse/core';
-import * as lzs from 'lz-string';
+import { useAppStore } from "@/stores/appStore"
+import type { Contracts, Fiskal, genConfig, producerConfig } from '@/utils/pysc/pyscType'
+import { ProducerType, defContracts, defFiskal, defGenConfig, defProdConfig } from '@/utils/pysc/pyscType'
+import { useDataStore } from "@/utils/pysc/useDataStore"
+import { namespaceConfig } from '@layouts/stores/config'
+import { useStorage } from '@vueuse/core'
+import * as lzs from 'lz-string'
 
 export const usePyscConfStore = defineStore('pyscEcoConf', () => {
   const generalConfig = useStorage<genConfig>(namespaceConfig('genConf'), defGenConfig(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defGenConfig(),
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      read: (v: any) => {
+        const _genConf = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defGenConfig()
+
+        // add field "delayAccMode, delayAccYear"
+        if (!Object.keys(_genConf).includes("delayAccMode")) {
+          _genConf["delayAccMode"] = 0
+          _genConf["delayAccYear"] = 0
+        }
+
+        return _genConf
+      },
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const producer = useStorage<producerConfig[]>(namespaceConfig('prod'), defProdConfig(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defProdConfig(),
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      read: (v: any) => {
+        const _liftings = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defProdConfig()
+
+        // add field "base" at 24/7/11
+        const hasBase = !isEmpty(_liftings) && !isEmpty(_liftings[0]) && !isEmpty(_liftings[0].prod_price)
+          && !isEmpty(_liftings[0].prod_price[0]) && Object.keys(_liftings[0].prod_price[0]).includes("base")
+
+        if (!hasBase) {
+          _liftings.forEach(_lifting => {
+            _lifting?.prod_price.forEach(_rows => {
+              _rows.forEach(cols => {
+                if (cols)
+                  cols["base"] = null
+              })
+            })
+          })
+        }
+
+        return _liftings
+      },
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const contracts = useStorage<Contracts>(namespaceConfig('contract'), defContracts(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defContracts(),
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      read: (v: any) => {
+        const _contract = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defContracts()
+        const _keys = Object.keys(_contract.gs)
+        if (!_keys.includes("cum_production_split_offset"))
+          _contract.gs["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
+        if (!_keys.includes("amortization"))
+          _contract.gs["amortization"] = false
+        if (_contract.second) {
+          const _keysec = Object.keys(_contract.second)
+          if (_keysec.includes("field_status")) {
+            if (!_keysec.includes("cum_production_split_offset"))
+              _contract.second["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
+            if (!_keysec.includes("amortization"))
+              _contract.second["amortization"] = false
+          }
+        }
+
+        return _contract
+      },
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const fiscal = useStorage<Fiskal>(namespaceConfig('fiscal'), defFiskal(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defFiskal(),
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      read: (v: any) => {
+        const _fiscals = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defFiskal()
+        const fiscKey = Object.keys(_fiscals.Fiskal)
+        const fiscKey2 = Object.keys(_fiscals.Fiskal2)
+        if (!fiscKey.includes("regime"))
+          _fiscals.Fiskal["regime"] = 3
+        if (!fiscKey.includes("profitability_discounted"))
+          _fiscals.Fiskal["profitability_discounted"] = false
+        if (!fiscKey2.includes("regime"))
+          _fiscals.Fiskal2["regime"] = 3
+        if (!fiscKey2.includes("profitability_discounted"))
+          _fiscals.Fiskal2["profitability_discounted"] = false
+
+        return _fiscals
+      },
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
 
@@ -36,28 +101,31 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     [Array(9).fill(null)], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(9).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const intangible = useStorage<Array<number | string | null>[]>(namespaceConfig('intangible'),
     [Array(5).fill(null)], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(5).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const opex = useStorage<Array<number | string | null>[]>(namespaceConfig('opex'),
     [Array(8).fill(null)], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(8).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
   const asr = useStorage<Array<number | string | null>[]>(namespaceConfig('asr'),
     [Array(4).fill(null)], undefined, {
     serializer: {
       read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(4).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
 
@@ -93,40 +161,49 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
   const mapTable = (table: Array<number | string | null>[], chkIndex: Array<number>, valTrue: Array<string>) => {
     return table.map(row => {
       return row.map((col, index) => {
-        for (let i = 0; i < chkIndex.length; i++)
+        for (let i = 0; i < chkIndex.length; i++) {
           if (index === chkIndex[i])
             return (typeof col === 'string' && !isEmpty(col.trim()) ? (col.toLowerCase() === valTrue[i] ? 1 : 0) : null)
+        }
+
         return col
       })
     }).filter(row => row.filter(col => col !== null).length)
-
   }
 
   const TangibleJson = () => {
     let result = [Array(9).fill(null)]
     result = mapTable(tangible.value, [1, 6], ['gas', 'yes'])
-    if (result.length === 0) result = [Array(9).fill(null)]
+    if (result.length === 0)
+      result = [Array(9).fill(null)]
+
     return result
   }
 
   const InTangibleJson = () => {
     let result = [Array(5).fill(null)]
     result = mapTable(intangible.value, [1], ['gas'])
-    if (result.length === 0) result = [Array(5).fill(null)]
+    if (result.length === 0)
+      result = [Array(5).fill(null)]
+
     return result
   }
 
   const OpexJson = () => {
     let result = [Array(8).fill(null)]
     result = mapTable(opex.value, [1], ['gas'])
-    if (result.length === 0) result = [Array(8).fill(null)]
+    if (result.length === 0)
+      result = [Array(8).fill(null)]
+
     return result
   }
 
   const ASRJson = () => {
     let result = [Array(4).fill(null)]
     result = mapTable(asr.value, [1], ['gas'])
-    if (result.length === 0) result = [Array(4).fill(null)]
+    if (result.length === 0)
+      result = [Array(4).fill(null)]
+
     return result
   }
 
@@ -141,8 +218,10 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
 
   const getProducer = (tipe: typeof ProducerType[keyof typeof ProducerType]) => {
     const selProd = producer.value.filter(item => item.Tipe == Object.keys(ProducerType).indexOf(tipe))
+
     return selProd.length ? selProd[0] : null
   }
+
   const prodHasGas = () => dataProd.value.findIndex(e => e.Tipe === 1) != -1
 
   const watcherAllData = pausableWatch(
@@ -155,21 +234,32 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
   watch(() => dataGConf.value.type_of_contract, (value, oldvalue) => {
     if (!watcherAllData.isActive || !appStore.watcherSelCase.isActive)
       return
-    if (value != oldvalue) {
+    if (value != oldvalue)
       useDataStore().changeCtrType(1, value, oldvalue)
-    }
   })
 
   return {
-    generalConfig, dataGConf,
-    fiscal, dataFisc,
-    producer, dataProd,
-    contracts, dataContr,
+    generalConfig,
+    dataGConf,
+    fiscal,
+    dataFisc,
+    producer,
+    dataProd,
+    contracts,
+    dataContr,
 
-    tangible, dataTan, TangibleJson,
-    intangible, dataIntan, InTangibleJson,
-    opex, dataOpex, OpexJson,
-    asr, dataASR, ASRJson,
+    tangible,
+    dataTan,
+    TangibleJson,
+    intangible,
+    dataIntan,
+    InTangibleJson,
+    opex,
+    dataOpex,
+    OpexJson,
+    asr,
+    dataASR,
+    ASRJson,
 
     prodHasGas,
     $reset,
@@ -177,7 +267,7 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
 
     getProducer,
 
-    watcherAllData
+    watcherAllData,
 
   }
 })

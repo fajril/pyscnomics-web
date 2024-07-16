@@ -50,11 +50,11 @@ declare module 'vue-router/auto/routes' {
     'pysc-asr': RouteRecordInfo<'pysc-asr', '/pysc-asr', Record<never, never>, Record<never, never>>,
     'pysc-conf': RouteRecordInfo<'pysc-conf', '/pysc-conf', Record<never, never>, Record<never, never>>,
     'pysc-crgs': RouteRecordInfo<'pysc-crgs', '/pysc-crgs', Record<never, never>, Record<never, never>>,
+    'pysc-fis': RouteRecordInfo<'pysc-fis', '/pysc-fis', Record<never, never>, Record<never, never>>,
     'pysc-intangi': RouteRecordInfo<'pysc-intangi', '/pysc-intangi', Record<never, never>, Record<never, never>>,
     'pysc-opex': RouteRecordInfo<'pysc-opex', '/pysc-opex', Record<never, never>, Record<never, never>>,
     'pysc-prod': RouteRecordInfo<'pysc-prod', '/pysc-prod', Record<never, never>, Record<never, never>>,
     'pysc-tangi': RouteRecordInfo<'pysc-tangi', '/pysc-tangi', Record<never, never>, Record<never, never>>,
-    'second-page': RouteRecordInfo<'second-page', '/second-page', Record<never, never>, Record<never, never>>,
     'pysc-ecocf': RouteRecordInfo<'pysc-ecocf', '/pysc-ecocf', Record<never, never>, Record<never, never>>,
     'pysc-ecosum': RouteRecordInfo<'pysc-ecosum', '/pysc-ecosum', Record<never, never>, Record<never, never>>,
   }

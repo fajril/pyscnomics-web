@@ -3,10 +3,6 @@ import { VuePDF, usePDF } from '@tato30/vue-pdf'
 import '@tato30/vue-pdf/style.css'
 
 // import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import printJS from 'print-js'
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useAppStore } from "@/stores/appStore"
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
@@ -15,6 +11,10 @@ import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
 import { useHTTP } from '@/utils/pysc/useHttp'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import printJS from 'print-js'
+import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 
 definePage({
   name: 'pysc-ecosum',
@@ -143,7 +143,7 @@ const buildPDF = async () => {
       })
 
       if (status !== 200)
-        throw [status, result]
+        throw { status, result }
 
       autoTable(doc, {
         startY: finalY.value,
@@ -192,7 +192,7 @@ const buildPDF = async () => {
       })
 
       if (status !== 200)
-        throw [status, result]
+        throw { status, result }
       for (let _lup = 1; _lup <= (PyscConf.dataGConf.type_of_contract < 3 ? 1 : 2); _lup++) {
         if (_lup > 1) {
           doc.addPage('letter', 'landscape')
@@ -206,13 +206,15 @@ const buildPDF = async () => {
           doc.text(`CashFlow - Contract ${_lup}`, 0.3, finalY.value, { align: 'left' })
         const table_ = (PyscConf.dataGConf.type_of_contract < 3 ? result.consolidated : (result[`contract_${_lup}`].consolidated))
 
+        // console.log(table_)
+
         doc.setTextColor('black')
         finalY.value += spaceV
         autoTable(doc, {
           startY: finalY.value,
           margin: { left: 0.3, right: 0.5 },
           tableWidth: 'wrap',
-          columns: [{ dataKey: 'year', header: 'Parameter' }, { dataKey: 'total', header: 'Total' }, ...Object.keys(table_.C_Cashflow).map(k => ({ dataKey: k, header: k }))],
+          columns: [{ dataKey: 'year', header: 'Parameter' }, { dataKey: 'total', header: 'Total' }, ...Object.keys(PyscConf.dataGConf.type_of_contract === 0 ? table_.Cashflow : table_.C_Cashflow).map(k => ({ dataKey: k, header: k }))],
           headStyles: { fontSize: 7 },
           bodyStyles: { fontSize: 7, valign: 'middle', halign: 'right', cellPadding: { vertical: 0.035, horizontal: 0.04 } },
           horizontalPageBreak: true,
@@ -228,7 +230,7 @@ const buildPDF = async () => {
             return [idxK !== -1 ? ValueofHeadTable[idxK] : v,
               ...[
               // total
-                Pysc.fmtNumber((v == 'cum_C_Cashflow' || v == 'C_Unrecovered_before_TF' || v == 'C_Unrecovered_after_TF')
+                Pysc.fmtNumber((v === 'cum_C_Cashflow' || v === 'C_Unrecovered_before_TF' || v === 'C_Unrecovered_after_TF')
                   ? cols[cols.length - 1]
                   : cols.reduce((total, col) => total + (Pysc.is_number(col) ? col : 0), 0), false, { mantissa: 2 }),
                 ...cols.map(col => Pysc.fmtNumber(col, false, { mantissa: 2 })),

@@ -6,6 +6,8 @@ import {
   Field2Array,
   InflateToType,
   getCtrType,
+  numb2Percent,
+  percent2Numb,
   useDayJs
 } from '@/utils/pysc/pyscType';
 import { useTooltip } from '@/utils/pysc/useTooltips';
@@ -24,7 +26,7 @@ onMounted(() => {
 
 const dayjs = useDayJs()
 
-const discount_rate = computed({ get: () => dataGConf.value.discount_rate * 100., set: (val) => { if (!isNaN(+val)) dataGConf.value.discount_rate = +val / 100 } })
+const discount_rate = computed({ get: () => numb2Percent(dataGConf.value.discount_rate), set: (val) => { if (!isNaN(+val)) dataGConf.value.discount_rate = percent2Numb(val) } })
 
 const updateEndProject = (str: string) => {
   dataGConf.value.end_date_project = dayjs(str).utc().valueOf()

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/appStore';
-import { useWSStore } from '@/stores/wsStore';
-import { debounceFilter } from '@vueuse/core';
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar';
+import { useAppStore } from '@/stores/appStore'
+import { useWSStore } from '@/stores/wsStore'
+import { debounceFilter } from '@vueuse/core'
+import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 
 interface fileIntf {
   name: string
@@ -18,6 +18,7 @@ interface filepathIntf {
 
 const emit = defineEmits<{
   (e: 'update:path', value: string): void
+  (e: 'update:closeDialogs'): void
 }>()
 
 const fileMode = ref('open')
@@ -52,18 +53,23 @@ const watchDriveSel = watchIgnorable(
   driveSelected,
   v => {
     const seldrive = driveSelected.value?.[0]
+
     watchFileEd.ignoreUpdates(() => {
       if (seldrive) {
         filePath.value = seldrive.name
         fetchDirs(filePath.value)
-      } else
+      }
+      else {
         watchDriveSel.ignoreUpdates(() => {
           const curPaths = filePath.value?.split(/\/|\\/)
           const idx = drives.value?.children?.findIndex(d => d.name.toLowerCase() === (curPaths?.[0].toLowerCase() + appStore.osConf.sep))
+
           driveSelected.value = [drives.value?.children[idx]]
         })
+      }
     })
   })
+
 const watchFileSel = watchIgnorable(
   childSelected,
   v => {
@@ -78,20 +84,21 @@ const watchFileSel = watchIgnorable(
       if (filePath.value?.toLowerCase().indexOf(`.${fileExt.value}`) === -1)
         fetchDirs(filePath.value)
     }
-    else
+    else {
       watchFileEd.ignoreUpdates(() => {
         filePath.value = childlist.value.dir
       })
+    }
   },
 )
 
 const extractPathResult = (_path: object) => {
   const { dir, parent, children } = _path
+
   childlist.value = _path
   watchFileEd.ignoreUpdates(() => {
-    if (isEmpty(filePath.value)) {
+    if (isEmpty(filePath.value))
       filePath.value = childlist.value.dir + (childlist.value.filename ? (appStore.osConf.sep + childlist.value.filename) : '')
-    }
   })
   if (children) {
     watchFileSel.ignoreUpdates(() => {
@@ -100,16 +107,18 @@ const extractPathResult = (_path: object) => {
         const idxItem = children.findIndex(v => v.name.toLowerCase() === filename.toLowerCase())
         if (idxItem != -1) {
           childSelected.value = [children[idxItem]]
+
           return
         }
       }
       childSelected.value = undefined
     })
-  } else
-    childSelected.value = undefined
+  }
+  else { childSelected.value = undefined }
   watchDriveSel.ignoreUpdates(() => {
     const curPaths = filePath.value?.split(/\/|\\/)
     const idx = drives.value?.children?.findIndex(d => d.name.toLowerCase() === (curPaths?.[0].toLowerCase() + appStore.osConf.sep))
+
     driveSelected.value = [drives.value?.children[idx]]
   })
 }
@@ -120,7 +129,7 @@ const fetchDirs = async (_path: string | null) => {
     wsStore.wseSend(btoa(JSON.stringify({
       module: 'app:dirs',
       id: wsStore.clientIDE,
-      data: btoa(JSON.stringify({ flext: fileExt.value, path: _path }))
+      data: btoa(JSON.stringify({ flext: fileExt.value, path: _path })),
     })), false)
   }
   catch (error) {
@@ -154,11 +163,12 @@ const loadMyDris = (mode: string, lookup: string | null) => {
     filename: null,
     children: [],
   }
-  //get drive
+
+  // get drive
   wsStore.wseSend(btoa(JSON.stringify({
     module: 'app:drive',
     id: wsStore.clientIDE,
-    data: null
+    data: null,
   })), false)
 
   fetchDirs(lookup)
@@ -192,7 +202,9 @@ onMounted(() => {
     }
     else if (type === 'app:dirs') {
       IsLoading.value = false
+
       const path_ = JSON.parse(atob(data))
+
       extractPathResult(path_)
     }
   })
@@ -207,14 +219,26 @@ defineExpose({
 </script>
 
 <template>
-  <VDialog v-model="isDialogVisible" persistent class="v-dialog-sm">
+  <VDialog
+    v-model="isDialogVisible"
+    persistent
+    class="v-dialog-sm"
+    @update:model-value="(val) => { if (!val) emit('update:closeDialogs'); }"
+  >
     <!-- Dialog close btn -->
     <DialogCloseBtn @click="isDialogVisible = !isDialogVisible" />
 
     <!-- Dialog Content -->
-    <VCard :title="fileMode === 'open' ? 'Open File' : 'Save to File'" :loading="IsLoading">
+    <VCard
+      :title="fileMode === 'open' ? 'Open File' : 'Save to File'"
+      :loading="IsLoading"
+    >
       <VCardText v-if="!ItsValidPath || (fileMode === 'save' && ItsValidPath && itsOverwriteNote)">
-        <VAlert density="comfortable" color="error" variant="tonal">
+        <VAlert
+          density="comfortable"
+          color="error"
+          variant="tonal"
+        >
           {{ (fileMode === 'save' && ItsValidPath && itsOverwriteNote) ? "The file already exists, \
           the save process will overwrite the existing data" : "please entry/select file path" }}
         </VAlert>
@@ -222,13 +246,30 @@ defineExpose({
       <VCardText>
         <VRow no-gutters>
           <VCol cols="12">
-            <VTextField v-model="filePath" label="Select Path" variant="outlined" autofocus />
+            <VTextField
+              v-model="filePath"
+              label="Select Path"
+              variant="outlined"
+              autofocus
+            />
           </VCol>
           <VCol :style="{ maxWidth: '180px' }">
-            <VCard :elevation="0" class="mt-2">
+            <VCard
+              :elevation="0"
+              class="mt-2"
+            >
               <VCardText class="px-1 py-1">
-                <VList v-model:selected="driveSelected" nav :lines="false" :disabled="IsLoading">
-                  <VListItem v-for="item in drives?.children" :key="item.name" :value="item">
+                <VList
+                  v-model:selected="driveSelected"
+                  nav
+                  :lines="false"
+                  :disabled="IsLoading"
+                >
+                  <VListItem
+                    v-for="item in drives?.children"
+                    :key="item.name"
+                    :value="item"
+                  >
                     <template #prepend>
                       <VIcon icon="tabler-devices-pc" />
                     </template>
@@ -243,23 +284,48 @@ defineExpose({
             </VCard>
           </VCol>
           <VCol :style="{ alignItems: 'stretch' }">
-            <VCard :elevation="0" class="ml-1 mt-2" :style="{ height: '40dvh' }">
-              <PerfectScrollbar class="v-card-text px-1 py-1 h-100" :options="{ wheelPropagation: false }">
-
-                <VList v-model:selected="childSelected" nav :lines="false" :disabled="IsLoading">
-                  <VListItem v-if="childlist.parent" :value="-(Math.floor(Math.random() * 1000))">
+            <VCard
+              :elevation="0"
+              class="ml-1 mt-2"
+              :style="{ blockSize: 'max(calc(40dvh), 283px)' }"
+            >
+              <PerfectScrollbar
+                class="v-card-text px-1 py-1 h-100"
+                :options="{ wheelPropagation: false }"
+              >
+                <VList
+                  v-model:selected="childSelected"
+                  nav
+                  :lines="false"
+                  :disabled="IsLoading"
+                >
+                  <VListItem
+                    v-if="childlist.parent"
+                    :value="-(Math.floor(Math.random() * 1000))"
+                  >
                     <VListItemTitle>
                       . .
                     </VListItemTitle>
                   </VListItem>
-                  <VListItem v-if="childlist.children === null" disabled>
+                  <VListItem
+                    v-if="childlist.children === null"
+                    disabled
+                  >
                     <VListItemTitle>
                       Not found
                     </VListItemTitle>
                   </VListItem>
-                  <VListItem v-else v-for="item in childlist.children" :key="item.name" :value="item">
+                  <VListItem
+                    v-for="item in childlist.children"
+                    v-else
+                    :key="item.name"
+                    :value="item"
+                  >
                     <template #prepend>
-                      <VIcon v-if="getIconFile(item.type) != ''" :icon="getIconFile(item.type)" />
+                      <VIcon
+                        v-if="getIconFile(item.type) != ''"
+                        :icon="getIconFile(item.type)"
+                      />
                     </template>
                     <template #default="{ isActive }">
                       <VListItemTitle>
@@ -275,10 +341,17 @@ defineExpose({
       </VCardText>
 
       <VCardText class="d-flex justify-end gap-3 flex-wrap">
-        <VBtn color="secondary" variant="tonal" @click="isDialogVisible = false">
+        <VBtn
+          color="secondary"
+          variant="tonal"
+          @click="isDialogVisible = false"
+        >
           Cancel
         </VBtn>
-        <VBtn :disabled="!ItsValidPath" @click="applyPath">
+        <VBtn
+          :disabled="!ItsValidPath"
+          @click="applyPath"
+        >
           Ok
         </VBtn>
       </VCardText>

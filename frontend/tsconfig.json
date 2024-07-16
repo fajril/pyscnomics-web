@@ -24,8 +24,20 @@
       "@layouts/*": [
         "./src/@layouts/*"
       ],
+      "@utils": [
+        "./src/utils"
+      ],
+      "@stores": [
+        "./src/stores"
+      ],
       "@layouts": [
         "./src/@layouts"
+      ],
+      "@utils/*": [
+        "./src/utils/*"
+      ],
+      "@stores/*": [
+        "./src/stores/*"
       ],
       "@core/*": [
         "./src/@core/*"

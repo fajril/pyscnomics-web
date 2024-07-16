@@ -45,7 +45,7 @@ const hotSettings = ref({
       nextTick(() => {
         if (ctype === 'numeric' && (typeof modelValue.value[row][prop] === 'string') &&
           modelValue.value[row][prop].indexOf('=') != -1) {
-          modelValue.value[row][prop] = value
+          modelValue.value[row][prop] = +(+value).toPrecision(15)
           tblhot.value.hotInstance.updateData(modelValue.value)
         }
       })
