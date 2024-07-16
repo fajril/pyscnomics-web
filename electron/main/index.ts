@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import { BrowserWindow, Menu, app, dialog, ipcMain, shell } from 'electron'
 import fs from 'node:fs'
 import { createServer } from 'node:http'
@@ -10,6 +9,18 @@ import open from 'open'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const bcolors = {
+  HEADER: "\x1B[95m",
+  OKBLUE: "\x1B[94m",
+  OKCYAN: "\x1B[96m",
+  OKGREEN: "\x1B[92m",
+  WARNING: "\x1B[93m",
+  FAIL: "\x1B[91m",
+  ENDC: "\x1B[0m",
+  BOLD: "\x1B[1m",
+  UNDERLINE: "\x1B[4m",
+} as const
 
 // The built directory structure
 //
@@ -33,6 +44,11 @@ process.env.APP_ROOT = path.normalize(path.join(__dirname, '../../..'))
 
 const isMac = process.platform === 'darwin'
 const osType = (process.platform === 'win32' ? 'win' : (isMac ? 'mac' : 'linux'))
+
+const PY_MODULE = 'main' // without .py suffix
+let pyProc = null
+let pyPort: any = null
+let showAPILogger: boolean = false
 
 export const MAIN_DIST = path.normalize(path.join(process.env.APP_ROOT, 'dist', 'electron'))
 export const RENDERER_DIST = path.normalize(path.join(process.env.APP_ROOT, 'dist', 'launcher'))
@@ -173,7 +189,7 @@ const wss = new WebSocket.Server({
 })
 
 function onSocketError(err) {
-  console.error(err)
+  console.log(`${bcolors.OKGREEN}[WS-SERVER]${bcolors.ENDC}: ${err}.`)
 }
 
 function heartbeat(ev) {
@@ -200,11 +216,11 @@ function broadCastMessge(data: any, isBinary: any, id?: any) {
 wss.on('connection', (ws, request) => {
   // ws.id = wss.getUniqueID()
   ws.isAlive = true
-  console.log(`[WS-SERVER] Client request - ${request?.url}.`)
-  console.log(`[WS-SERVER] Client connected - ${ws.id}.`)
+  console.log(`${bcolors.OKGREEN}[WS-SERVER]${bcolors.ENDC} Client request - ${request?.url}.`)
+  console.log(`${bcolors.OKGREEN}[WS-SERVER]${bcolors.ENDC} Client connected - ${ws.id}.`)
 
   ws.on('close', () => {
-    console.log('[WS-SERVER] Client disconnected.')
+    console.log(`${bcolors.OKGREEN}[WS-SERVER]${bcolors.ENDC} Client disconnected.`)
   })
 
   ws.on('error', console.error)
@@ -249,10 +265,19 @@ wss.on('connection', (ws, request) => {
           }
         })
       }
+      else if (msg.module === 'module:monteCalc') {
+        const res = await calcMonteCarlo(null, ws.id, msg.data.caseID, msg.data.path, msg.data.numSim)
+
+        broadCastMessge(JSON.stringify({
+          module: 'module:monteCalc',
+          id: ws.id,
+          data: { type: 'monteCalc:status', caseID: msg.data.caseID, data: { status: res } },
+        }), false, ws.id)
+      }
     }
     catch (error) {
       if (error)
-        console.log(error.toString())
+        console.log(`${bcolors.OKGREEN}[WS-SERVER]${bcolors.ENDC}: ${error}`)
     }
   })
 
@@ -260,7 +285,7 @@ wss.on('connection', (ws, request) => {
     module: 'os:conf',
     id: ws.id,
     data: {
-      type: 'os:conf', data: btoa(JSON.stringify({ sep: path.sep, os: osType })),
+      type: 'os:conf', data: btoa(JSON.stringify({ sep: path.sep, os: osType, port: pyPort })),
     },
   }))
 })
@@ -286,7 +311,7 @@ serverWS.on('upgrade', (request, socket, head) => {
 
   const clientid = searchParams.get('client')
 
-  console.log([pathname, clientid])
+  // console.log([pathname, clientid])
 
   // This function is not defined on purpose. Implement it with your own logic.
   socket.removeListener('error', onSocketError)
@@ -305,11 +330,21 @@ serverWS.listen(3142)
 /*************************************************************
  * py process
  *************************************************************/
-
-const PY_MODULE = 'main' // without .py suffix
-
-let pyProc = null
-let pyPort: any = null
+const broadCastNewPort = () => {
+  if (pyPort) {
+    wss?.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          module: 'os:conf',
+          id: client.id,
+          data: {
+            type: 'os:conf', data: btoa(JSON.stringify({ sep: path.sep, os: osType, port: pyPort })),
+          },
+        }), { binary: false })
+      }
+    })
+  }
+}
 
 const getScriptPath = () => {
   return path.normalize(path.join(RESOURCE_DIST, 'backend', `${PY_MODULE}.py`))
@@ -317,30 +352,43 @@ const getScriptPath = () => {
 
 // const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-const createPyProc = async () => {
+const sendAPILog = async (msg: string) => {
+  if (msg?.length) {
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          module: 'app:logger',
+          id: client.id,
+          data: { type: 'api:log', data: btoa(msg) },
+        }), { binary: false })
+      }
+    })
+  }
+}
+
+const createPyProc = async (showLog: boolean = false) => {
+  showAPILogger = showLog
+
   const script = getScriptPath()
   const statMainPy = fs.statSync(script, { throwIfNoEntry: false })
   if (!(script && pyPort) || statMainPy === undefined)
-    return `[backend] ${script} port:${pyPort} failed to start`
+    return `${script} port:${pyPort} failed to start`
   try {
     if (app.isPackaged) {
       if (osType === 'win') {
         pyProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'Scripts', 'python'))}`, [`${PY_MODULE}.py`, pyPort, `"${FRONTEND_DIST}"`], {
           cwd: path.normalize(path.dirname(script)),
           windowsHide: true,
-          stdio: ['pipe', process.stdout, process.stderr],
+
+          // stdio: ['pipe', process.stdout, process.stderr],
         })
       }
       else {
         pyProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'bin', 'python3'))}`, [`${PY_MODULE}.py`, pyPort, `"${FRONTEND_DIST}"`], {
           cwd: path.normalize(path.dirname(script)),
           windowsHide: true,
-          stdio: ['pipe', process.stdout, process.stderr],
-        })
-      }
-      if (pyProc) {
-        pyProc.on('spawn', () => {
-          console.log(`Force running FastAPI on port ${pyPort}`)
+
+          // stdio: ['pipe', process.stdout, process.stderr],
         })
       }
     }
@@ -348,20 +396,43 @@ const createPyProc = async () => {
       pyProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'Scripts', 'python'))}`, [`${PY_MODULE}.py`, pyPort, `"${FRONTEND_DIST}"`], {
         cwd: path.normalize(path.dirname(script)),
         windowsHide: true,
-        stdio: ['pipe', process.stdout, process.stderr],
+
+        // stdio: ['pipe', process.stdout, process.stderr],
       })
-      if (pyProc != null) {
-        pyProc.on('spawn', () => {
-          console.log(`Force running FastAPI on port ${pyPort}`)
-        })
-      }
     }
+    if (pyProc) {
+      pyProc.on('spawn', () => {
+        console.log(`${bcolors.OKGREEN}[backend]${bcolors.ENDC} Force running FastAPI on port ${pyPort} ${showAPILogger ? 'with logging' : ''}`)
+
+        // process.stdout?.addListener('data', processStrOutListenner)
+      })
+      pyProc.stdout.on('data', async data => {
+        const logs = `${data}`.replace(/(INFO:)(.*)"(PUT|GET|POST|OPTIONS)(.*)"(\s\d+\s.*[\r\n$])/, `${bcolors.OKGREEN}[backend]${bcolors.ENDC} ${bcolors.OKCYAN}$1${bcolors.ENDC}$2"${bcolors.WARNING}$3${bcolors.ENDC}$4"${bcolors.WARNING}$5${bcolors.ENDC}`)
+        if (logs && showAPILogger) {
+          // send looger
+          sendAPILog(`${logs}`)
+        }
+
+        process.stdout.write(`${logs}`)
+      })
+      pyProc.stderr.on('data', async data => {
+        if (data && showAPILogger) {
+          // send looger
+          sendAPILog(`${data}`)
+        }
+        console.log(`${bcolors.FAIL}[backend]${bcolors.ENDC} ${data}`)
+      })
+      pyProc.on('exit', code => {
+        // process.stdout?.removeListener('data', processStrOutListenner)
+      })
+    }
+    broadCastNewPort()
   }
   catch (error) {
     if (error)
       console.log(error.toString())
 
-    return `[backend] ${script} port:${pyPort} failed to start`
+    return `${script} port:${pyPort} failed to start`
   }
 
   return true
@@ -375,7 +446,7 @@ const exitPyProc = () => {
           require('node:child_process').execSync(`taskkill /PID ${pyProc.pid} /T /F`, {
             windowsHide: true,
           })
-          console.log('the server is shut down')
+          console.log(`${bcolors.OKGREEN}[backend]${bcolors.ENDC} the server is shut down`)
         }
         catch (error) {
           if (error)
@@ -385,19 +456,15 @@ const exitPyProc = () => {
       else {
         try {
           process?.kill(pyProc.pid)
-          console.log('the server1 is shut down')
+          console.log(`${bcolors.OKGREEN}[backend]${bcolors.ENDC} the server0 is shut down`)
         }
         catch (error) {
-          if (error)
-            console.log(error.toString())
         }
         try {
           pyProc?.kill()
-          console.log('the server0 is shut down')
+          console.log(`${bcolors.OKGREEN}[backend]${bcolors.ENDC} the server1 is shut down`)
         }
         catch (error) {
-          if (error)
-            console.log(error.toString())
         }
       }
     }
@@ -468,6 +535,8 @@ async function createWindow() {
   win = new BrowserWindow({
     title: 'PySCnomics-App',
     icon: path.normalize(path.join(process.env.VITE_PUBLIC, 'favicon.ico')),
+
+    // titleBarStyle: osType === 'win' ? 'hidden' : 'hiddenInset',
     webPreferences: {
       preload,
       devTools: !app.isPackaged,
@@ -481,6 +550,36 @@ async function createWindow() {
     },
     width: 600,
     height: 420,
+  })
+
+  // win.setTitleBarOverlay({ color: 'primary', height: 24 })
+
+  win.on('close', e => {
+    e.preventDefault()
+
+    const msgRes = dialog.showMessageBoxSync(win, {
+      message: `${pyProc ? 'Server still running!!' : 'No server running'}, do you want to close the application ?`,
+      type: 'question',
+      buttons: ['No', 'Yes, close now!'],
+      defaultId: 0,
+      cancelId: 0,
+    })
+
+    if (msgRes === 1) {
+      // close server
+      console.log(`close process${pyProc?.pid}`)
+      exitPyProc()
+      try {
+        serverWS.close()
+        wss.close()
+      }
+      catch (error) {
+        if (error)
+          console.log(error.toString())
+      }
+
+      app.quit()
+    }
   })
 
   win.setMenuBarVisibility(false)
@@ -583,12 +682,12 @@ async function handleFileSave(ev, curfilePath) {
   return { path: null }
 }
 
-async function handlesetPort(ev, port?: number) {
+async function handlesetPort(ev, port?: number, showLog: boolen = false) {
   pyPort = port
   if (pyProc)
     exitPyProc()
   if (pyPort)
-    return createPyProc()
+    return createPyProc(showLog)
 
   return false
 }
@@ -637,7 +736,7 @@ async function testFilePython(ev, noBrowseFile: any = false) {
     const pyFilePath = filePyPath ? path.normalize(filePyPath) : null
     let python: string | null = null
     let pyValid: boolean = false
-    process.stdout.write(`${chalk.blue('[Setup]')} Test Python File...`)
+    process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Test Python File...`)
     try {
       if (osType === 'win') {
         python = require('node:child_process').execFileSync(pyFilePath || 'python', ['--version'],
@@ -676,7 +775,7 @@ async function testFilePython(ev, noBrowseFile: any = false) {
 }
 
 async function checkPython() {
-  process.stdout.write(`${chalk.blue('[Setup]')} Test Python...`)
+  process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Test Python...`)
 
   const statDir = fs.statSync(path.join(RESOURCE_DIST, 'pyscnomics-env'), { throwIfNoEntry: false })
   const envNotFound = statDir === undefined
@@ -718,6 +817,7 @@ async function checkPython() {
         console.log(err.toString())
     }
   }
+  else { console.log("Ok\n") }
 
   return {
     env: !envNotFound,
@@ -726,7 +826,7 @@ async function checkPython() {
   }
 }
 async function checkPIP() {
-  process.stdout.write(`${chalk.blue('[Setup]')} Test PIP...`)
+  process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Test PIP...`)
   try {
     const statPIP = require('node:child_process').execFileSync(path.join(PYTHON_EXEC, 'python'), ['-m', 'pip', '--version'],
       {
@@ -752,7 +852,7 @@ async function checkPIP() {
   }
 }
 async function installPIP(ev, clientid: string) {
-  process.stdout.write(`${chalk.blue('[Setup]')} Install pip...`)
+  process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install pip...`)
   try {
     require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['get-pip.py'],
       {
@@ -778,7 +878,7 @@ async function installPIP(ev, clientid: string) {
   return 'pip installing'
 }
 async function installVirtualEnv(ev, clientid: string) {
-  process.stdout.write(`${chalk.blue('[Setup]')} Install virtualenv...`)
+  process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install virtualenv...`)
   try {
     require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['-m', 'pip', 'install', 'virtualenv'],
       {
@@ -806,7 +906,7 @@ async function installVirtualEnv(ev, clientid: string) {
 
 async function createPyEnv(ev, clientid: string, pyPath: string | null = null) {
   try {
-    process.stdout.write(`${chalk.blue('[Setup]')} Create Python environment for pyscnomics-env...`)
+    process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Create Python environment for pyscnomics-env...`)
     if (osType === 'win') {
       require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'),
         ['-m', 'virtualenv', '--copies', 'pyscnomics-env'],
@@ -845,7 +945,7 @@ async function createPyEnv(ev, clientid: string, pyPath: string | null = null) {
 }
 async function installPyLib(ev, clientid: string) {
   try {
-    process.stdout.write(`${chalk.blue('[Setup]')} Install Python library...`)
+    process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install Python library...`)
     if (osType === 'win') {
       require('node:child_process').execFile('activate',
         ['&&',
@@ -893,7 +993,7 @@ async function installPyLib(ev, clientid: string) {
 }
 
 async function installPy(ev, clientid: string) {
-  process.stdout.write(`${chalk.blue('[Setup]')} Install Python 3.12...`)
+  process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install Python 3.12...`)
   try {
     require('node:child_process').exec('open python-3.12.4.pkg',
       {
@@ -921,6 +1021,84 @@ async function openAppUrl(ev, url: string) {
   open(url)
 }
 
+async function calcMonteCarlo(ev, clientID: string, CaseID: number, dataPath: string, numSim: number) {
+  process.stdout.write(`${bcolors.OKGREEN}[backend]${bcolors.ENDC} start running montecarlo...\n`)
+
+  const sendProgress = async (prog: number, fileOut: string | null = null) => {
+    broadCastMessge(JSON.stringify({
+      module: 'module:monteCalc',
+      id: clientID,
+      data: { type: 'monteCalc:progress', caseID: CaseID, data: { progress: prog, path: fileOut ?? undefined } },
+    }), false, clientID)
+  }
+
+  const script = path.normalize(path.join(RESOURCE_DIST, 'backend', "monteDetached.py"))
+  try {
+    const monteProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', osType === 'win' ? 'Scripts' : 'bin', osType === 'win' ? 'python' : 'python3'))}`, ["-u", "monteDetached.py", dataPath], {
+      cwd: path.normalize(path.dirname(script)),
+      windowsHide: true,
+
+      // stdio: 'inherit',
+    })
+
+    const progress = { cur: 0, prog: 0 }
+
+    monteProc.stdout.on('data', async data => {
+      const doneMonte = (`${data}`.match(/(Monte Done:)(.*)/i) ?? [])
+      if (doneMonte.length >= 3 && doneMonte[2]) {
+        await sendProgress(-1, doneMonte[2])
+
+        return
+      }
+
+      progress.cur += (`${data}`.match(/(Monte Progress.*)/g) ?? []).length
+
+      const posProg = +(+(progress.cur / numSim * 100).toPrecision(10)).toFixed(1)
+
+      if (posProg !== progress.prog) {
+        progress.prog = posProg
+        await sendProgress(progress.prog)
+      }
+    })
+    monteProc.stderr.on('data', data => {
+      console.log(`stderr from monte : ${data ?? 'unknown'}`)
+    })
+
+    monteProc.on('error', code => {
+      console.log(`montecarlo error : ${code}`)
+    })
+
+    monteProc.on('exit', code => {
+      console.log(`montecarlo exit : ${code}`)
+      try {
+        process?.kill(monteProc.pid)
+        console.log('the montecarlo0 is shut down')
+      }
+      catch (error) {
+        if (error)
+          console.log(error.toString())
+      }
+      try {
+        monteProc?.kill()
+        console.log('the montecarlo1 is shut down')
+      }
+      catch (error) {
+        if (error)
+          console.log(error.toString())
+      }
+      if (code !== 0)
+        sendProgress(-500)
+    })
+
+    return !!monteProc
+  }
+  catch (error) {
+    console.log(error ? error.toString() : 'error calc montecarlo')
+  }
+
+  return false
+}
+
 app.whenReady().then(() => {
   ipcMain.handle('config:getBackendUrl', () => `http://127.0.0.1:${pyPort}`)
   ipcMain.handle('dialog:openFile', handleFileOpen)
@@ -941,22 +1119,13 @@ app.whenReady().then(() => {
   ipcMain.handle('config:instPy', installPy)
   ipcMain.handle('app:openUrl', openAppUrl)
   ipcMain.handle('app:readPath', read_dirs)
+  ipcMain.handle('module:monteCalc', calcMonteCarlo)
 
   createWindow()
 })
 
 app.on('window-all-closed', () => {
   win = null
-  console.log(`close process${pyProc?.pid}`)
-  exitPyProc()
-  try {
-    serverWS.close()
-    wss.close()
-  }
-  catch (error) {
-    if (error)
-      console.log(error.toString())
-  }
 
   // if (process.platform !== 'darwin')
   app.quit()
@@ -983,27 +1152,8 @@ app.on('ready', () => {
   // createPyProc()
 })
 
-// app.on('before-quit', e => {
-//   e.preventDefault()
-//   exitPyProc()
-//   try {
-//     serverWS.close()
-//     wss.close()
-//   }
-//   catch (error) {
-
-//   }
-//   app.exit()
-// })
-
-app.on('will-quit', () => {
-  // exitPyProc()
-  // try {
-  //   serverWS.close()
-  //   wss.close()
-  // }
-  // catch (error) {
-  // }
+app.on('before-quit', e => {
+  app.exit()
 })
 
 // New window example arg: new windows url

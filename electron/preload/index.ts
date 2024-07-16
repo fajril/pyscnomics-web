@@ -28,7 +28,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   getBackendUrl: () => ipcRenderer.invoke('config:getBackendUrl'),
   listPath: (lookup: string) => ipcRenderer.invoke('app:readPath', lookup),
   getPort: () => ipcRenderer.invoke('config:getPort'),
-  setPort: (port?: number) => ipcRenderer.invoke('config:setPort', port),
+  setPort: (port?: number, showLog?: boolean) => ipcRenderer.invoke('config:setPort', port, showLog),
 
   chkPython: () => ipcRenderer.invoke('config:chkPython'),
   chkPIP: () => ipcRenderer.invoke('config:chkPIP'),
@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   instPy: (id: string) => ipcRenderer.invoke('config:instPy', id),
   openUrl: (url: string) => ipcRenderer.invoke('app:openUrl', url),
   winReload: () => ipcRenderer.invoke('window:reload'),
+
+  calcmonte: (id: string, caseID: number, dataPath: string, numsim: number) => ipcRenderer.invoke('module:monteCalc', id, caseID, dataPath, numsim),
 })
 
 // --------- Preload scripts loading ---------
