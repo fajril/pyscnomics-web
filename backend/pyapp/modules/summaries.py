@@ -1,6 +1,6 @@
 import numpy as np
-
 from pyscnomics.api.adapter import (
+    get_baseproject,
     get_costrecovery,
     get_grosssplit,
     get_transition,
@@ -21,15 +21,16 @@ class Summaries:
             else (
                 get_grosssplit(data=self.dataJson)
                 if ctrType == 2
-                else get_transition(data=self.dataJson) if ctrType >= 3 else []
+                else get_transition(data=self.dataJson) if ctrType >= 3 else 
+                get_baseproject(data=self.dataJson)
             )
         )
         self.summary = summaries[0]
         self.contract = summaries[1]
 
         self.tangible = (
-            self.contract._oil_tangible_expenditures
-            + self.contract._gas_tangible_expenditures
+            self.contract._oil_capital_expenditures
+            + self.contract._gas_capital_expenditures
         ).tolist()
 
         self.Year = (
@@ -68,6 +69,8 @@ class Summaries:
 
     def getRevenue(self):
         revenue = (
+            (self.contract._oil_revenue+self.contract._gas_revenue)
+            if self.ctrType == 0 else
             self.contract._consolidated_revenue
             if self.ctrType < 3
             else (
@@ -88,6 +91,8 @@ class Summaries:
 
     def getExpenses(self):
         opex = (
+            self.contract._oil_opex_expenditures+self.contract._gas_opex_expenditures
+            if self.ctrType == 0 else
             self.contract._consolidated_opex
             if self.ctrType < 3
             else (
@@ -105,6 +110,8 @@ class Summaries:
 
     def getTax(self):
         tax = (
+            None
+            if self.ctrType == 0 else
             self.contract._consolidated_tax_payment
             if self.ctrType < 3
             else (
@@ -113,12 +120,14 @@ class Summaries:
             )
         )
         return {
-            "table": [tax.tolist(), np.cumsum(tax).tolist()],
-            "sum": np.sum(tax),
+            "table": [[0], [0]] if self.ctrType == 0 else [tax.tolist(), np.cumsum(tax).tolist()],
+            "sum": 0 if self.ctrType == 0 else np.sum(tax),
         }
 
     def getGoI(self):
         GoI = (
+            None
+            if self.ctrType == 0 else
             self.contract._consolidated_government_take
             if self.ctrType < 3
             else (
@@ -127,8 +136,8 @@ class Summaries:
             )
         )
         return {
-            "table": [GoI.tolist(), np.cumsum(GoI).tolist()],
-            "sum": np.sum(GoI),
+            "table": [[0], [0]] if self.ctrType == 0 else [GoI.tolist(), np.cumsum(GoI).tolist()],
+            "sum": 0 if self.ctrType == 0 else np.sum(GoI),
         }
 
     def getCashFlow(self):
@@ -150,6 +159,8 @@ class Summaries:
 
         def get_GoS(sum: list):
             values = (
+                None
+                if self.ctrType == 0 else
                 (
                     self.contract._consolidated_government_take
                     - self.contract._consolidated_tax_payment
@@ -171,12 +182,14 @@ class Summaries:
                     )
                 )
             )
-            sumVal = np.sum(values)
+            sumVal = 0 if values is None else  np.sum(values)
             sum[0] += sumVal
-            return {"table": values.tolist(), "value": sumVal}
+            return {"table": [0] if values is None else  values.tolist(), "value": sumVal}
 
         def get_NCS(sum: list):
             values = (
+                (self.contract._oil_revenue+self.contract._gas_revenue)
+                if self.ctrType == 0 else
                 self.contract._consolidated_ctr_net_share
                 if self.ctrType < 3
                 else (
@@ -190,6 +203,8 @@ class Summaries:
 
         def get_CR(sum: list):
             values = (
+                None
+                if self.ctrType == 0 else
                 self.contract._consolidated_cost_recovery_after_tf
                 if self.ctrType == 1
                 else (
@@ -201,12 +216,13 @@ class Summaries:
                     )
                 )
             )
-            sumVal = np.sum(values)
+            sumVal = 0 if values is None else np.sum(values)
             sum[0] += sumVal
-            return {"table": values.tolist(), "value": sumVal}
+            return {"table": [0] if values is None else values.tolist(), "value": sumVal}
 
         def get_DMO(sum: list):
             values = (
+                None if self.ctrType == 0 else
                 self.contract._consolidated_ddmo
                 if self.ctrType < 3
                 else (
@@ -214,12 +230,13 @@ class Summaries:
                     + self.contract._contract2_transitioned._consolidated_ddmo
                 )
             )
-            sumVal = np.sum(values)
+            sumVal = 0 if values is None else np.sum(values)
             sum[0] += sumVal
-            return {"table": values.tolist(), "value": sumVal}
+            return {"table": [0] if values is None else values.tolist(), "value": sumVal}
 
         def get_Tax(sum: list):
             values = (
+                None if self.ctrType == 0 else
                 self.contract._consolidated_tax_payment
                 if self.ctrType < 3
                 else (
@@ -227,9 +244,9 @@ class Summaries:
                     + self.contract._contract2_transitioned._consolidated_tax_payment
                 )
             )
-            sumVal = np.sum(values)
+            sumVal = 0 if values is None else np.sum(values)
             sum[0] += sumVal
-            return {"table": values.tolist(), "value": sumVal}
+            return {"table": [0] if values is None else values.tolist(), "value": sumVal}
 
         return {
             "data": {

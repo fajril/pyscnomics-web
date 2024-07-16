@@ -5,7 +5,6 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-
 from pyscnomics.api.adapter import (
     get_costrecovery,
     get_grosssplit,
@@ -478,9 +477,9 @@ class ConcanateCase:
             C_Oil_Revenue=contract._oil_revenue,
             C_Gas_Revenue=contract._gas_revenue,
             C_Revenue=contract._consolidated_revenue,
-            C_Oil_tangible=contract._oil_tangible_expenditures,
-            C_Gas_tangible=contract._gas_tangible_expenditures,
-            C_Depreciable=contract._consolidated_tangible,
+            C_Oil_tangible=contract._oil_capital_expenditures,
+            C_Gas_tangible=contract._gas_capital_expenditures,
+            C_Depreciable=contract._consolidated_capital_cost,
             C_Intangible=contract._consolidated_intangible,
             C_Opex=contract._consolidated_opex,
             C_ASR=contract._consolidated_asr,
@@ -513,7 +512,7 @@ class ConcanateCase:
                     ),
                 )
             ),
-            C_Total_Expenses=contract._consolidated_tangible
+            C_Total_Expenses=contract._consolidated_capital_cost
             + contract._consolidated_intangible
             + contract._consolidated_opex
             + contract._consolidated_asr,
@@ -564,9 +563,9 @@ class ConcanateCase:
             C_Oil_Revenue=contract._oil_revenue,
             C_Gas_Revenue=contract._gas_revenue,
             C_Revenue=contract._consolidated_revenue,
-            C_Oil_tangible=contract._oil_tangible_expenditures,
-            C_Gas_tangible=contract._gas_tangible_expenditures,
-            C_Depreciable=contract._consolidated_tangible,
+            C_Oil_tangible=contract._oil_capital_expenditures,
+            C_Gas_tangible=contract._gas_capital_expenditures,
+            C_Depreciable=contract._consolidated_capital_cost,
             C_Intangible=contract._consolidated_intangible,
             C_Opex=contract._consolidated_opex,
             C_ASR=contract._consolidated_asr,

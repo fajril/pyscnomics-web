@@ -6,6 +6,7 @@ websockets
 uvicorn
 databases
 numpy==1.26.4
+numpy-financial
 dateutils>=0.6.12
 matplotlib==3.8.3
 pandas==2.2.1

@@ -69,7 +69,7 @@ def setPort():
         print("error with sys.argv, assigned default port: 4242")
     return p
 
-# port = setPort()
+port = setPort()
 
 def setRootApp():
     _path:str = None
@@ -82,8 +82,7 @@ def setRootApp():
         print("error with sys.argv, assigned default root app: None")
     return _path
 
-# basePath.baseAppPath = setRootApp()
-basePath.baseAppPath = "D:\\pyscnomics/repo-4/dist"
+basePath.baseAppPath = setRootApp()
 root_home = Path(basePath.baseAppPath, 'frontend')
 print(root_home)
 if not root_home.exists():
@@ -131,18 +130,16 @@ else:
 async def apiinfo(request: Request):
     
     return json.dumps({
-        "port":8888,
+        "port":port,
         "rootApp": basePath.baseAppPath
     })
 
 
 def main():
-  config = uvicorn.Config(app, host="127.0.0.1", port=int(8888), log_level="info")
+  config = uvicorn.Config(app, host="127.0.0.1", port=int(port), log_level="info")
   server = uvicorn.Server(config)
   server.run()
 
-# if __name__ == "__main__":
-#    pass
-    # multiprocessing.freeze_support()
-    # main()
-    # uvicorn.run("__main__:app", host="127.0.0.1", port=int(port), log_level="info")
+if __name__ == "__main__":
+  multiprocessing.freeze_support()
+  main()

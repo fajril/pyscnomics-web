@@ -5,6 +5,7 @@ import os
 import numpy as np
 from joblib import Parallel, delayed
 from pyscnomics.api.adapter import (
+    get_baseproject,
     get_costrecovery,
     get_grosssplit,
     get_transition,
@@ -83,9 +84,11 @@ class ProcessSens:
             else (
                 get_grosssplit(data=dataAdj)[0]
                 if self.type == 2
-                else get_transition(data=dataAdj)[0] if self.type >= 3 else []
+                else get_transition(data=dataAdj)[0] if self.type >= 3 else 
+                get_baseproject(data=dataAdj)[0]
             )
         )
+        del dataAdj
         return {
             "i": i,
             "par": par,

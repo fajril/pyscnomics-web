@@ -22,7 +22,7 @@ log = logging.getLogger("uvicorn")
 class pyscPacker:
     typeContract: int = 1
     __hfl: str = "pySCapp"
-    __vfl: int = 12
+    __vfl: int = 13
     root_path = baseAppPath
     """
     ver.3: var (+) sign (1 byte) for Null int
@@ -37,6 +37,9 @@ class pyscPacker:
     ver.10: (+) field: evaluator, evaluator_date  
     ver.11: (+) field: amortization for GS  
     ver.12: (+) field: delayAccMode, delayAccYear  
+    ver.13: (+) field: profitability_discounted (Fiscal)
+            (+) field: regime (Fiscal) GS Only  
+            (+) field: prod_rate_baseline (lifting)
     """
 
     def __init__(self, path: Path | None = None):
@@ -154,10 +157,10 @@ class pyscPacker:
                     "delayAccYear": self.readPack("h", fs, 0) if vfl >= 12 else 0,
                 }
                 fiscal = {
-                    "Fiskal": self.readFiscalBase(fs),
-                    "Fiskal2": self.readFiscalBase(fs),
+                    "Fiskal": self.readFiscalBase(fs, vfl),
+                    "Fiskal2": self.readFiscalBase(fs, vfl),
                 }
-                producer = self.readProducer(fs)
+                producer = self.readProducer(fs, vfl)
                 contracts = self.readcontrats(type_of_contract, fs, vfl)
                 tangible = self.readCosts(0, fs)
                 intangible = self.readCosts(1, fs)
@@ -353,7 +356,7 @@ class pyscPacker:
                     for ii, val in enumerate(item):
                         self.writePack(val, self.getFormatIndex(fmtType, ii), fs)
 
-    def readTable(self, fmtType: dict | List, fs: BufferedReader):
+    def readTable(self, fmtType: dict | List, fs: BufferedReader, vfl: int = __vfl):
         def getfmt(index):
             return fmtType[index] if index < fmtType else fmtType[-1]
 
@@ -456,8 +459,15 @@ class pyscPacker:
         self.writePack(value["co2_revenue_config"], "h", fs)
 
         self.writePack(value["sunk_cost_reference_year"], "i", fs)
+        # versi 13
+        self.writePack(
+          value["profitability_discounted"] if "profitability_discounted" in value.keys() else False, "?", fs  
+        )
+        self.writePack(
+          value["regime"] if "regime" in value.keys() else 3, "h", fs  
+        )
 
-    def readFiscalBase(self, fs: BufferedReader) -> dict:
+    def readFiscalBase(self, fs: BufferedReader, vfl: int) -> dict:
         return {
             "transferred_unrec_cost": self.readPack("d", fs, 0.0),
             "Tax": self.readTax(fs),
@@ -475,6 +485,9 @@ class pyscPacker:
             "electricity_revenue_config": self.readPack("h", fs, 0),
             "co2_revenue_config": self.readPack("h", fs, 0),
             "sunk_cost_reference_year": self.readPack("i", fs, 0),
+            # versi 13
+            "profitability_discounted": self.readPack("?", fs, False) if vfl>=13 else False,
+            "regime": self.readPack("h", fs, 3) if vfl>=13 else 3,
         }
 
     def writeDMO(self, value: dict, fs: BufferedWriter):
@@ -693,10 +706,21 @@ class pyscPacker:
                                 self.writePack(len(keys), "i", fs)
                                 for idx, key in enumerate(keys):
                                     self.writePack(gsa[key], "d", fs)
+                                # versi 13
+                                self.writePack(item["base"] if "base" in item.keys() else None, "d", fs)
                 else:
-                    self.writeTable(prodItem, ["i", "d"], fs)
+                    self.writePack(len(prodItem), "i", fs)
+                    if len(prodItem) > 0:
+                        for i, item in enumerate(prodItem):
+                            if isinstance(item, dict):
+                              for idx, key in enumerate(item.keys()):
+                                  self.writePack(item[key], "i" if key =="year" else "d", fs)
+                              # versi 13
+                              if "base" not in item.keys():
+                                 self.writePack(None, "d", fs)
+                    # self.writeTable(prodItem, ["i", "d"], fs)
 
-    def readProducer(self, fs: BufferedReader):
+    def readProducer(self, fs: BufferedReader, vfl: int):
         def readGSA():
             # read len keys
             lenKey = int(self.readPack("i", fs, 0))
@@ -713,13 +737,21 @@ class pyscPacker:
 
         def readTable_(tipeProd: int):
             if tipeProd == 0:  # Oil Producer
+                
                 return self.readTable(
                     {
-                        "year": "i",
-                        "sales": "d",
-                        "price": "d",
-                        "condensate_sales": "d",
-                        "condensate_price": "d",
+                      "year": "i",
+                      "sales": "d",
+                      "price": "d",
+                      "condensate_sales": "d",
+                      "condensate_price": "d",
+                      "base": "d",
+                    } if vfl>=13 else {
+                      "year": "i",
+                      "sales": "d",
+                      "price": "d",
+                      "condensate_sales": "d",
+                      "condensate_price": "d",
                     },
                     fs,
                 )
@@ -730,11 +762,20 @@ class pyscPacker:
                         "year": self.readPack("i", fs),
                         "production": self.readPack("d", fs),
                         "gsa": readGSA(),
+                        "base": "d",
+                    } if vfl>=13 else {
+                        "year": self.readPack("i", fs),
+                        "production": self.readPack("d", fs),
+                        "gsa": readGSA(),
                     }
                     for i in range(len_iTable)
                 ]
             else:
-                return self.readTable({"year": "i", "sales": "d", "price": "d"}, fs)
+                return self.readTable(
+                    {
+                      "year": "i", "sales": "d", "price": "d", "base": "d"
+                    } if vfl>=13 else { "year": "i", "sales": "d", "price": "d" }
+                    , fs)
 
         def readProdPrice(tipeProd: int):
             TableProdPrice = []
@@ -753,6 +794,7 @@ class pyscPacker:
                                     "price": None,
                                     "condensate_sales": None,
                                     "condensate_price": None,
+                                    "base": None,
                                 }
                             ]
                         )
@@ -763,12 +805,15 @@ class pyscPacker:
                                     "year": None,
                                     "production": None,
                                     "gsa": {"vol1": None, "ghv1": None, "price1": None},
+                                    "base": None,
                                 }
                             ]
                         )
                     else:
                         TableProdPrice.append(
-                            [{"year": None, "sales": None, "price": None}]
+                            [
+                              {"year": None, "sales": None, "price": None, "base": None}
+                            ]
                         )
                 else:
                     TableProdPrice.append(iTable)
@@ -911,10 +956,10 @@ class pyscPacker:
                     "delayAccYear": self.readPack("h", fs, 0) if vfl >= 12 else 0,
                 }
                 fiscal = {
-                    "Fiskal": self.readFiscalBase(fs),
-                    "Fiskal2": self.readFiscalBase(fs),
+                    "Fiskal": self.readFiscalBase(fs, vfl),
+                    "Fiskal2": self.readFiscalBase(fs, vfl),
                 }
-                producer = self.readProducer(fs)
+                producer = self.readProducer(fs, vfl)
                 contracts = self.readcontrats(type_of_contract, fs, vfl)
                 tangible = self.readCosts(0, fs)
                 intangible = self.readCosts(1, fs)

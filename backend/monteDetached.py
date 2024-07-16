@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import copy
 import hashlib
 import json
@@ -7,6 +8,7 @@ import multiprocessing
 import os as os
 import pickle
 import struct
+import sys
 import threading
 import time
 from pathlib import Path
@@ -23,10 +25,6 @@ from pyscnomics.optimize.uncertainty import (
     get_multipliers_montecarlo,
 )
 
-from .basePath import baseAppPath
-from .wsconnection import wsMan
-
-log = logging.getLogger("uvicorn")
 
 class ProcessMonte:
     target = ["npv", "irr", "pi", "pot", "gov_take", "ctr_net_share"]
@@ -36,7 +34,6 @@ class ProcessMonte:
         self.ws = ws
         self.id = id
         self.numSim = numSim
-        self.progress = 0
         self.baseContract = contract
         self.parameter = params
         self.hasGas = False
@@ -76,9 +73,9 @@ class ProcessMonte:
                             np.array(item[data_key]) * multiplier
                         ).tolist()
 
-        for l in range(2 if self.type >= 3 else 1):
+        for iloop in range(2 if self.type >= 3 else 1):
             contract_ = (
-                Adj_Contract if self.type < 3 else Adj_Contract[f"contract_{l+1}"]
+                Adj_Contract if self.type < 3 else Adj_Contract[f"contract_{iloop+1}"]
             )
             for i in range(len(self.parameter)):
                 # OIl
@@ -104,47 +101,52 @@ class ProcessMonte:
                 elif self.parameter[i]["id"] == 4:
                     Adj_Partial_Data(contract_, "Lifting", "lifting", multipliers[i])
 
-        return Adj_Contract
-    
+            return Adj_Contract
+
     def calcContract(self, n: int, multipiers: np.ndarray):
         try:
-          dataAdj = self.Adjust_Data(multipiers)
-          csummary = (
-              get_costrecovery(data=dataAdj)[0]
-              if self.type == 1
-              else (
-                  get_grosssplit(data=dataAdj)[0]
-                  if self.type == 2
-                  else get_transition(data=dataAdj)[0] if self.type >= 3 else 
-                  get_baseproject(data=dataAdj)[0]
-              )
-          )
-          del dataAdj
-          return {
-              "n": n,
-              "output": (
-                  csummary["ctr_npv"],
-                  csummary["ctr_irr"],
-                  csummary["ctr_pi"],
-                  csummary["ctr_pot"],
-                  csummary["gov_take"],
-                  csummary["ctr_net_share"],
-              ),
-          }
+            print(f"Monte Progress:{n}", flush=True)
+            # time.sleep(100)
+
+            dataAdj = self.Adjust_Data(multipiers)
+            csummary = (
+                get_costrecovery(data=dataAdj)[0]
+                if self.type == 1
+                else (
+                    get_grosssplit(data=dataAdj)[0]
+                    if self.type == 2
+                    else (
+                        get_transition(data=dataAdj)[0]
+                        if self.type >= 3
+                        else get_baseproject(data=dataAdj)[0]
+                    )
+                )
+            )
+            del dataAdj
+            return {
+                "n": n,
+                "output": (
+                    csummary["ctr_npv"],
+                    csummary["ctr_irr"],
+                    csummary["ctr_pi"],
+                    csummary["ctr_pot"],
+                    csummary["gov_take"],
+                    csummary["ctr_net_share"],
+                ),
+            }
         except Exception as err:
-          print(['Error:', err])
-          return {
-              "n": n,
-              "output": (
-                  0,
-                  0,
-                  0,
-                  0,
-                  0,
-                  0,
-              ),
-          }
-          
+            print(f"Error: {err}")
+            return {
+                "n": n,
+                "output": (
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                ),
+            }
 
     def calculate(self):
         # Get multipliers
@@ -165,14 +167,13 @@ class ProcessMonte:
             )
 
         # Execute MonteCarlo simulation
-        def run():
-          parallel = Parallel(
-              n_jobs=-1, 
-              return_as="generator_unordered",
-          )
-          return parallel(delayed(self.calcContract)(n, multipliers[n, :]) for n in range(self.numSim))
-        
-        output_generator = run()
+        parallel = Parallel(
+            n_jobs=-1,
+            return_as="generator_unordered",
+        )
+        output_generator = parallel(
+            delayed(self.calcContract)(n, multipliers[n, :]) for n in range(self.numSim)
+        )
 
         results = np.zeros(
             [self.numSim, len(self.target) + len(self.parameter)], dtype=np.float64
@@ -184,7 +185,7 @@ class ProcessMonte:
                 multipliers[res["n"], index] * item["base"]
                 for index, item in enumerate(self.parameter)
             ]
-            
+
         del output_generator
 
         # Sorted the results
@@ -210,8 +211,8 @@ class ProcessMonte:
         # Determine indices of data
         indices = np.linspace(0, self.numSim, 101)[0:-1].astype(int)
         indices[0] = 1
-        if indices[-1] != self.numSim-1:
-           indices= np.append(indices, int(self.numSim-1))
+        if indices[-1] != self.numSim - 1:
+            indices = np.append(indices, int(self.numSim - 1))
 
         # Final outcomes
         outcomes = {
@@ -228,45 +229,38 @@ class ProcessMonte:
         # log.info(self.hash)
 
         # save result
-        pathWS = Path(baseAppPath, "~tmp", f"{self.ws}")
-        if not pathWS.exists():
-          os.makedirs(str(pathWS))
-        with open(Path(pathWS,f"monte_{self.id}.bin"), "wb") as fs:
+        with open(Path(self.ws, f"monte_{self.id}.bin"), "wb") as fs:
             lenTxt = len(self.hash)
             fs.write(struct.pack("@i", lenTxt))
             fs.write(struct.pack(f"@{lenTxt}s", str(self.hash).encode()))
             pickle.dump(outcomes, fs)
 
-        self.progress = -1
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(
-            wsMan.broadcast(
-                json.dumps(
-                    {
-                        "module": "monte",
-                        "id": self.id,
-                        "data": {"progress": -1, "output": self.hash},
-                    }
-                )
-            )
-        )
-        loop.close()
+        print("Monte Done:" + self.hash)
 
-        print("Done")
-
-    def run(self):
-        # joinall([spawn(self.calculate)], timeout=1)
-        # self.calculate()
-        t2 = threading.Thread(target=self.calculate)
-        t2.start()
-
-        return True
-
-def calcMonte():
-    print("ok")
 
 if __name__ == "__main__":
-  multiprocessing.freeze_support()
-  calcMonte()
-
-    
+    multiprocessing.freeze_support()
+    print(sys.argv)
+    wsPathB64 = sys.argv[1] if len(sys.argv) == 2 else None
+    print(wsPathB64)
+    if wsPathB64 is None:
+        exit(1)
+    dataPath = Path(base64.b64decode(wsPathB64).decode("utf-8"))
+    print(dataPath)
+    if not dataPath.exists():
+        exit(1)
+    with open(dataPath, "rb") as fl:
+        jsonData = pickle.load(fl)
+        fl.close()
+    type = jsonData["type"]
+    id = jsonData["id"]
+    dataJson = base64.b64decode(jsonData["json"]).decode("utf-8")
+    json_dict: dict = json.loads(dataJson)
+    ProcessMonte(
+        type,
+        dataPath.parent,
+        id,
+        json_dict["contract"],
+        json_dict["numsim"],
+        json_dict["parameter"],
+    ).calculate()

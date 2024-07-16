@@ -9,6 +9,7 @@ import select
 import shutil
 import string
 import struct
+import traceback
 
 # from distutils.sysconfig import EXEC_PREFIX
 from pathlib import Path
@@ -50,6 +51,19 @@ from ..modules.summaries import Summaries
 
 log = logging.getLogger()
 
+
+class bcolors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+
+
 routerapi = APIRouter(prefix="/auth", tags=["appapi"])
 
 
@@ -58,6 +72,7 @@ class DataPost(BaseModel):
 
 
 basePyPath = baseAppPath
+
 
 @routerapi.get("/mydirs", response_class=JSONResponse)
 async def read_dirs(flext: str, root: str):
@@ -96,7 +111,8 @@ async def updProjectData(data: str, db: AsyncSession = Depends(get_async_session
             # create DB
             await make_proj_db_and_tables(path)
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=r"Error while updating data",
@@ -141,7 +157,8 @@ async def fileinfo(path: str | None, wspath: str):
         ...
         return retValue
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -168,7 +185,8 @@ async def newproject(dataDict: dict):
         packer.writeCase(False, tmpWSPath, casejson)
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -184,7 +202,8 @@ async def clearprojtmp(dataDict: dict):
             shutil.rmtree(str(tmpWSPath), ignore_errors=True, onerror=None)
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -213,7 +232,8 @@ async def extractProject(data: dict):
             raise Exception(resPackar)
 
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -249,7 +269,8 @@ async def chkfileprojheader(path: str):
                 return {"state": True, "cases": packer.getCases(pathFile)}
         return {"state": False}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -276,7 +297,8 @@ async def importcase(dataDict: dict):
             "selcase": selCase,
         }
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -300,7 +322,8 @@ async def wrt_project(dataDict: dict):
             os.remove(str(bundlePath))
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         if bundlePath.exists():
             os.remove(str(bundlePath))
         raise HTTPException(
@@ -326,7 +349,8 @@ async def wrt_cases(dataDict: dict):
         packer.writeCase(istmp == 1, tmpPath, data)
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -354,7 +378,8 @@ async def cloneCase(dataDict: dict):
         packer.cloneCase(wspath, sourceid, targetid, ctrType, typechg)
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -372,7 +397,8 @@ async def chgCtrType(dataDict: dict):
         packer.chgCtrType(wspath, sourceid, oldCtrType, newCtrType)
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -395,7 +421,8 @@ async def wrt_genconf(dataDict: dict):
             out1.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -427,7 +454,8 @@ async def wrt_fiscalconf(dataDict: dict):
             out1.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -452,14 +480,15 @@ async def wrt_producer(dataDict: dict):
         data = json.loads(base64.b64decode(gc).decode("utf-8"))
         tmpPath = Path(basePyPath, "~tmp", f"{wspath}")
         if not tmpPath.exists():
-           os.makedirs(str(tmpPath))
+            os.makedirs(str(tmpPath))
         filePath = Path(tmpPath, f"producer_{caseid}.bin")
         with open(filePath, "wb") as out1:
             pickle.dump(data, out1)
             out1.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -491,7 +520,8 @@ async def wrt_contract(dataDict: dict):
             out1.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -532,7 +562,8 @@ async def wrt_cost(dataDict: dict):
             out1.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -564,7 +595,8 @@ async def wrt_sens(dataDict: dict):
             fs.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -596,7 +628,8 @@ async def wrt_monte(dataDict: dict):
             fs.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -628,7 +661,8 @@ async def wrt_optim(dataDict: dict):
             fs.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -659,7 +693,8 @@ async def wrt_compare(dataDict: dict):
             fs.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -690,7 +725,8 @@ async def wrt_combine(dataDict: dict):
             fs.close()
         return {"state": True}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -730,7 +766,8 @@ async def calc_ext_quick_summ(data: dict):
         }
 
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -764,7 +801,8 @@ async def calc_ext_summ_irr(data: dict):
                 else None
             )
         except Exception as errirr:
-            print(errirr)
+            print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+            print(f"{bcolors.FAIL}ERROR: {errirr}{bcolors.ENDC}")
             sensIRR = None
 
         return {
@@ -773,7 +811,8 @@ async def calc_ext_summ_irr(data: dict):
             },
         }
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -832,7 +871,8 @@ async def calc_ext_summ(data: dict):
         return cardResult
 
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -896,7 +936,8 @@ async def get_case_summaries(dataEnt: dict):
             ]
         }
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -916,9 +957,10 @@ async def calc_cf(data: dict):
         elif type >= 3:
             return get_contract_table(data=json_dict, contract_type="Transition")
         else:
-            return []
+            return get_contract_table(data=json_dict, contract_type="Base Project")
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -942,7 +984,8 @@ async def calc_sens(data: dict):
         return output
 
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -952,27 +995,38 @@ async def calc_sens(data: dict):
 @routerapi.put("/calc_monte")
 async def calc_monte(data: dict):
     try:
-        type = data["type"]
         ws = data["ws"]
         id = data["id"]
-        dataJson = base64.b64decode(data["json"]).decode("utf-8")
-        json_dict: dict = json.loads(dataJson)
-        ProcessMonte(
-            type,
-            ws,
-            id,
-            json_dict["contract"],
-            json_dict["numsim"],
-            json_dict["parameter"],
-        ).run()
-        return {"state": "running"}
+        tmpWSPath = Path(basePyPath, "~tmp", f"{ws}")
+        if not tmpWSPath.exists():
+            os.makedirs(str(tmpWSPath))
+        # create data file for run monte
+        dataPath = Path(tmpWSPath, f"montedatarun_{id}.bin")
+        with open(dataPath, "wb") as fw:
+            pickle.dump(data, fw)
+            fw.close()
+        # type = data["type"]
+        # dataJson = base64.b64decode(data["json"]).decode("utf-8")
+        # json_dict: dict = json.loads(dataJson)
+        # ProcessMonte(
+        #     type,
+        #     ws,
+        #     id,
+        #     json_dict["contract"],
+        #     json_dict["numsim"],
+        #     json_dict["parameter"],
+        # ).run()
+        b64filePath = base64.b64encode(str(dataPath).encode())
+        return {"state": "running", "path": b64filePath}
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
         )
-    
+
+
 @routerapi.put("/get_monte_result")
 async def get_monte_result(data: dict):
     try:
@@ -990,7 +1044,8 @@ async def get_monte_result(data: dict):
             )
         }
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -1011,7 +1066,8 @@ async def get_optim_base_target(data: dict):
         }
 
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -1186,7 +1242,8 @@ async def calc_optim(dataDict: dict):
             return {"state": False, "out": None}
 
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
@@ -1227,7 +1284,8 @@ async def calc_combine(dataDict: dict):
         return combine.concatenate()
 
     except Exception as err:
-        print(err)
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=err.args,
