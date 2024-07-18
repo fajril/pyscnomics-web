@@ -437,6 +437,8 @@ export const useDataStore = () => {
   const extractProject = async (projSource: string | null, wsPath: string, _oldwsPath: string | null = null) => {
     let resExtract = { state: false, cases: [] }
     if (typeof projSource === 'string' && !isEmpty(projSource)) {
+      console.log(`extracting files ${projSource}`)
+
       const { status, result } = await useHTTP().put({
         path: 'extractproject',
         body: {
@@ -937,7 +939,7 @@ export const useDataStore = () => {
     const Oil = getProducer(Pysc.ProducerType.Oil)
     const Gas = getProducer(Pysc.ProducerType.Gas)
 
-    const DelAccYear = (dGConf.delayAccMode ?? 0) >= 1 && (dGConf.delayAccYear ?? 0) > 0 ? (dGConf.delayAccMode === 1 ? dGConf.delayAccYear : -dGConf.delayAccYear) : 0
+    const DelAccYear = +(dGConf.delayAccMode ?? 0) >= 1 && (dGConf.delayAccYear ?? 0) > 0 ? dGConf.delayAccYear : 0// (dGConf.delayAccMode === 1 ? dGConf.delayAccYear : -dGConf.delayAccYear) : 0
 
     const type_of_contract = dGConf.type_of_contract
     const startY = Pysc.useDayJs().utc(dGConf.start_date_project).local().year()
@@ -1062,14 +1064,16 @@ export const useDataStore = () => {
           // Filtering data is has values
           const prod_price: Pysc.prodPriceBase[] = JSON.parse(JSON.stringify(value.prod_price[i])).filter(row => {
             if (value.Tipe === 0) {
-              return (Pysc.is_number(row.year) && Pysc.is_number(row.sales) && Pysc.is_number(row.price)
-                && +row.sales > 0 && +row.price > 0)
-                || (Pysc.is_number(row.year) && Pysc.is_number(row.condensate_sales) && Pysc.is_number(row.condensate_price)
-                  && +row.condensate_sales > 0
-                  && +row.condensate_price > 0)
+              return (Pysc.is_number(row.year) && Pysc.is_number(row.sales) && +row.sales > 0)
+                || (Pysc.is_number(row.year) && Pysc.is_number(row.condensate_sales)
+                  && +row.condensate_sales > 0)
             }
-            else if (value.Tipe === 1) { return Pysc.is_number(row.year) && Pysc.is_number(row.production) && +row.production > 0 }
-            else { return Pysc.is_number(row.year) && Pysc.is_number(row.sales) && +row.sales > 0 && +row.price > 0 }
+            else if (value.Tipe === 1) {
+              return Pysc.is_number(row.year) && Pysc.is_number(row.production) && +row.production > 0
+            }
+            else {
+              return Pysc.is_number(row.year) && Pysc.is_number(row.sales) && +row.sales > 0
+            }
           })
 
           prod_price.sort((a, b) => a.year - b.year)
@@ -1079,16 +1083,18 @@ export const useDataStore = () => {
             prod_price.map(p => p.year += DelAccYear)
 
             // cut project
-            if (dGConf.delayAccMode === 1) {
-              const del_index = prod_price.findIndex(p => p.year > (isTransistion ? end2Y : endY))
-              if (del_index != -1)
-                prod_price.splice(del_index)
-            }
-            else if (dGConf.delayAccMode === 2) {
-              const del_index = prod_price.findIndex(p => p.year >= startY)
-              if (del_index > 0)
-                prod_price.splice(0, del_index)
-            }
+            // if (+dGConf.delayAccMode === 1) {
+            const del_index = prod_price.findIndex(p => p.year > (isTransistion ? end2Y : endY))
+            if (del_index !== -1)
+              prod_price.splice(del_index)
+
+            // }
+
+            // else if (dGConf.delayAccMode === 2) {
+            //   const del_index = prod_price.findIndex(p => p.year >= startY)
+            //   if (del_index > 0)
+            //     prod_price.splice(0, del_index)
+            // }
           }
 
           if (isTransistion) {
@@ -1099,7 +1105,10 @@ export const useDataStore = () => {
 
             const dM = [Pysc.useDayJs().utc(dGConf.end_date_project).local().date(), Pysc.useDayJs().utc(dGConf.end_date_project).local().month()]
             if (dM[0] !== 31 && dM[1] !== 12) {
-              const factorD = Pysc.useDayJs().utc(dGConf.end_date_project).local().dayOfYear() / 365.0
+              const date_1 = Pysc.useDayJs().utc(dGConf.end_date_project).local()
+              const daysOfY = Pysc.useDayJs()(`${date_1.year()}-12-31`).dayOfYear()
+
+              const factorD = Pysc.useDayJs().utc(dGConf.end_date_project).local().dayOfYear() / daysOfY
 
               prod_price.splice(0, prod_price.length, ...prod_price.map(row => {
                 if (row.year === endY) {
@@ -1132,11 +1141,11 @@ export const useDataStore = () => {
                     start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                     end_year: (isTransistion && icontract === 1 ? end2Y : endY),
                     prod_rate_baseline: prod_price.map(v => v.base ?? 0),
-                    lifting_rate: prod_price.map(v => v.production),
+                    prod_rate: prod_price.map(v => v.production),
+                    lifting_rate: prod_price.map(v => v.gsa[`vol${ii + 1}`] ?? 0),
                     price: prod_price.map(v => v.gsa[`price${ii + 1}`] ?? 0),
                     prod_year: prod_price.map(v => v.year),
                     ghv: prod_price.map(v => v.gsa[`ghv${ii + 1}`] ?? 0),
-                    prod_rate: prod_price.map(v => v.gsa[`vol${ii + 1}`] ?? 0),
                     fluid_type: "Gas",
                   }
                   : undefined,
@@ -1193,6 +1202,7 @@ export const useDataStore = () => {
                   start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                   end_year: (isTransistion && icontract === 1 ? end2Y : endY),
                   prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                  prod_rate: null,
                   lifting_rate: prod_price.map(v => v.sales),
                   price: prod_price.map(v => v.price),
                   prod_year: prod_price.map(v => v.year),
@@ -1225,16 +1235,19 @@ export const useDataStore = () => {
           if (tcost === 0 && Pysc.is_number(c[3]))
             c[3] += DelAccYear
         })
-        if (dGConf.delayAccMode === 1) {
-          const del_index = cost_data.findIndex(c => c[0] > (isTransistion ? end2Y : endY))
-          if (del_index != -1)
-            cost_data.splice(del_index)
-        }
-        else if (dGConf.delayAccMode === 2) {
-          const del_index = cost_data.findIndex(c => c[0] >= startY)
-          if (del_index > 0)
-            cost_data.splice(0, del_index)
-        }
+
+        // if (+dGConf.delayAccMode === 1) {
+        const del_index = cost_data.findIndex(c => c[0] > (isTransistion ? end2Y : endY))
+        if (del_index !== -1)
+          cost_data.splice(del_index)
+
+        // }
+
+        // else if (dGConf.delayAccMode === 2) {
+        //   const del_index = cost_data.findIndex(c => c[0] >= startY)
+        //   if (del_index > 0)
+        //     cost_data.splice(0, del_index)
+        // }
       }
 
       if (isTransistion) {
@@ -1316,9 +1329,9 @@ export const useDataStore = () => {
 
     let oil_onstream_date_ = Oil ? Pysc.useDayJs().utc(Oil.onstream_date).local().add(DelAccYear, 'year') : null
     let gas_onstream_date_ = Gas ? Pysc.useDayJs().utc(Gas.onstream_date).local().add(DelAccYear, 'year') : null
-    if ((dGConf.delayAccMode ?? 0) >= 1 && oil_onstream_date_ && oil_onstream_date_.year() < startY)
+    if (+(dGConf.delayAccMode ?? 0) >= 1 && oil_onstream_date_ && oil_onstream_date_.year() < startY)
       oil_onstream_date_ = oil_onstream_date_.year(startY)
-    if ((dGConf.delayAccMode ?? 0) >= 1 && gas_onstream_date_ && gas_onstream_date_.year() < startY)
+    if (+(dGConf.delayAccMode ?? 0) >= 1 && gas_onstream_date_ && gas_onstream_date_.year() < startY)
       gas_onstream_date_ = gas_onstream_date_.year(startY)
     if (type_of_contract === 0) {
       jsonres = {
@@ -1329,7 +1342,27 @@ export const useDataStore = () => {
           oil_onstream_date: oil_onstream_date_ ? (useDate ? oil_onstream_date_.format('DD/MM/YYYY') : oil_onstream_date_) : null,
           gas_onstream_date: gas_onstream_date_ ? (useDate ? gas_onstream_date_.format('DD/MM/YYYY') : gas_onstream_date_) : null,
         },
-        contract_arguments: contrArg2json(dFisc.Fiskal, true, dGConf, true ? dContr.cr.dmo_is_weighted : dContr.gs.dmo_is_weighted, !!Gas),
+
+        contract_arguments: {
+          sulfur_revenue: Pysc.OthRevType.OthRev2,
+          electricity_revenue: Pysc.OthRevType.OthRev1,
+          co2_revenue: Pysc.OthRevType.OthRev2,
+          sunk_cost_reference_year: startY,
+          vat_rate: 0.0,
+          lbt_rate: 0.0,
+          inflation_rate: 0.0,
+          future_rate: 0.0,
+          inflation_rate_applied_to: Pysc.InflateToType.Capex,
+        }, // contrArg2json(dFisc.Fiskal, true, dGConf, true ? dContr.cr.dmo_is_weighted : dContr.gs.dmo_is_weighted, !!Gas),
+        summary_arguments: {
+          reference_year: startY,
+
+          inflation_rate: 0.0,
+          discount_rate: 0.0,
+          npv_mode: Pysc.NVPType.NPV1,
+          discounting_mode: Pysc.DiscType.End,
+          profitability_discounted: false,
+        },
         lifting: vlifting,
         tangible: vtangible,
         intangible: vintangible,

@@ -44,7 +44,7 @@ const RefSettDialogs = ref()
 *               4 (+) field post_uu_22_year2001:bool/def.=True/ (PSC),
 *                 (+) field cum_production_split_offset:list[len proj]|float/def.=0/ (GS)
 */
-const curVer = 4
+const curVer = 6 // increment every released
 
 appStore.mainCallbackCaseID = async (value, oldValue) => {
   if (value != oldValue && oldValue != -1) {
@@ -65,6 +65,8 @@ appStore.mainCallbackCaseID = async (value, oldValue) => {
 
 const oldWS = appStore.curWS
 if (+appStore.appver !== curVer || isEmpty(appStore.curWS)) {
+  console.log(`reset data ver. ${curVer}`)
+
   const oldVer = +appStore.appver
   const newWS = `D${Math.random().toString(36).slice(2)}`
 
@@ -75,19 +77,13 @@ if (+appStore.appver !== curVer || isEmpty(appStore.curWS)) {
   PyscOptim.watcherOptimCfg.pause()
   useDataStore().resetDataStore(curVer, newWS, true, false)
 
-  const extractState = ref<string | boolean | null>(false)
-
-  useDataStore().extractProject(appStore.curProjectPath, newWS, oldWS).then(result => {
-    extractState.value = true
-  }, err => {
-    extractState.value = false
-
-    // show alert for error
-    appStore.showAlert({
-      text: `Error ${(err?.status) ?? ''}: ${(err?.result) ?? 'unknown'}`,
-      isalert: true,
-    })
-  }).finally(async () => {
+  useTimeoutFn(async () => {
+    try {
+      const extractState: any = await useDataStore().extractProject(appStore.curProjectPath, newWS, oldWS)
+    }
+    catch (error) {
+      console.log(error)
+    }
     appStore.$patch({ curWS: newWS })
     nextTick(() => {
       appStore.watcherSelCase.resume()
@@ -95,7 +91,7 @@ if (+appStore.appver !== curVer || isEmpty(appStore.curWS)) {
       PyscMonte.watcherMonteCfg.resume()
       PyscOptim.watcherOptimCfg.resume()
     })
-  })
+  }, 1000)
 }
 
 const alertProps = ref<tAlert>({
