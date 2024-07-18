@@ -4,17 +4,17 @@ import '@tato30/vue-pdf/style.css'
 
 // import html2canvas from 'html2canvas';
 import { useAppStore } from "@/stores/appStore"
+import { useHTTP } from '@/utils/pysc/useHttp'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import printJS from 'print-js'
+import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import { useHTTP } from '@/utils/pysc/useHttp'
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import printJS from 'print-js'
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 
 definePage({
   name: 'pysc-ecosum',
@@ -90,6 +90,70 @@ const showlink = ref(false)
 const dwnldlink = ref(null)
 
 const buildPDF = async () => {
+  const pyKeyOfTable = [
+    // { index: -1, total: null, name: 'Year', keys: ['year', 'years'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'Lifting', keys: ['lifting'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'Lifting Oil', keys: ['lifting_oil', 'c_lifting_oil'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Lifting Gas', keys: ['lifting_gas', 'c_lifting_gas'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: null, name: 'Price', keys: ['price'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'Revenue', keys: ['revenue', 'c_revenue'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'Government Share', keys: ['c_government_share'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Contractor Share', keys: ['c_contractor_share'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Depreciation', keys: ['c_depreciation'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Depreciable', keys: ['depreciable', 'c_depreciable', 'tangible'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'Intangible', keys: ['intangible', 'c_intangible'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'OPEX', keys: ['opex', 'c_opex'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'ASR', keys: ['asr', 'c_asr'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'sum', name: 'Revenue', keys: ['revenue'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Depreciation', keys: ['depreciation', 'c_depreciation'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Non Capital', keys: ['non_capital', 'c_non_capital'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Total Expenses', keys: ['c_total_expenses'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'FTP', keys: ['ftp', 'c_ftp'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'FTP - CTR', keys: ['ftp_ctr', 'c_ftp_ctr'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'FTP - GOV', keys: ['ftp_gov', 'c_ftp_gov'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Investment Credit', keys: ['investment_credit', 'c_ic'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'last', name: 'Unrecovered Cost', keys: ['unrecovered_cost', 'c_unrecovered_before_tf'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'last', name: 'Cost To Be Recovered', keys: ['cost_to_be_recovered'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Cost Recovery', keys: ['cost_recovery', 'c_cost_recovery'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Equity To Be Shared (ETS) Before Transfer', keys: ['ets_before_transfer', 'c_ets_before_tf'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: null, name: 'BaseSplit', keys: ['base_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: null, name: 'Variable Split', keys: ['variable_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: null, name: 'Progressive Split', keys: ['progressive_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: null, name: 'Contractor Split', keys: ['contractor_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Transfer (Tf) to GAS', keys: ['transfer_to_gas'], cr_o: 1, cr_tr_o: 1, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Transfer (Tf) to OIL', keys: ['transfer_to_oil'], cr_o: 0, cr_tr_o: 0, cr_g: 1, cr_tr_g: 1, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'last', name: 'Unrec. After Tf', keys: ['unrec_after_transfer', 'c_unrecovered_after_tf'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'last', name: 'Cost To Be Recovered After Tf', keys: ['cost_to_be_recovered_after_tf', 'c_cost_to_be_recovered_after_tf'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Cost Recovery After Tf', keys: ['cost_recovery_after_tf', 'c_cost_recovery_after_tf'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'ETS After Tf', keys: ['ets_after_transfer', 'c_ets_after_tf'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Contractor Share', keys: ['contractor_share', 'c_contractor_share'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Government Share', keys: ['government_share', 'c_government_share'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Depreciation', keys: ['depreciation'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Non Capital', keys: ['non_capital'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Total Expenses', keys: ['total_expenses'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Cost To Be Deducted', keys: ['cost_to_be_deducted', 'c_cost_to_be_deducted'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Carry Forward Cost', keys: ['carry_forward_cost', 'c_carry_forward_cost'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Deductible Cost', keys: ['deductible_cost', 'c_deductible_cost'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Transfer To Gas', keys: ['transfer_to_gas'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Transfer To Oil', keys: ['transfer_to_oil'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Carry Forward Cost after TF', keys: ['carry_forward_cost_after_tf', 'c_carry_forward_cost_after_tf'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'CTR Share After TF', keys: ['ctr_share_after_tf', 'c_ctr_share_after'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'CTR Net Operating Profit', keys: ['ctr_net_operating_profit', 'c_ctr_net_operating_profit'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'DMO Volume', keys: ['dmo_volume', 'c_dmo_volume'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'DMO Fee', keys: ['dmo_fee', 'c_dmo_fee'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'DDMO', keys: ['ddmo', 'c_ddmo'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Taxable Income', keys: ['taxable_income', 'c_taxable_income'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Tax Due', keys: ['c_tax_due'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Unpaid Tax Balance', keys: ['c_unpaid_tax_balance'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Tax Payment', keys: ['tax_payment', 'c_tax_payment'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Tax', keys: ['tax', 'c_tax'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Contractor Net Share', keys: ['contractor_net_share', 'c_ctr_net_share', 'net_ctr_share', 'c_net_ctr_share'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'CTR Take', keys: ['c_contractor_take'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Cashflow', keys: ['cashflow', 'c_cashflow', 'ctr_cash_flow'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+    { index: -1, total: 'last', name: 'Cum. Cashflow', keys: ['cum_cashflow', 'cum_cash_flow', 'cum. c_cashflow', 'cum._cashflow', 'cum.c_cashflow', 'cum_c_cashflow'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+    { index: -1, total: 'sum', name: 'Governent Take', keys: ['government_take', 'c_government_take'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+  ]
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "in",
@@ -201,10 +265,23 @@ const buildPDF = async () => {
         doc.setFont(current_Font.fontName, 'normal', 200)
         doc.setTextColor('blue')
         if (PyscConf.dataGConf.type_of_contract < 3)
-          doc.text('CashFlow', 0.3, finalY.value, { align: 'left' })
+          doc.text('Consolidated CashFlow', 0.3, finalY.value, { align: 'left' })
         else
-          doc.text(`CashFlow - Contract ${_lup}`, 0.3, finalY.value, { align: 'left' })
+          doc.text(`Consolidated CashFlow - Contract ${_lup}`, 0.3, finalY.value, { align: 'left' })
         const table_ = (PyscConf.dataGConf.type_of_contract < 3 ? result.consolidated : (result[`contract_${_lup}`].consolidated))
+
+        // remap keys
+        const isCR = (_lup === 1 ? [1, 3, 4] : [3, 6]).includes(PyscConf.dataGConf.type_of_contract)
+
+        const keyMapData = Object.keys(table_)
+
+        const keyMapTmpl = /* JSON.parse(JSON.stringify */(PyscConf.dataGConf.type_of_contract === 0
+          ? pyKeyOfTable.filter(k => k.bp_cons === 1)
+          : (isCR ? pyKeyOfTable.filter(k => k.cr__cons === 1) : pyKeyOfTable.filter(k => k.gs_cons === 1)))// )
+
+        const DYear = Object.keys(table_[keyMapData[0]])
+
+        keyMapTmpl.forEach(k => k.index = keyMapData.findIndex(md => k.keys.includes(md.toLowerCase())))
 
         // console.log(table_)
 
@@ -214,7 +291,7 @@ const buildPDF = async () => {
           startY: finalY.value,
           margin: { left: 0.3, right: 0.5 },
           tableWidth: 'wrap',
-          columns: [{ dataKey: 'year', header: 'Parameter' }, { dataKey: 'total', header: 'Total' }, ...Object.keys(PyscConf.dataGConf.type_of_contract === 0 ? table_.Cashflow : table_.C_Cashflow).map(k => ({ dataKey: k, header: k }))],
+          columns: [{ dataKey: 'year', header: 'Parameter' }, { dataKey: 'total', header: 'Total' }, ...DYear.map(k => ({ dataKey: k, header: k }))],
           headStyles: { fontSize: 7 },
           bodyStyles: { fontSize: 7, valign: 'middle', halign: 'right', cellPadding: { vertical: 0.035, horizontal: 0.04 } },
           horizontalPageBreak: true,
@@ -223,7 +300,14 @@ const buildPDF = async () => {
             year: { halign: 'left' },
           },
           showHead: 'everyPage',
-          body: Object.keys(table_).map(v => {
+          body: keyMapTmpl.map(k => {
+            const cols = k.index !== -1 ? Object.values(table_[keyMapData[k.index]]) : Array(DYear.length).fill(null)
+            const _total = k.total === 'sum' ? cols.reduce((total, col) => total + (Pysc.is_number(col) ? col : 0), 0) : k.total === 'last' ? cols[cols.length - 1] : null
+
+            return [k.name, (Pysc.is_number(_total) ? Pysc.fmtNumber(_total, false, { mantissa: 2 }) : ''), ...cols.map(col => Pysc.fmtNumber(col, false, { mantissa: 2 }))]
+          }),
+
+          /* Object.keys(table_).map(v => {
             const cols = Object.values(table_[v])
             const idxK = KeyofHeadTable.indexOf(v)
 
@@ -235,7 +319,7 @@ const buildPDF = async () => {
                   : cols.reduce((total, col) => total + (Pysc.is_number(col) ? col : 0), 0), false, { mantissa: 2 }),
                 ...cols.map(col => Pysc.fmtNumber(col, false, { mantissa: 2 })),
               ]]
-          }),
+          }), */
         })
         finalY.value = doc.lastAutoTable.finalY || finalY.value
         finalY.value += spaceV
