@@ -22,6 +22,11 @@ const refTableCF = ref()
 const dataTable = computed(() => props.dataTable)
 
 function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
+  if (row === dataTable.value?.data.length - 1) {
+    td.classList.add("font-weight-bold")
+    td.classList.add("bg-light-success")
+  }
+
   if (col === 0) {
     const div = document.createElement('div')
 
