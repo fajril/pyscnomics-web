@@ -128,7 +128,8 @@ async def fileinfo(path: str | None, wspath: str):
         # get environtment
         FasAPIEnvCfg = Path(
             str(basePyPath),
-            "pyscnomics-env/pyvenv.cfg",  # "velz-vue-env/pyvenv.cfg"
+            "pyscnomics-env",
+            "pyvenv.cfg",  # "velz-vue-env/pyvenv.cfg"
         )
         retValue = {
             "filepath": "Unsaved file (newfile)" if pathFile is None else pathFile,
@@ -143,9 +144,9 @@ async def fileinfo(path: str | None, wspath: str):
             Lines = file1.readlines()
             for count, line in enumerate(Lines):
                 lnv = line.split("=")
-                if lnv[0].strip() == "executable":
+                if lnv[0].strip() == "base-executable":
                     retValue["python"]["path"] = lnv[1]
-                elif lnv[0].strip() == "version":
+                elif lnv[0].strip() == "version_info":
                     retValue["python"]["version"] = lnv[1]
                 elif lnv[0].strip() == "home":
                     retValue["python"]["home"] = lnv[1]
