@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import ConfirmDialogs from "@/layouts/components/pysc/ConfirmDialogs.vue"
 import { useAppStore } from "@/stores/appStore"
+import { useHTTP } from "@/utils/pysc/useHttp"
+import ProjectEditor from "./AddNewProject.vue"
+import ConfirmDialogs from "@/layouts/components/pysc/ConfirmDialogs.vue"
 import { usePyscConfStore } from '@/stores/genfisStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDayJs } from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import { useHTTP } from "@/utils/pysc/useHttp"
-import ProjectEditor from "./AddNewProject.vue"
 
 // import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
 import SelCases from "@/views/components/selCases.vue"
@@ -253,6 +253,7 @@ watch(locale, val => {
       :headers="headers"
       :items="appStore.projects"
       item-value="id"
+      :sort-by="[{ key: 'updated_at', order: 'desc' }]"
       density="compact"
       class="mb-6"
     >
