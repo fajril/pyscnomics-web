@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
+import { breakpointsVuetifyV3 } from '@vueuse/core'
+import * as math from 'mathjs'
+import { useDraggable } from 'vue-draggable-plus'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { optimParamType, optimTarget, usePyscOptimStore } from '@/stores/optimStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import { useHTTP } from '@/utils/pysc/useHttp'
 import BarChartCompare from '@/views/components/chartBarCompare.vue'
 import ChartCompare from '@/views/components/chartCompare.vue'
 import ColCollapsible from '@/views/components/colCollapsible.vue'
 import TableCompare from '@/views/components/tableCompare.vue'
-import { breakpointsVuetifyV3 } from '@vueuse/core'
-import * as math from 'mathjs'
-import { useDraggable } from 'vue-draggable-plus'
 
 definePage({
   name: 'pysc-optim',
@@ -240,15 +240,25 @@ const CalcOptim = async () => {
   if (!isValid.value)
     return
   try {
+    const parameters = dataParams.value.map(v => Object.values(optimParamType)[v.parameter])
+    const hasIC = parameters.findIndex(k => ['Oil IC', 'Gas IC'].includes(k))
+    const contractJSON = useDataStore().curCase2Json(true)
+    if (hasIC) {
+      if ([3, 4].includes(PyscConf.dataGConf.type_of_contract))
+        contractJSON.contract_1.costrecovery.ic_is_available = true
+      else if (PyscConf.dataGConf.type_of_contract === 1)
+        contractJSON.costrecovery.ic_is_available = true
+    }
+
     const dataJson = {
-      ...useDataStore().curCase2Json(true),
+      ...contractJSON,
       optimization_arguments: {
         dict_optimization: {
-          parameter: dataParams.value.map(v => Object.values(optimParamType)[v.parameter]),
+          parameter: parameters,
           min: dataParams.value.map(v => v.min / 100),
           max: dataParams.value.map(v => v.max / 100),
         },
-        target_optimization: optimConfig.value.target_optimization / (optimConfig.value.target_parameter == 0 ? 100 : 1),
+        target_optimization: optimConfig.value.target_optimization / (optimConfig.value.target_parameter === 0 ? 100 : 1),
         target_parameter: Object.values(optimTarget)[optimConfig.value.target_parameter],
       },
     }
@@ -445,6 +455,22 @@ const createNewCase = async () => {
   }
 }
 
+const isAccomplished = computed(() => {
+  if (optimResult.value && optimResult.value.result) {
+    const resVal = +(optimResult.value.result?.optimization_result * (optimConfig.value.target_parameter === 0 ? 100 : 1)).toPrecision(15)
+
+    const txtval = numbro(resVal).format({
+      mantissa: 2,
+      spaceSeparated: true,
+      thousandSeparated: true,
+    })
+
+    return +txtval === optimConfig.value.target_optimization
+  }
+
+  return false
+})
+
 watchDebounced(optimConfig, val => {
   if (PyscOptim.watcherOptimCfg.isActive && watcherOptimData.isActive?.value)
     optimResult.value = {}
@@ -593,7 +619,7 @@ onUnmounted(() => {
                         border
                         class="mx-1"
                         :title="Object.values(optimParamType)[item.parameter]"
-                        :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (`base value: ${item.base ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : ''}`)"
+                        :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (`base value: ${Pysc.is_number(item.base) ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : ''}`)"
                       >
                         <template #subtitle="{ subtitle }">
                           <VListItemSubtitle v-if="Array.isArray(item.base)">
@@ -622,7 +648,7 @@ onUnmounted(() => {
                                         <tr v-for="v in JSON.parse(subtitle)">
                                           <td class="ps-2 pe-3">{{ v.year }}</td>
                                           <td class="ps-1 pe-2 text-right">{{
-                                            v.rate !== null ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
+                                            Pysc.is_number(v.rate) ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
                                         </tr>
                                       </tbody>
                                     </table>
@@ -697,7 +723,7 @@ onUnmounted(() => {
               <VList density="comfortable">
                 <VListItem
                   class="mx-0 px-1"
-                  :title="Object.values(optimTarget)[optimConfig.target_parameter]"
+                  :title="`Target ${Object.values(optimTarget)[optimConfig.target_parameter]}`"
                   density="compact"
                   :subtitle="getBaseTarget(optimConfig.target_parameter, true)"
                 >
@@ -713,10 +739,19 @@ onUnmounted(() => {
                     </span>
                   </template>
                   <template #append>
-                    <span class="text-right">{{ optimResult.result
+                    <VIcon
+                      v-if="optimResult.result"
+                      :icon="isAccomplished ? 'tabler-checks' : 'tabler-info-triangle'"
+                      :class="isAccomplished ? 'text-success' : 'text-error'"
+                      class="me-2"
+                      size="24"
+                    />
+                    <span
+                      :class="isAccomplished ? 'text-success' : 'text-error'"
+                      class="text-right font-weight-bold"
+                    >{{ optimResult.result
                       ? numbro(optimResult.result.optimization_result).format({
                         mantissa: 2,
-                        optionalMantissa: true,
                         output: optimConfig.target_parameter === 0 ? 'percent' : 'number',
                         spaceSeparated: true,
                         thousandSeparated: true,
@@ -732,7 +767,7 @@ onUnmounted(() => {
                     class="mx-0 px-1"
                     :title="Object.values(optimParamType)[item.parameter]"
                     density="compact"
-                    :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (item.base ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : '')"
+                    :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (Pysc.is_number(item.base) ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : '')"
                   >
                     <template #subtitle="{ subtitle }">
                       <VListItemSubtitle v-if="Array.isArray(item.base)">
@@ -761,7 +796,7 @@ onUnmounted(() => {
                                     <tr v-for="v in JSON.parse(subtitle)">
                                       <td class="ps-2 pe-3">{{ v.year }}</td>
                                       <td class="ps-1 pe-2 text-right">{{
-                                        v.rate !== null ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
+                                        Pysc.is_number(v.rate) ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
                                     </tr>
                                   </tbody>
                                 </table>
@@ -805,7 +840,7 @@ onUnmounted(() => {
                                   <tr v-for="v in getOptimResult(item.parameter)">
                                     <td class="ps-2 pe-3">{{ v.year }}</td>
                                     <td class="ps-1 pe-2 text-right">{{
-                                      v.rate !== null ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
+                                      Pysc.is_number(v.rate) ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
                                   </tr>
                                 </tbody>
                               </table>
