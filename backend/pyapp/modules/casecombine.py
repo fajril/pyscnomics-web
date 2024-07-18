@@ -1058,7 +1058,9 @@ class CaseCombine:
             gov_take = np.sum(self._conCase.C_Government_Take)
 
             # Government Share
-            gov_take_over_gross_rev = gov_take / gross_revenue
+            gov_take_over_gross_rev = np.divide(
+                gov_take, gross_revenue, where=gross_revenue != 0
+            )
 
             # Contractor IRR
             ctr_irr = irr(cashflow=self._conCase.C_Cashflow)
@@ -1293,12 +1295,14 @@ class CaseCombine:
                 gross_revenue_point_forward = np.sum(
                     gross_revenue_point_forward, dtype=float
                 )
-                ctr_net_cashflow_over_gross_rev = (
-                    ctr_net_cashflow / gross_revenue_point_forward
+                ctr_net_cashflow_over_gross_rev = np.divide(
+                    ctr_net_cashflow,
+                    gross_revenue_point_forward,
+                    where=gross_revenue_point_forward != 0,
                 )
 
             # Contractor Present Value ratio to the investment npv
-            ctr_pv_ratio = ctr_npv / investment_npv
+            ctr_pv_ratio = np.divide(ctr_npv, investment_npv, where=investment_npv != 0)
             ctr_pi = 1 + ctr_pv_ratio
 
             # Contractor POT
@@ -1316,33 +1320,47 @@ class CaseCombine:
 
             # Cost Recovery
             cost_recovery = np.sum(self._conCase.C_Cost_Recovery_after_TF)
-            cost_recovery_over_gross_rev = cost_recovery / gross_revenue
+            cost_recovery_over_gross_rev = np.divide(
+                cost_recovery, gross_revenue, where=gross_revenue != 0
+            )
 
             # Unrecoverable Cost
             unrec_cost = self._conCase.C_Unrecovered_after_TF[-1]
-            unrec_over_costrec = unrec_cost / cost_recovery
-            unrec_over_gross_rev = unrec_cost / gross_revenue
+            unrec_over_costrec = np.divide(
+                unrec_cost, cost_recovery, where=cost_recovery != 0
+            )
+            unrec_over_gross_rev = np.divide(
+                unrec_cost, gross_revenue, where=gross_revenue != 0
+            )
 
             #  Deductible Cost
             deductible_cost = np.sum(self._conCase.C_Deductible_Cost)
-            deductible_cost_over_gross_rev = deductible_cost / gross_revenue
+            deductible_cost_over_gross_rev = np.divide(
+                deductible_cost, gross_revenue, where=gross_revenue != 0
+            )
 
             # Carry Forward Cost
             carry_forward_deductible_cost = self._conCase.C_Carry_Forward_Cost[-1]
-            carry_forcost_over_gross_share = (
-                carry_forward_deductible_cost / gross_revenue
+            carry_forcost_over_gross_share = np.divide(
+                carry_forward_deductible_cost, gross_revenue, where=gross_revenue != 0
             )
-            carry_forcost_over_deductible_cost = (
-                carry_forward_deductible_cost / deductible_cost
+            carry_forcost_over_deductible_cost = np.divide(
+                carry_forward_deductible_cost,
+                deductible_cost,
+                where=deductible_cost != 0,
             )
 
             # Contractor Net Share
             ctr_net_share = np.sum(self._conCase.C_CTR_Net_Share, dtype=float)
-            ctr_net_share_over_gross_share = ctr_net_share / gross_revenue
+            ctr_net_share_over_gross_share = np.divide(
+                ctr_net_share, gross_revenue, where=gross_revenue != 0
+            )
 
             # Contractor Net Cashflow
             ctr_net_cashflow = np.sum(self._conCase.C_Cashflow, dtype=float)
-            ctr_net_cashflow_over_gross_rev = ctr_net_cashflow / gross_revenue
+            ctr_net_cashflow_over_gross_rev = np.divide(
+                ctr_net_cashflow, gross_revenue, where=gross_revenue != 0
+            )
 
             # Government FTP Share
             gov_ftp_share = np.sum(self._conCase.C_FTP_GOV)
