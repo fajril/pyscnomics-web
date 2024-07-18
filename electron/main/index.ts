@@ -407,7 +407,7 @@ const createPyProc = async (showLog: boolean = false) => {
         // process.stdout?.addListener('data', processStrOutListenner)
       })
       pyProc.stdout.on('data', async data => {
-        const logs = `${data}`.replace(/(INFO:)(.*)"(PUT|GET|POST|OPTIONS)(.*)"(\s\d+\s.*[\r\n$])/, `${bcolors.OKGREEN}[backend]${bcolors.ENDC} ${bcolors.OKCYAN}$1${bcolors.ENDC}$2"${bcolors.WARNING}$3${bcolors.ENDC}$4"${bcolors.WARNING}$5${bcolors.ENDC}`)
+        const logs = `${data}`.replace(/(INFO:)(.*)"(PUT|GET|POST|OPTIONS)(.*)"(\s\d+\s.*)[\r\n$]/, `${bcolors.OKGREEN}[backend]${bcolors.ENDC} ${bcolors.OKCYAN}$1${bcolors.ENDC}$2"${bcolors.WARNING}$3${bcolors.ENDC}$4"${bcolors.WARNING}$5${bcolors.ENDC}`)
         if (logs && showAPILogger) {
           // send looger
           sendAPILog(`${logs}`)
