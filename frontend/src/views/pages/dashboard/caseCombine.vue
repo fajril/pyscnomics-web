@@ -201,7 +201,7 @@ function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
     const span = document.createElement('span')
 
     span.classList.add("text-capitalize")
-    if (value.search(':') != -1)
+    if (value.search(':') !== -1)
       span.classList.add("font-weight-bold")
     span.innerText = value
     td.innerText = ''
@@ -217,7 +217,7 @@ function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
     div.classList.add("align-center")
     div.innerHTML
       = `<div>${Pysc.fmtNumber(unit_ === '%' ? (value * 100) : value, true, { negative: 'sign' })}</div>`
-      + `<div class="ml-3 text-left text-caption" style="min-width:78px;font-size:0.6075 !important;">${unit_ ?? ''}</div>`
+      + `<div class="ml-3 text-left" style="min-width:78px;font-size:0.6075 !important;">${unit_ ?? ''}</div>`
     td.innerText = ''
     td.appendChild(div)
   }
