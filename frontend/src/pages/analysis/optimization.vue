@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
-import { useHTTP } from '@/utils/pysc/useHttp'
-import { breakpointsVuetifyV3 } from '@vueuse/core'
-import * as math from 'mathjs'
-import { useDraggable } from 'vue-draggable-plus'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { optimParamType, optimTarget, usePyscOptimStore } from '@/stores/optimStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
 import BarChartCompare from '@/views/components/chartBarCompare.vue'
 import ChartCompare from '@/views/components/chartCompare.vue'
 import ColCollapsible from '@/views/components/colCollapsible.vue'
 import TableCompare from '@/views/components/tableCompare.vue'
+import { breakpointsVuetifyV3 } from '@vueuse/core'
+import * as math from 'mathjs'
+import { useDraggable } from 'vue-draggable-plus'
+import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 
 definePage({
   name: 'pysc-optim',
@@ -32,10 +33,14 @@ const dayjs = Pysc.useDayJs()
 
 const isLoading = ref(false)
 
+const isPSC = computed(() => {
+  return [1, 3, 6].includes(PyscConf.generalConfig.type_of_contract)
+})
+
 const paramsOptim = computed(() => {
-  const lst = PyscConf.generalConfig.type_of_contract === 1
-    ? Array(10).fill(0).map((v, i) => i)
-    : [8, 9, 10]
+  const lst = isPSC.value
+    ? Array(11).fill(0).map((v, i) => i === 10 ? 11 : i)
+    : [8, 9, 10, 11]
 
   return lst.map((v, i) => ({ title: Object.values(optimParamType)[v], value: v }))
 })
@@ -96,28 +101,50 @@ const watcherOptimData = pausableWatch(dataParams,
   }, { deep: true })
 
 const getBaseValue = (paramID: number) => {
-  if (paramID === 0)
-    return PyscConf.dataContr.cr.TaxSplit.pre_tax_ctr_oil
-  else if (paramID === 1)
-    return PyscConf.dataContr.cr.TaxSplit.pre_tax_ctr_gas
-  else if (paramID === 2)
-    return PyscConf.dataContr.cr.oil_ftp.ftp_portion
-  else if (paramID === 3)
-    return PyscConf.dataContr.cr.gas_ftp.ftp_portion
-  else if (paramID === 4)
-    return PyscConf.dataContr.cr.IC.ic_oil
-  else if (paramID === 5)
-    return PyscConf.dataContr.cr.IC.ic_gas
-  else if (paramID === 6)
-    return PyscConf.dataContr.cr.OilDMO.fee
-  else if (paramID === 7)
-    return PyscConf.dataContr.cr.GasDMO.fee
-  else if (paramID === 8)
-    return PyscConf.fiscal.Fiskal.VAT.vat_mode === 1 ? PyscConf.fiscal.Fiskal.VAT.multi_vat_init : PyscConf.fiscal.Fiskal.VAT.vat_rate_init
-  else if (paramID === 9)
-    return PyscConf.fiscal.Fiskal.Tax.tax_mode === 1 ? PyscConf.fiscal.Fiskal.Tax.multi_tax_init : PyscConf.fiscal.Fiskal.Tax.tax_rate_init
-  else if (paramID === 10)
-    return PyscConf.contracts.gs.ministry_discretion_split
+  if (paramID >= 0 && paramID <= 7) {
+    const cr: Pysc.costRec = PyscConf.generalConfig.type_of_contract >= 3 ? (PyscConf.dataContr.second as Pysc.costRec) : PyscConf.dataContr.cr
+    if (paramID === 0)
+      return cr.TaxSplit.pre_tax_ctr_oil
+    else if (paramID === 1)
+      return cr.TaxSplit.pre_tax_ctr_gas
+    else if (paramID === 2)
+      return cr.oil_ftp.ftp_portion
+    else if (paramID === 3)
+      return cr.gas_ftp.ftp_portion
+    else if (paramID === 4)
+      return cr.IC.ic_oil
+    else if (paramID === 5)
+      return cr.IC.ic_gas
+    else if (paramID === 6)
+      return cr.OilDMO.fee
+    else if (paramID === 7)
+      return cr.GasDMO.fee
+  }
+  else if (paramID === 8) {
+    if (PyscConf.generalConfig.type_of_contract >= 3)
+      return PyscConf.fiscal.Fiskal2.VAT.vat_mode === 1 ? PyscConf.fiscal.Fiskal2.VAT.multi_vat_init : PyscConf.fiscal.Fiskal2.VAT.vat_rate_init
+    else
+      return PyscConf.fiscal.Fiskal.VAT.vat_mode === 1 ? PyscConf.fiscal.Fiskal.VAT.multi_vat_init : PyscConf.fiscal.Fiskal.VAT.vat_rate_init
+  }
+  else if (paramID === 9) {
+    if (PyscConf.generalConfig.type_of_contract >= 3)
+      return PyscConf.fiscal.Fiskal2.Tax.tax_mode === 1 ? PyscConf.fiscal.Fiskal2.Tax.multi_tax_init : PyscConf.fiscal.Fiskal2.Tax.tax_rate_init
+    else
+      return PyscConf.fiscal.Fiskal.Tax.tax_mode === 1 ? PyscConf.fiscal.Fiskal.Tax.multi_tax_init : PyscConf.fiscal.Fiskal.Tax.tax_rate_init
+  }
+  else if (paramID === 10) {
+    const gs: Pysc.GS = PyscConf.generalConfig.type_of_contract >= 3 ? (PyscConf.dataContr.second as Pysc.GS) : PyscConf.dataContr.gs
+
+    return gs.ministry_discretion_split
+  }
+  else if (paramID === 11) {
+    const endY = dayjs.utc(PyscConf.dataGConf.end_date_project).local().year()
+    const values = PyscConf.tangible.map(r => ({ year: r[0], rate: r[4] }))
+    if (PyscConf.dataGConf.type_of_contract >= 3)
+      return values.filter(r => r.year > endY).sort((a, b) => a.year - b.year)
+
+    return values.sort((a, b) => a.year - b.year)
+  }
 
   return null
 }
@@ -195,20 +222,38 @@ const isValid = computed(() => {
 const optimResult = ref<object>({})
 
 const getOptimResultValue = (paramID: number) => {
-  if (optimResult.value?.result)
-    return optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID] === 'Gas DMO Fee' ? 'Gas Dmo Fee' : Object.values(optimParamType)[paramID]]
+  if (optimResult.value?.result) {
+    if (paramID === 11) {
+      const res = optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID]]['depreciation acceleration']
+      if (typeof res !== 'string')
+        return [res]
+
+      return res
+    }
+    else { return optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID] === 'Gas DMO Fee' ? 'Gas Dmo Fee' : Object.values(optimParamType)[paramID]] }
+  }
 
   return false
 }
 
 const getOptimResult = (paramID: number) => {
-  if (optimResult.value.hasOwnProperty('result')) {
+  if (optimResult.value.result) {
     const key = Object.values(optimParamType)[paramID]
-    const val = optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
+
+    const val = paramID === 11
+      ? optimResult.value.result.list_params_value[key]['depreciation acceleration']
+      : optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
+
     if (typeof val === 'string' && val.toLowerCase() === 'base value') {
       const valBase = getBaseValue(paramID)
 
       return Pysc.is_number(valBase) ? Pysc.fmtNumber(valBase, false, { output: 'percent', optionalMantissa: true, mantissa: 2 }) : valBase
+    }
+    if (paramID === 11) {
+      return optimResult.value.result.list_params_value[key].optimized_useful_life.useful_life_optimized.map((v, r) => ({
+        year: optimResult.value.result.list_params_value[key].optimized_useful_life.year[r],
+        rate: v,
+      }))
     }
     if (Pysc.is_number(val)) {
       return numbro(val).format({
@@ -244,8 +289,8 @@ const CalcOptim = async () => {
     const hasIC = parameters.findIndex(k => ['Oil IC', 'Gas IC'].includes(k))
     const contractJSON = useDataStore().curCase2Json(true)
     if (hasIC) {
-      if ([3, 4].includes(PyscConf.dataGConf.type_of_contract))
-        contractJSON.contract_1.costrecovery.ic_is_available = true
+      if ([3, 6].includes(PyscConf.dataGConf.type_of_contract))
+        contractJSON.contract_2.costrecovery.ic_is_available = true
       else if (PyscConf.dataGConf.type_of_contract === 1)
         contractJSON.costrecovery.ic_is_available = true
     }
@@ -279,7 +324,7 @@ const CalcOptim = async () => {
       const optOut = JSON.parse(JSON.stringify(result.out))
 
       // convert % values
-      if (optOut.hasOwnProperty('result') && Array.isArray(optOut.summary1) && Array.isArray(optOut.summary2)) {
+      if (optOut.result && Array.isArray(optOut.summary1) && Array.isArray(optOut.summary2)) {
         optOut.summary1 = optOut.summary1.map((v, i) => {
           return typeof v === "number" ? (v * (Pysc.templateSummary[i].unit === '%' ? 100 : 1)) : v
         })
@@ -302,7 +347,7 @@ const CalcOptim = async () => {
 }
 
 const getResultTable = computed(() => {
-  if (optimResult.value.hasOwnProperty('result') && Array.isArray(optimResult.value.summary1) && Array.isArray(optimResult.value.summary2)) {
+  if (optimResult.value.result && Array.isArray(optimResult.value.summary1) && Array.isArray(optimResult.value.summary2)) {
     return optimResult.value.summary1.map((v, i) => {
       return [v, optimResult.value.summary2[i]]
     })
@@ -311,7 +356,7 @@ const getResultTable = computed(() => {
 })
 
 const getResultChart = computed(() => {
-  if (optimResult.value.hasOwnProperty('result') && Array.isArray(optimResult.value.summary1) && Array.isArray(optimResult.value.summary2)) {
+  if (optimResult.value.result && Array.isArray(optimResult.value.summary1) && Array.isArray(optimResult.value.summary2)) {
     return [optimResult.value.summary1, optimResult.value.summary2].map((cs, idx) => {
       return [
         cs[4], // 'Revenue'
@@ -344,7 +389,7 @@ const getResultBartSeries = [
 ]
 
 const getBaseResult = computed(() => {
-  if (optimResult.value.hasOwnProperty('result') && Array.isArray(optimResult.value.summary1) && Array.isArray(optimResult.value.summary2)) {
+  if (optimResult.value.result && Array.isArray(optimResult.value.summary1) && Array.isArray(optimResult.value.summary2)) {
     const csb = optimResult.value.summary1
 
     return {
@@ -389,7 +434,7 @@ const getResultBarChart = computed(() => {
 })
 
 const createNewCase = async () => {
-  if (optimResult.value.hasOwnProperty('result')) {
+  if (optimResult.value.result) {
     const optimcases: Pysc.ProjectBase = JSON.parse(JSON.stringify(appStore.selectedCase))
 
     optimcases.id = Math.floor(Math.random() * (2000000 - 1000)) + 1000
@@ -410,19 +455,36 @@ const createNewCase = async () => {
 
     dataParams.value.forEach(v => {
       const key = Object.values(optimParamType)[v.parameter]
-      const val = optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
+      let val = optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
+      if (v.parameter === 11)
+        val = val['depreciation acceleration']
       if (!(typeof val === 'string' && val.toLowerCase() === 'base value')) {
-        _hasUpdated = true
-        if (v.parameter === 0) { dataContr.cr.TaxSplit.pre_tax_ctr_oil = val }
-        else if (v.parameter === 1) { dataContr.cr.TaxSplit.pre_tax_ctr_gas = val }
-        else if (v.parameter === 2) { dataContr.cr.oil_ftp.ftp_portion = val }
-        else if (v.parameter === 3) { dataContr.cr.gas_ftp.ftp_portion = val }
-        else if (v.parameter === 4) { dataContr.cr.IC.ic_oil = val }
-        else if (v.parameter === 5) { dataContr.cr.IC.ic_gas = val }
-        else if (v.parameter === 6) { dataContr.cr.OilDMO.fee = val }
-        else if (v.parameter === 7) { dataContr.cr.GasDMO.fee = val }
+        if ([1, 3, 6].includes(dataGConf.type_of_contract) && v.parameter >= 0 && v.parameter <= 7) {
+          _hasUpdated = true
+
+          const cr: Pysc.costRec = dataGConf.type_of_contract >= 3 ? (dataContr.second as Pysc.costRec) : dataContr.cr
+          if (v.parameter === 0)
+            cr.TaxSplit.pre_tax_ctr_oil = val
+          else if (v.parameter === 1)
+            cr.TaxSplit.pre_tax_ctr_gas = val
+          else if (v.parameter === 2)
+            cr.oil_ftp.ftp_portion = val
+          else if (v.parameter === 3)
+            cr.gas_ftp.ftp_portion = val
+          else if (v.parameter === 4)
+            cr.IC.ic_oil = val
+          else if (v.parameter === 5)
+            cr.IC.ic_gas = val
+          else if (v.parameter === 6)
+            cr.OilDMO.fee = val
+          else if (v.parameter === 7)
+            cr.GasDMO.fee = val
+        }
         else if (v.parameter === 8) {
-          if (dataFisc.Fiskal.VAT.vat_mode === 1 && Array.isArray(val)) {
+          _hasUpdated = true
+
+          const fiscal = dataGConf.type_of_contract < 3 ? dataFisc.Fiskal : dataFisc.Fiskal2
+          if (fiscal.VAT.vat_mode === 1 && Array.isArray(val)) {
             const type_of_contract = dataGConf.type_of_contract
             const startY = dayjs.utc(dataGConf.start_date_project).local().year()
             let endY = dayjs.utc(dataGConf.end_date_project).local().year()
@@ -432,18 +494,41 @@ const createNewCase = async () => {
             const mapY = Array.from({ length: endY - startY + 1 }, (_, i) => (startY - 1) + i + 1)
             const valArr = mapY.map((v, i) => ({ year: v, rate: val[i] }))
 
-            dataFisc.Fiskal.VAT.multi_vat_init = JSON.parse(JSON.stringify(useArrayUnique(valArr, (a, b) => a.rate === b.rate).value))
+            fiscal.VAT.multi_vat_init = JSON.parse(JSON.stringify(useArrayUnique(valArr, (a, b) => a.rate === b.rate).value))
           }
-          else if (dataFisc.Fiskal.VAT.vat_mode === 1 && typeof val === 'number') {
-            dataFisc.Fiskal.VAT.vat_mode = 0
-            dataFisc.Fiskal.VAT.vat_rate_init = val
+          else if (fiscal.VAT.vat_mode === 1 && typeof val === 'number') {
+            fiscal.VAT.vat_mode = 0
+            fiscal.VAT.vat_rate_init = val
           }
         }
         else if (v.parameter === 9) {
-          dataFisc.Fiskal.Tax.tax_mode = 0
-          dataFisc.Fiskal.Tax.tax_rate_init = val
+          _hasUpdated = true
+
+          const fiscal = dataGConf.type_of_contract < 3 ? dataFisc.Fiskal : dataFisc.Fiskal2
+
+          fiscal.Tax.tax_mode = 0
+          fiscal.Tax.tax_rate_init = val
         }
-        else if (v.parameter === 10) { dataContr.gs.ministry_discretion_split = val }
+        else if ([2, 4, 5].includes(dataGConf.type_of_contract) && v.parameter === 10) {
+          _hasUpdated = true
+
+          const gs: Pysc.GS = dataGConf.type_of_contract >= 3 ? (dataContr.second as Pysc.GS) : dataContr.gs
+
+          gs.ministry_discretion_split = val
+        }
+        else if (v.parameter === 11) {
+          _hasUpdated = true
+
+          const res_y = optimResult.value.result.list_params_value[key].optimized_useful_life.year
+          const res_v = optimResult.value.result.list_params_value[key].optimized_useful_life.useful_life_optimized
+          const res = res_y.map((v, i) => ({ y: v, useful: res_v[i] }))
+
+          useArrayUnique(res, (a, b) => a.y === b.y).value.forEach(v => {
+            dataTan.filter(r => r[0] === v.y).forEach(r => {
+              r[4] = v.useful
+            })
+          })
+        }
       }
     })
 
@@ -504,13 +589,13 @@ onUnmounted(() => {
     :title="$t('Optimization')"
     :subtitle="$t('Analysis')"
   >
-    <VCardText v-if="![1, 2].includes(PyscConf.generalConfig.type_of_contract)">
+    <VCardText v-if="PyscConf.generalConfig.type_of_contract === 0">
       <VAlert
         density="comfortable"
         color="success"
         variant="tonal"
       >
-        Only PSC Cost Recovery (CR) and PSC Gross Split (GS) can be optimized
+        Only PSC Contract can be optimized
       </VAlert>
     </VCardText>
     <VCardText v-else>
@@ -566,7 +651,7 @@ onUnmounted(() => {
             <VCol cols="12">
               <AppCardActions
                 action-collapsed
-                :title="$t(`${PyscConf.generalConfig.type_of_contract === 1 ? 'Cost Recovery (CR)' : 'Gross Split (GS)'} Optimization`)"
+                :title="$t(`${isPSC ? 'Cost Recovery (CR)' : 'Gross Split (GS)'} ${PyscConf.dataGConf.type_of_contract >= 3 ? 'Transition ' : ''}Optimization`)"
                 compact-header
               >
                 <template #before-actions>
@@ -637,21 +722,27 @@ onUnmounted(() => {
                                     {{ Object.values(optimParamType)[item.parameter] }}, %:
                                   </VCardItem>
                                   <VCardText>
-                                    <table>
-                                      <thead>
-                                        <tr>
-                                          <th>Year</th>
-                                          <th>Rate, %</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr v-for="v in JSON.parse(subtitle)">
-                                          <td class="ps-2 pe-3">{{ v.year }}</td>
-                                          <td class="ps-1 pe-2 text-right">{{
-                                            Pysc.is_number(v.rate) ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
+                                    <PerfectScrollbar
+                                      :options="{ wheelPropagation: false }"
+                                      style="max-block-size: 10.75rem;"
+                                    >
+                                      <table>
+                                        <thead>
+                                          <tr>
+                                            <th>Year</th>
+                                            <th>{{ item.parameter === 11 ? 'Useful life' : 'Rate, %' }}</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+
+                                          <tr v-for="v in JSON.parse(subtitle)">
+                                            <td class="ps-2 pe-3">{{ v.year }}</td>
+                                            <td class="ps-1 pe-2 text-right">{{
+                                              Pysc.is_number(v.rate) ? numbro(v.rate * (item.parameter === 11 ? 1 : 100)).format({ mantissa: item.parameter === 11 ? 0 : 2 }) : '' }}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </PerfectScrollbar>
                                   </VCardText>
                                 </VCard>
                               </VMenu>
@@ -785,21 +876,27 @@ onUnmounted(() => {
                                 {{ Object.values(optimParamType)[item.parameter] }}, %:
                               </VCardItem>
                               <VCardText>
-                                <table class="table__wrapper">
-                                  <thead>
-                                    <tr>
-                                      <th>Year</th>
-                                      <th>Rate, %</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    <tr v-for="v in JSON.parse(subtitle)">
-                                      <td class="ps-2 pe-3">{{ v.year }}</td>
-                                      <td class="ps-1 pe-2 text-right">{{
-                                        Pysc.is_number(v.rate) ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
-                                    </tr>
-                                  </tbody>
-                                </table>
+                                <PerfectScrollbar
+                                  :options="{ wheelPropagation: false }"
+                                  style="max-block-size: 10.75rem;"
+                                >
+
+                                  <table class="table__wrapper">
+                                    <thead>
+                                      <tr>
+                                        <th>Year</th>
+                                        <th>{{ item.parameter === 11 ? 'Useful life' : 'Rate, %' }}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr v-for="v in JSON.parse(subtitle)">
+                                        <td class="ps-2 pe-3">{{ v.year }}</td>
+                                        <td class="ps-1 pe-2 text-right">{{
+                                          Pysc.is_number(v.rate) ? numbro(v.rate * (item.parameter === 11 ? 1 : 100)).format({ mantissa: (item.parameter === 11 ? 0 : 2) }) : '' }}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </PerfectScrollbar>
                               </VCardText>
                             </VCard>
                           </VMenu>
@@ -829,21 +926,26 @@ onUnmounted(() => {
                               {{ Object.values(optimParamType)[item.parameter] }}, %:
                             </VCardItem>
                             <VCardText>
-                              <table class="table__wrapper">
-                                <thead>
-                                  <tr>
-                                    <th>Year</th>
-                                    <th>Rate, %</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr v-for="v in getOptimResult(item.parameter)">
-                                    <td class="ps-2 pe-3">{{ v.year }}</td>
-                                    <td class="ps-1 pe-2 text-right">{{
-                                      Pysc.is_number(v.rate) ? numbro(v.rate * 100).format({ mantissa: 2 }) : '' }}</td>
-                                  </tr>
-                                </tbody>
-                              </table>
+                              <PerfectScrollbar
+                                :options="{ wheelPropagation: false }"
+                                style="max-block-size: 10.75rem;"
+                              >
+                                <table class="table__wrapper">
+                                  <thead>
+                                    <tr>
+                                      <th>Year</th>
+                                      <th>{{ item.parameter === 11 ? 'Useful life' : 'Rate, %' }}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-for="v in getOptimResult(item.parameter)">
+                                      <td class="ps-2 pe-3">{{ v.year }}</td>
+                                      <td class="ps-1 pe-2 text-right">{{
+                                        Pysc.is_number(v.rate) ? numbro(v.rate * (item.parameter === 11 ? 1 : 100)).format({ mantissa: (item.parameter === 11 ? 0 : 2) }) : '' }}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </PerfectScrollbar>
                             </VCardText>
                           </VCard>
                         </VMenu>

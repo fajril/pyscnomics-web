@@ -187,24 +187,26 @@ const loadSummary = async () => {
 
     // console.log(dataCard.value["IRR"])
     // calc IRR Sens using async
-    try {
-      isSensLoading.value = true
-      useHTTP().put({
-        path: 'calc_ext_summ_irr',
-        body: {
-          type: PyscConf.dataGConf.type_of_contract,
-          json: btoa(JSON.stringify(DataJson)),
-        },
-        onSuccess: (response: any) => {
-          if (typeof response === 'object')
-            dataCard.value.IRR = response.card.IRR
-        },
-        onError: (error: any) => { throw error },
-      }).finally(() => isSensLoading.value = false)
-    }
-    catch (error) {
-      console.log(['error irr', error])
-    }
+    nextTick(() => {
+      try {
+        isSensLoading.value = true
+        useHTTP().put({
+          path: 'calc_ext_summ_irr',
+          body: {
+            type: PyscConf.dataGConf.type_of_contract,
+            json: btoa(JSON.stringify(DataJson)),
+          },
+          onSuccess: (response: any) => {
+            if (typeof response === 'object')
+              dataCard.value.IRR = response.card.IRR
+          },
+          onError: (error: any) => { throw error },
+        }).finally(() => isSensLoading.value = false)
+      }
+      catch (error) {
+        console.log(['error irr', error])
+      }
+    })
 
     // console.log(result.summary)
 

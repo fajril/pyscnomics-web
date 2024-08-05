@@ -472,7 +472,7 @@ const calcData = async () => {
   CombineDist.value.splice(0, CombineDist.value.length, ...[])
   try {
     if ((CombineConf.value.source === appStore.curSelCase || CombineConf.value.comp.includes(appStore.curSelCase))
-      && appStore.selectedCase.state === 1) {
+    /* && appStore.selectedCase.state === 1 */) {
       await useDataStore().saveCaseData(appStore.curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,

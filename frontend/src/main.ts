@@ -1,8 +1,9 @@
-import { createApp } from 'vue';
+import { createApp } from 'vue'
 
-import App from '@/App.vue';
-import { registerPlugins } from '@core/utils/plugins';
-import { registerAllRenderers } from 'handsontable/registry';
+import App from '@/App.vue'
+import { registerPlugins } from '@core/utils/plugins'
+import { registerAllRenderers } from 'handsontable/registry'
+
 // import { registerAllModules } from 'handsontable/registry';
 
 import {
@@ -12,12 +13,13 @@ import {
   SelectCellType,
   TextCellType,
   registerCellType,
-} from 'handsontable/cellTypes';
+} from 'handsontable/cellTypes'
 
 import {
   AutoColumnSize,
   AutoRowSize,
   Autofill,
+  ColumnSorting,
   ColumnSummary,
   ContextMenu,
   CopyPaste,
@@ -29,11 +31,11 @@ import {
   TrimRows,
   UndoRedo,
   registerPlugin,
-} from 'handsontable/plugins';
+} from 'handsontable/plugins'
 
 // Styles
-import '@core/scss/template/index.scss';
-import '@styles/styles.scss';
+import '@core/scss/template/index.scss'
+import '@styles/styles.scss'
 
 // Create vue app
 const app = createApp(App)
@@ -57,8 +59,10 @@ registerPlugin(TrimRows)
 registerPlugin(MergeCells)
 registerPlugin(NestedHeaders)
 registerPlugin(ColumnSummary)
+registerPlugin(ColumnSorting)
 
 registerAllRenderers()
+
 // registerAllModules()
 
 // Register plugins

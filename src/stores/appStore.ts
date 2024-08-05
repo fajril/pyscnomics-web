@@ -10,6 +10,7 @@ export interface tAlert {
 }
 
 export const useAppStore = defineStore('pyscConfig', () => {
+  const PYSCAPPVER = import.meta.env.VITE_PSC_VERSION
   const appPort = ref<number | null>(null)
   const appver = useStorage<number>(namespaceConfig('app-ver'), 1)
   const osConf = ref({ sep: '/', os: 'win' })
@@ -45,6 +46,7 @@ export const useAppStore = defineStore('pyscConfig', () => {
     appReady,
     appPort,
     apiURL,
+    PYSCAPPVER,
     appver,
     headerTitle,
     alertFunc,

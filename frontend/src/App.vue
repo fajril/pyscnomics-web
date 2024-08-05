@@ -8,16 +8,17 @@ import { initConfigStore, useConfigStore } from '@core/stores/config'
 import { hexToRgb } from '@layouts/utils'
 import { useTheme } from 'vuetify'
 
-import { useWSStore } from '@/stores/wsStore'
 import SettDialogs from '@/pages/components/settPysc.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
+import { useWSStore } from '@/stores/wsStore'
 import * as Pysc from '@/utils/pysc/pyscType'
 import { useDataStore } from '@/utils/pysc/useDataStore'
 import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
 import XlsxImport from '@/views/components/xlsxImport.vue'
+import { useHTTP } from './utils/pysc/useHttp'
 
 const { global } = useTheme()
 
@@ -38,18 +39,13 @@ const dayjs = Pysc.useDayJs()
 
 const RefSettDialogs = ref()
 
-/*              2 add multiple case, dashboard
-*               3 browser local storage (blc), hanya menyimpan per-case saja
-*                 load to server on demand
-*               4 (+) field post_uu_22_year2001:bool/def.=True/ (PSC),
-*                 (+) field cum_production_split_offset:list[len proj]|float/def.=0/ (GS)
-*/
-const curVer = 6 // increment every released
+console.log(`App version: ${import.meta.env.VITE_PSC_VERSION}`)
 
 appStore.mainCallbackCaseID = async (value, oldValue) => {
-  if (value != oldValue && oldValue != -1) {
+  if (value !== oldValue && oldValue !== -1) {
     const oldIndex = appStore.projects.findIndex(p => p.id === oldValue)
-    if (oldIndex != -1 && appStore.projects[oldIndex].state === 1) {
+
+    if (oldIndex !== -1/* && appStore.projects[oldIndex].state === 1 */) {
       await useDataStore().saveCaseData(appStore.curWS, oldValue,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,
@@ -63,36 +59,36 @@ appStore.mainCallbackCaseID = async (value, oldValue) => {
   appStore.watcherSelCase.resume()
 }
 
-const oldWS = appStore.curWS
-if (+appStore.appver !== curVer || isEmpty(appStore.curWS)) {
-  console.log(`reset data ver. ${curVer}`)
+// const oldWS = appStore.curWS
+// if (appStore.appver !== appStore.PYSCAPPVER || isEmpty(appStore.curWS)) {
+//   console.log(`reset data ver. ${appStore.PYSCAPPVER}`)
 
-  const oldVer = +appStore.appver
-  const newWS = `D${Math.random().toString(36).slice(2)}`
+//   // const oldVer = appStore.appver
+//   const newWS = `D${Math.random().toString(36).slice(2)}`
 
-  // reset
-  appStore.watcherSelCase.pause()
-  PyscConf.watcherAllData.pause()
-  PyscMonte.watcherMonteCfg.pause()
-  PyscOptim.watcherOptimCfg.pause()
-  useDataStore().resetDataStore(curVer, newWS, true, false)
+//   // reset
+//   appStore.watcherSelCase.pause()
+//   PyscConf.watcherAllData.pause()
+//   PyscMonte.watcherMonteCfg.pause()
+//   PyscOptim.watcherOptimCfg.pause()
+//   useDataStore().resetDataStore(appStore.PYSCAPPVER, newWS, true, false)
 
-  useTimeoutFn(async () => {
-    try {
-      const extractState: any = await useDataStore().extractProject(appStore.curProjectPath, newWS, oldWS)
-    }
-    catch (error) {
-      console.log(error)
-    }
-    appStore.$patch({ curWS: newWS })
-    nextTick(() => {
-      appStore.watcherSelCase.resume()
-      PyscConf.watcherAllData.resume()
-      PyscMonte.watcherMonteCfg.resume()
-      PyscOptim.watcherOptimCfg.resume()
-    })
-  }, 1000)
-}
+//   useTimeoutFn(async () => {
+//     try {
+//       const extractState: any = await useDataStore().extractProject(appStore.curProjectPath, newWS, oldWS)
+//     }
+//     catch (error) {
+//       console.log(error)
+//     }
+//     appStore.$patch({ curWS: newWS })
+//     nextTick(() => {
+//       appStore.watcherSelCase.resume()
+//       PyscConf.watcherAllData.resume()
+//       PyscMonte.watcherMonteCfg.resume()
+//       PyscOptim.watcherOptimCfg.resume()
+//     })
+//   }, 1000)
+// }
 
 const alertProps = ref<tAlert>({
   header: null,
@@ -106,7 +102,7 @@ watch(alertFunc, val => {
       isShowAlert.value = false
 
     // update content
-    alertProps.value.header = val?.header ?? 'PySCnomicsApp'
+    alertProps.value.header = val?.header ?? 'PSCnomics'
     alertProps.value.text = val?.text ?? ''
     alertProps.value.isalert = val?.isalert ?? false
 
@@ -131,6 +127,61 @@ fileDialogFunc.value = (callback: (path: string) => void, mode: string, lookup: 
   callbackDirs.value = callback
   fileBrowserRef.value?.loadMyDris(mode, lookup)
 }
+
+// chk file integrity
+wsStore.addBroadCast('os:conf', -1, async msg => {
+  // reset projects
+  const oldWS = appStore.curWS
+  let valid = appStore.PYSCAPPVER === appStore.appver && oldWS !== null
+  if (valid) {
+    try {
+      const { status, result } = await useHTTP().put({
+        path: 'chkprjintegrity',
+        body: {
+          json: btoa(JSON.stringify({
+            ws: oldWS,
+            cases: appStore.projects,
+          })),
+        },
+        onError: (error: any) => { throw error },
+      })
+
+      if (status !== 200)
+        throw { status, result }
+      valid = result.valid === true
+    }
+    catch (error) {
+      valid = false
+      console.log(error)
+    }
+  }
+  console.log(`Data integrity: ${valid ? 'valid' : 'not valid, reload data from sourcefile'}`)
+  if (!valid) {
+    // const oldVer = appStore.appver
+    const newWS = `D${Math.random().toString(36).slice(2)}`
+
+    // reset
+    appStore.watcherSelCase.pause()
+    PyscConf.watcherAllData.pause()
+    PyscMonte.watcherMonteCfg.pause()
+    PyscOptim.watcherOptimCfg.pause()
+    useDataStore().resetDataStore(appStore.PYSCAPPVER, newWS, true, false)
+
+    try {
+      const extractState: any = await useDataStore().extractProject(appStore.curProjectPath, newWS, oldWS)
+    }
+    catch (error) {
+      console.log(error)
+    }
+    appStore.$patch({ curWS: newWS })
+    nextTick(() => {
+      appStore.watcherSelCase.resume()
+      PyscConf.watcherAllData.resume()
+      PyscMonte.watcherMonteCfg.resume()
+      PyscOptim.watcherOptimCfg.resume()
+    })
+  }
+})
 </script>
 
 <template>

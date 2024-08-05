@@ -1,12 +1,13 @@
 <script lang="ts" setup>
-import type { Component } from 'vue'
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
-import { VNodeRenderer } from './VNodeRenderer'
+import { useAppStore } from '@/stores/appStore'
 import { layoutConfig } from '@layouts'
 import { VerticalNavCombo, VerticalNavGroup, VerticalNavLink, VerticalNavSectionTitle } from '@layouts/components'
 import { useLayoutConfigStore } from '@layouts/stores/config'
 import { injectionKeyIsVerticalNavHovered } from '@layouts/symbols'
 import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@layouts/types'
+import type { Component } from 'vue'
+import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
+import { VNodeRenderer } from './VNodeRenderer'
 
 interface Props {
   tag?: string | Component
@@ -26,6 +27,8 @@ const isHovered = useElementHover(refNav)
 provide(injectionKeyIsVerticalNavHovered, isHovered)
 
 const configStore = useLayoutConfigStore()
+
+const appStore = useAppStore()
 
 const resolveNavItemComponent = (item: NavLink | NavSectionTitle | NavGroup): unknown => {
   if ('heading' in item)
@@ -82,7 +85,7 @@ const hideTitleAndIcon = configStore.isVerticalNavMini(isHovered)
           <VNodeRenderer
             class="position-fixed"
             :nodes="layoutConfig.app.logo"
-            :style="{ transform: 'translateX(-12px) scale(0.19)', maxWidth: '40px', marginInlineStart: '-21px', opacity: '0.6', zIndex: '-1' }"
+            :style="{ transform: !hideTitleAndIcon ? 'translateX(-12px) scale(0.19)' : 'translateX(14px) scale(0.19)', maxWidth: '40px', marginInlineStart: '-21px', opacity: '0.6', zIndex: '-1' }"
           />
 
           <Transition name="vertical-nav-app-title">
@@ -94,6 +97,12 @@ const hideTitleAndIcon = configStore.isVerticalNavMini(isHovered)
               {{ layoutConfig.app.title }}
             </h1>
           </Transition>
+          <h6
+            v-if="!hideTitleAndIcon"
+            :style="{ position: 'fixed', transform: 'translateY(20px) translateX(5px)' }"
+          >
+            {{ `ver. ${appStore.PYSCAPPVER}` }}
+          </h6>
         </RouterLink>
         <!-- 👉 Vertical nav actions -->
         <!-- Show toggle collapsible in >md and close button in <md -->

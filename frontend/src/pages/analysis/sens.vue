@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
+import * as math from 'mathjs'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import { useHTTP } from '@/utils/pysc/useHttp'
 import SplitCollapsible from '@/views/components/splitCollapsible.vue'
 import SensResBarChart from '@/views/pages/analysis/sensResBarChart.vue'
 import SensResChart from '@/views/pages/analysis/sensResChart.vue'
 import SensResTable from '@/views/pages/analysis/sensResTable.vue'
 import 'handsontable/dist/handsontable.full.min.css'
-import * as math from 'mathjs'
 
 definePage({
   name: 'pysc-sens',
@@ -28,6 +28,7 @@ const isLoading = ref(false)
 const { sensConfig } = storeToRefs(SensStore)
 
 const refTableSensCfg = ref()
+const refTableSensSummary = ref()
 
 const { t, locale } = useI18n({ useScope: 'global' })
 
@@ -148,15 +149,49 @@ const tableSensConfig = computed(() => {
 
   const oilProd = PyscConf.getProducer(Pysc.ProducerType.Oil)
 
-  Opt.data[0][2] = oilProd?.prod_price[0][oilProd?.prod_price[0].length - 1].price
-  Opt.data[1][2] = math.sum(PyscConf.dataOpex.map(v => v[2]))
-  Opt.data[2][2] = math.sum(PyscConf.dataTan.map(v => v[2]))
-  Opt.data[3][2] = math.sum(oilProd?.prod_price[0].map(v => v.sales))
+  try {
+    const oprc = (oilProd ? oilProd.prod_price[0] : [0]).map(v => Pysc.is_number(v.price) ? v.price : 0).filter(v => v > 0)
+
+    Opt.data[0][2] = oprc.length ? math.min(oprc) : 0
+  }
+  catch (error) {
+
+  }
+  try {
+    Opt.data[1][2] = PyscConf.dataOpex.length ? math.sum(PyscConf.dataOpex.map(v => Pysc.is_number(v[2]) ? +v[2] : 0)) : 0
+  }
+  catch (error) {
+
+  }
+  try {
+    Opt.data[2][2] = PyscConf.dataTan.length ? math.sum(PyscConf.dataTan.map(v => Pysc.is_number(v[2]) ? +v[2] : 0)) : 0
+  }
+  catch (error) {
+
+  }
+  try {
+    Opt.data[3][2] = oilProd?.prod_price[0].length ? math.sum(oilProd?.prod_price[0].map(v => Pysc.is_number(v.sales) ? +v.sales : 0)) : 0
+  }
+  catch (error) {
+
+  }
   if (PyscConf.prodHasGas()) {
     const gasProd = PyscConf.getProducer(Pysc.ProducerType.Gas)
 
-    Opt.data.splice(1, 0, ['Gas Price, <small>USD/MMBTU</small>', null, gasProd.prod_price[0][gasProd?.prod_price[0].length - 1].price, null])
-    Opt.data[4][2] += math.sum(gasProd?.prod_price[0].map(v => v.production))
+    const arr = (gasProd ? gasProd.prod_price[0] : [0]).map(v => {
+      let val = 0
+      for (let i = 0; i < gasProd?.GSANumber; i++) {
+        if (Pysc.is_number(v.gsa[`price${i + 1}`]) && v.gsa[`price${i + 1}`] > 0) {
+          if (val === 0 || +v.gsa[`price${i + 1}`] < val)
+            val = +v.gsa[`price${i + 1}`]
+        }
+      }
+
+      return val
+    }).filter(v => v > 0)
+
+    Opt.data.splice(1, 0, ['Gas Price, <small>USD/MMBTU</small>', null, arr.length ? math.min(arr) : 0, null])
+    Opt.data[4][2] += (gasProd?.prod_price[0].length ? math.sum(gasProd?.prod_price[0].map(v => Pysc.is_number(v.production) ? +v.production : 0)) : 0)
   }
 
   return Opt
@@ -164,8 +199,12 @@ const tableSensConfig = computed(() => {
 
 const calcSensPar = () => {
   tableSensConfig.value?.data.forEach(row => {
-    row[1] = (1 - sensConfig.value[0] / 100) * row[2]
-    row[3] = (1 + sensConfig.value[1] / 100) * row[2]
+    try {
+      row[1] = (1 - sensConfig.value[0] / 100) * row[2]
+      row[3] = (1 + sensConfig.value[1] / 100) * row[2]
+    }
+    catch (error) {
+    }
   })
 
   // refTableSensCfg.value?.hotInstance.updateSettings(tableSensConfig.value)
@@ -223,7 +262,72 @@ const calcSens = async () => {
     })
   }
   isLoading.value = false
+  nextTick(() => {
+    refTableSensSummary.value?.hotInstance.updateSettings(tableSensSummary.value)
+
+    const columnSort = refTableSensSummary.value?.hotInstance.getPlugin('columnSorting')
+
+    columnSort?.clearSort()
+  })
 }
+
+const tableSensSummary = computed(() => {
+  const Opt = {
+    data: [],
+    colHeaders: ['Parameter', 'NPV', 'IRR', 'PI', 'POT', 'Gov. Take', 'Contr. Net Share'],
+    columnSorting: {
+      headerAction: true,
+
+    },
+    columns: [
+      { },
+      { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
+      { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
+      { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
+      { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
+      { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
+      { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
+    ],
+    readOnly: true,
+    rowHeaders: false,
+    height: 'auto',
+    autoWrapRow: false,
+    stretchH: 'all',
+    manualColumnResize: true,
+    autoWrapCol: false,
+    AutoRowSize: true,
+    autoColumnSize: { allowSampleDuplicates: true, useHeaders: true, samplingRatio: 30 },
+    fixedColumnsStart: 1,
+    licenseKey: 'non-commercial-and-evaluation',
+  }
+
+  const data_ = ['Oil Price', 'Opex', 'Capex', 'Lifting']
+  if (PyscConf.prodHasGas())
+    data_.splice(1, 0, 'Gas Price')
+
+  const resSim = expanseData.value.map(r => {
+    const resTbl = JSON.parse(JSON.stringify(DataTable.value[r.name]))
+
+    const resPar = data_.map((p, i) => {
+      const values = resTbl.map(r => r[i + 1]).filter(v => Pysc.is_number(v))
+
+      // calc range
+      return (values.length ? math.max(values) : 0) - (values.length ? math.min(values) : 0)
+    })
+
+    const totRange = resPar.reduce((tot, val, i) => tot + math.abs(val), 0)
+
+    return resPar.map(v => {
+      return totRange ? (v / totRange) : 0
+    })
+  })
+
+  Opt.data.splice(0, Opt.data.length, ...data_.map((par, r) => {
+    return [par, ...resSim.map(cat => cat[r])]
+  }))
+
+  return Opt
+})
 
 const currentTab = ref(0)
 const expanseData = ref(Object.keys(DataTable.value).map((v, i) => ({ name: v, value: i, chartIndex: 0 })))
@@ -399,6 +503,22 @@ onUnmounted(() => {
         compact-header
       >
         <VCardText class="px-2">
+          <AppCardActions
+            action-collapsed
+            title="Summary"
+            compact-header
+          >
+            <VCardText>
+              <HotTable
+                ref="refTableSensSummary"
+                :settings="tableSensSummary"
+                class="not_to_dimmed"
+                license-key="non-commercial-and-evaluation"
+              />
+            </VCardText>
+          </AppCardActions>
+        </VCardText>
+        <VCardText class="px-2">
           <VExpansionPanels
             v-model="selPanel"
             multiple
@@ -435,6 +555,9 @@ onUnmounted(() => {
                       <VTab value="1">
                         {{ $t('Tornado') }}
                       </VTab>
+                      <VTab value="2">
+                        {{ $t('Contribution') }}
+                      </VTab>
                     </VTabs>
                     <VWindow v-model="item.chartIndex">
                       <VWindowItem value="0">
@@ -453,7 +576,19 @@ onUnmounted(() => {
                         <SensResBarChart
                           :data-chart="DataTable[item.name]"
                           :title="item.name"
-                          :category="['Oil Price', 'Opex', 'Capex', 'Lifting']"
+                          :category="['Oil Price', ...(PyscConf.prodHasGas() ? ['Gas Price'] : []), 'Opex', 'Capex', 'Lifting']"
+                          mode="Tornado"
+                        />
+                      </VWindowItem>
+                      <VWindowItem
+                        value="2"
+                        style="overflow: visible !important;"
+                      >
+                        <SensResBarChart
+                          :data-chart="DataTable[item.name]"
+                          :title="item.name"
+                          :category="['Oil Price', ...(PyscConf.prodHasGas() ? ['Gas Price'] : []), 'Opex', 'Capex', 'Lifting']"
+                          mode="Contrib"
                         />
                       </VWindowItem>
                     </VWindow>

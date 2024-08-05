@@ -254,13 +254,14 @@ const loadCF = async () => {
     }
 
     // update table
-    if (PyscConf.dataGConf.type_of_contract <= 3) {
+    if (PyscConf.dataGConf.type_of_contract < 3) {
       MapDataCF(OilOpt.value[0], 'O', result.oil, PyscConf.dataGConf.type_of_contract === 1)
       if (PyscConf.prodHasGas())
         MapDataCF(GasOpt.value[0], 'G', result.gas, PyscConf.dataGConf.type_of_contract === 1)
       MapDataCF(ConstOpt.value[0], 'C', result.consolidated, PyscConf.dataGConf.type_of_contract === 1)
     }
     else {
+      console.log(result)
       MapDataCF(OilOpt.value[0], 'O', result.contract_1.oil, [3, 4].includes(PyscConf.dataGConf.type_of_contract))
       if (PyscConf.prodHasGas())
         MapDataCF(GasOpt.value[0], 'G', result.contract_1.gas, [3, 4].includes(PyscConf.dataGConf.type_of_contract))

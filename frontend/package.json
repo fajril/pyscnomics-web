@@ -1,7 +1,7 @@
 {
-  "name": "pyscnomics-app",
-  "version": "0.1.3",
-  "description": "PySCnomics App - Evaluate & optimize your PSC economics!",
+  "name": "pscnomics",
+  "version": "0.1.11",
+  "description": "PSCnomics - Evaluate & optimize your PSC economics!",
   "author": "itb-skk",
   "license": "MIT",
   "private": true,

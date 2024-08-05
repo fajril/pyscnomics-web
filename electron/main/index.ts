@@ -42,6 +42,9 @@ const bcolors = {
 
 process.env.APP_ROOT = path.normalize(path.join(__dirname, '../../..'))
 
+let isFresh = false
+let apiReady = false
+let elecClient = null
 const isMac = process.platform === 'darwin'
 const osType = (process.platform === 'win32' ? 'win' : (isMac ? 'mac' : 'linux'))
 
@@ -220,6 +223,9 @@ wss.on('connection', (ws, request) => {
   console.log(`${bcolors.OKGREEN}[WS-SERVER]${bcolors.ENDC} Client connected - ${ws.id}.`)
 
   ws.on('close', () => {
+    if (elecClient === ws.id)
+      elecClient = null
+
     console.log(`${bcolors.OKGREEN}[WS-SERVER]${bcolors.ENDC} Client disconnected.`)
   })
 
@@ -234,6 +240,13 @@ wss.on('connection', (ws, request) => {
           module: 'os:sep',
           id: ws.id,
           data: { type: 'os:sep', data: JSON.stringify({ sep: path.sep }) },
+        }), false, ws.id)
+      }
+      else if (msg.module === 'app:isfresh') {
+        broadCastMessge(JSON.stringify({
+          module: 'app:isfresh',
+          id: ws.id,
+          data: { type: 'app:isfresh', data: isFreshInstall(null) },
         }), false, ws.id)
       }
       else if (msg.module === 'app:drive') {
@@ -285,7 +298,7 @@ wss.on('connection', (ws, request) => {
     module: 'os:conf',
     id: ws.id,
     data: {
-      type: 'os:conf', data: btoa(JSON.stringify({ sep: path.sep, os: osType, port: pyPort })),
+      type: 'os:conf', isFreshInst: (elecClient === ws.id ? isFresh : isFreshInstall(null)), data: btoa(JSON.stringify({ sep: path.sep, os: osType, port: pyPort })),
     },
   }))
 })
@@ -310,14 +323,24 @@ serverWS.on('upgrade', (request, socket, head) => {
   const { pathname, searchParams } = new URL(request.url, 'http://127.0.0.1:3142')
 
   const clientid = searchParams.get('client')
+  const iselec = searchParams.get('elec')
 
   // console.log([pathname, clientid])
 
   // This function is not defined on purpose. Implement it with your own logic.
-  socket.removeListener('error', onSocketError)
 
   if (pathname === '/ws') {
     // if (pathname==='ws')
+    if (iselec === null && (!apiReady || pyProc === null)) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
+      socket.destroy()
+
+      return
+    }
+    if (iselec)
+      elecClient = clientid
+
+    socket.removeListener('error', onSocketError)
     wss.handleUpgrade(request, socket, head, ws => {
       ws.id = clientid
       wss.emit('connection', ws, request)
@@ -333,12 +356,12 @@ serverWS.listen(3142)
 const broadCastNewPort = () => {
   if (pyPort) {
     wss?.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
+      if (client.readyState === WebSocket.OPEN && elecClient === client.id) {
         client.send(JSON.stringify({
           module: 'os:conf',
           id: client.id,
           data: {
-            type: 'os:conf', data: btoa(JSON.stringify({ sep: path.sep, os: osType, port: pyPort })),
+            type: 'os:conf', isFreshInst: (elecClient === client.id ? isFresh : isFreshInstall(null)), data: btoa(JSON.stringify({ sep: path.sep, os: osType, port: pyPort })),
           },
         }), { binary: false })
       }
@@ -373,6 +396,7 @@ const createPyProc = async (showLog: boolean = false) => {
   const statMainPy = fs.statSync(script, { throwIfNoEntry: false })
   if (!(script && pyPort) || statMainPy === undefined)
     return `${script} port:${pyPort} failed to start`
+
   try {
     if (app.isPackaged) {
       if (osType === 'win') {
@@ -407,6 +431,7 @@ const createPyProc = async (showLog: boolean = false) => {
         // process.stdout?.addListener('data', processStrOutListenner)
       })
       pyProc.stdout.on('data', async data => {
+        // tes if its monte progress
         const logs = `${data}`.replace(/(INFO:)(.*)"(PUT|GET|POST|OPTIONS)(.*)"(\s\d+\s.*)[\r\n$]/, `${bcolors.OKGREEN}[backend]${bcolors.ENDC} ${bcolors.OKCYAN}$1${bcolors.ENDC}$2"${bcolors.WARNING}$3${bcolors.ENDC}$4"${bcolors.WARNING}$5${bcolors.ENDC}`)
         if (logs && showAPILogger) {
           // send looger
@@ -423,14 +448,18 @@ const createPyProc = async (showLog: boolean = false) => {
         console.log(`${bcolors.FAIL}[backend]${bcolors.ENDC} ${data}`)
       })
       pyProc.on('exit', code => {
+        apiReady = false
+
         // process.stdout?.removeListener('data', processStrOutListenner)
       })
     }
+
     broadCastNewPort()
   }
   catch (error) {
     if (error)
       console.log(error.toString())
+    apiReady = false
 
     return `${script} port:${pyPort} failed to start`
   }
@@ -475,6 +504,7 @@ const exitPyProc = () => {
   }
   pyProc = null
   pyPort = null
+  apiReady = false
 }
 
 let win: BrowserWindow | null = null
@@ -533,7 +563,7 @@ Menu.setApplicationMenu(menu)
 
 async function createWindow() {
   win = new BrowserWindow({
-    title: 'PySCnomics-App',
+    title: 'PSCnomics',
     icon: path.normalize(path.join(process.env.VITE_PUBLIC, 'favicon.ico')),
 
     // titleBarStyle: osType === 'win' ? 'hidden' : 'hiddenInset',
@@ -630,9 +660,9 @@ async function handleFileOpen(ev, curfilePath, ext: string = 'psc') {
   const normPath = curfilePath ? path.dirname(curfilePath) : path.join(RESOURCE_DIST, 'Samples')
 
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: ext === 'psc' ? 'Open PySCnomics File' : 'Select Python Interpreter',
+    title: ext === 'psc' ? 'Open PSCnomics File' : 'Select Python Interpreter',
     defaultPath: path.normalize(normPath),
-    filters: [(ext === 'psc' ? { name: 'PySCnomics-App', extensions: ['psc'] } : { name: 'Python file', extensions: ['*'] })],
+    filters: [(ext === 'psc' ? { name: 'PSCnomics', extensions: ['psc'] } : { name: 'Python file', extensions: ['*'] })],
     properties: ['openFile'],
   })
 
@@ -668,9 +698,9 @@ async function handleFileSave(ev, curfilePath) {
   const normPath = curfilePath ? path.dirname(curfilePath) : path.join(RESOURCE_DIST, 'Samples')
 
   const { canceled, filePath } = await dialog.showSaveDialog({
-    title: 'Save PySCnomics Project',
+    title: 'Save PSCnomics Project',
     defaultPath: path.normalize(normPath),
-    filters: [{ name: 'PySCnomics-App', extensions: ['psc'] }],
+    filters: [{ name: 'PSCnomics-App', extensions: ['psc'] }],
     properties: ['showOverwriteConfirmation'],
   })
 
@@ -680,6 +710,14 @@ async function handleFileSave(ev, curfilePath) {
     return { path: path.normalize(filePath) }
 
   return { path: null }
+}
+
+function isFreshInstall(ey) {
+  const _fresh = isFresh
+
+  isFresh = false
+
+  return _fresh
 }
 
 async function handlesetPort(ev, port?: number, showLog: boolen = false) {
@@ -695,6 +733,12 @@ async function handlesetPort(ev, port?: number, showLog: boolen = false) {
 async function stopPyton(ev) {
   try {
     exitPyProc()
+
+    // close ws client connection
+    wss?.clients.forEach(ws => {
+      if (ws.id !== elecClient)
+        ws.terminate()
+    })
   }
   catch (error) {
   }
@@ -853,6 +897,7 @@ async function checkPIP() {
 }
 async function installPIP(ev, clientid: string) {
   process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install pip...`)
+  isFresh = true
   try {
     require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['get-pip.py'],
       {
@@ -878,6 +923,7 @@ async function installPIP(ev, clientid: string) {
   return 'pip installing'
 }
 async function installVirtualEnv(ev, clientid: string) {
+  isFresh = true
   process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install virtualenv...`)
   try {
     require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['-m', 'pip', 'install', 'virtualenv'],
@@ -905,6 +951,7 @@ async function installVirtualEnv(ev, clientid: string) {
 }
 
 async function createPyEnv(ev, clientid: string, pyPath: string | null = null) {
+  isFresh = true
   try {
     process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Create Python environment for pyscnomics-env...`)
     if (osType === 'win') {
@@ -944,6 +991,7 @@ async function createPyEnv(ev, clientid: string, pyPath: string | null = null) {
   return 'Create Env'
 }
 async function installPyLib(ev, clientid: string) {
+  isFresh = true
   try {
     process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install Python library...`)
     if (osType === 'win') {
@@ -993,6 +1041,7 @@ async function installPyLib(ev, clientid: string) {
 }
 
 async function installPy(ev, clientid: string) {
+  isFresh = true
   process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install Python 3.12...`)
   try {
     require('node:child_process').exec('open python-3.12.4.pkg',
@@ -1018,6 +1067,7 @@ async function installPy(ev, clientid: string) {
 }
 
 async function openAppUrl(ev, url: string) {
+  apiReady = true
   open(url)
 }
 
@@ -1045,6 +1095,8 @@ async function calcMonteCarlo(ev, clientID: string, CaseID: number, dataPath: st
 
     monteProc.stdout.on('data', async data => {
       const doneMonte = (`${data}`.match(/(Monte Done:)(.*)/i) ?? [])
+
+      console.log(`${data}`)
       if (doneMonte.length >= 3 && doneMonte[2]) {
         await sendProgress(-1, doneMonte[2])
 
@@ -1106,7 +1158,7 @@ app.whenReady().then(() => {
   ipcMain.handle('config:getPort', () => pyPort ?? null)
   ipcMain.handle('config:setPort', handlesetPort)
   ipcMain.handle('window:reload', windowReload)
-
+  ipcMain.handle('app:fresh', isFreshInstall)
   ipcMain.handle('config:chkPython', checkPython)
   ipcMain.handle('config:chkPIP', checkPIP)
   ipcMain.handle('config:instPIP', installPIP)

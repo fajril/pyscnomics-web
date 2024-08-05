@@ -4,7 +4,7 @@ import { useStorage } from '@vueuse/core'
 
 // import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl'
 import type { ProjectBase, TImportData, tCompareType } from '@/utils/pysc/pyscType'
-import { useDayJs } from '@/utils/pysc/pyscType'
+import { is_number, useDayJs } from '@/utils/pysc/pyscType'
 import * as lzs from 'lz-string'
 
 export interface tAlert {
@@ -18,10 +18,13 @@ export interface tAlert {
 
 export const useAppStore = defineStore('pyscConfig', () => {
   const dayjs = useDayJs()
+  const PYSCAPPVER = import.meta.env.VITE_PSC_VERSION
+
+  // const PYSC_APP_VERSION = import.meta.env.VITE_PSC_VERSION
 
   // const appPort = ref(null)
   const osConf = ref({ sep: '/', os: 'win', port: null })
-  const appver = useStorage<number>(namespaceConfig('app-ver'), 1)
+  const appver = useStorage<string | null>(namespaceConfig('version'), null)
   const headerTitle = ref<string | undefined>(undefined)
   const curProject = useStorage<number | null>(namespaceConfig('current-project'), null)
   const curProjectPath = useStorage<string | null>(namespaceConfig('project-path'), null)
@@ -54,9 +57,9 @@ export const useAppStore = defineStore('pyscConfig', () => {
 
   const mainCallbackCaseID = ref<Function>(() => { })
 
-  const watcherSelCase = pausableWatch(curSelCase, (value, oldValue) => {
+  const watcherSelCase = pausableWatch(curSelCase, async (value, oldValue) => {
     watcherSelCase.pause()
-    mainCallbackCaseID.value(value, oldValue)
+    await mainCallbackCaseID.value(value, oldValue)
   })
 
   const curWS = useStorage<string | null>(namespaceConfig('project-ws'), null)
@@ -144,9 +147,9 @@ export const useAppStore = defineStore('pyscConfig', () => {
     curSelCase.value = _id
   }
 
-  function chgVer(_oldver: number, _newver: number) {
+  function chgVer(_oldver: any, _newver: any) {
     appver.value = _newver
-    if (_oldver <= 1) {
+    if (is_number(+_oldver) && +_oldver <= 1) {
       localStorage.removeItem(namespaceConfig('current-project'))
       localStorage.removeItem(namespaceConfig('project-path'))
       localStorage.removeItem(namespaceConfig('cases'))
@@ -260,6 +263,7 @@ export const useAppStore = defineStore('pyscConfig', () => {
     appReady,
 
     // appPort,
+    PYSCAPPVER,
     apiURL,
     $reset,
     appver,

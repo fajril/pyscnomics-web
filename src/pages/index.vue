@@ -32,7 +32,7 @@ const pyhtonIntPath = ref('')
 const PyInsProcess = ref(false)
 const StoppingProcess = ref(false)
 
-const consoleSource = ref(`\x1B[94m[Setup]\x1B[0m PySCnomics API...\n`)
+const consoleSource = ref(`\x1B[94m[Setup]\x1B[0m PSCnomics API...\n`)
 const showConsole = ref(false)
 const chkShowConsole = ref(false)
 
@@ -75,7 +75,7 @@ const { pause: pauseTes, resume: resumeTes, isActive } = useIntervalFn(async () 
     })
 
     // has result then open browser
-    consoleSource.value = `\x1B[94m[Setup]\x1B[0m PySCnomics API...\n`
+    consoleSource.value = `\x1B[94m[Setup]\x1B[0m PSCnomics API...\n`
     console.log('FasiAPI Ready!')
     isLoading.value = false
     linkApp.value = `http://localhost:${port.value}`
@@ -258,6 +258,22 @@ const codeSnippet = ref(highlighter.codeToHtml(consoleSource.value, {
   theme: 'dracula',
 }))
 
+const cardLogger = ref()
+const loggerScrollbar = ref()
+
+useResizeObserver(cardLogger, entries => {
+  const entry = entries[0]
+  const { width, height } = entry.contentRect
+
+  if (loggerScrollbar.value) {
+    nextTick(() => {
+      loggerScrollbar.value?.update()
+      if (loggerScrollbar.value && loggerScrollbar.value.$el.scrollHeight)
+        loggerScrollbar.value.$el.scrollTop = loggerScrollbar.value.$el.scrollHeight
+    })
+  }
+})
+
 onMounted(() => {
   wsStore.addBroadCast('setup', msg => {
     const { type, data } = msg.data
@@ -306,14 +322,17 @@ onMounted(() => {
     if (type === 'api:log' && showConsole.value) {
       const msg = atob(data)
 
-      console.log(msg)
-      if (consoleSource.value.length + msg.length > 8000)
-        consoleSource.value = consoleSource.value.slice(-8000 + msg.length)
+      if (consoleSource.value.length + msg.length > 16000)
+        consoleSource.value = consoleSource.value.slice(-16000 + msg.length)
 
       consoleSource.value += msg
       codeSnippet.value = highlighter.codeToHtml(consoleSource.value, {
         lang: 'ansi',
         theme: 'dracula',
+      })
+      nextTick(() => {
+        if (loggerScrollbar.value && loggerScrollbar.value.$el.scrollHeight)
+          loggerScrollbar.value.$el.scrollTop = loggerScrollbar.value.$el.scrollHeight
       })
     }
   })
@@ -355,8 +374,11 @@ onUnmounted(() => {
             :style="{ transform: 'translateY(-1px) translateX(-8px) scale(0.35)', maxWidth: '60px', maxHeight: '1px' }"
           />
           <h5 class="text-h3 text-primary hero-title  font-weight-bold text-wrap">
-            PySCnomics App
+            PSCnomics
           </h5>
+          <h6 :style="{ alignSelf: 'end', paddingBlockEnd: '0.2rem', paddingLeft: '0.3rem' }">
+            ver. {{ appStore.PYSCAPPVER }}
+          </h6>
         </div>
       </template>
       <VWindow
@@ -524,7 +546,10 @@ onUnmounted(() => {
         </VWindowItem>
         <VWindowItem :value="4">
           <VCard density="compact">
-            <VCardText class="d-flex gap-y-3 flex-column app-card-console my-auto">
+            <VCardText
+              ref="cardLogger"
+              class="d-flex gap-y-3 flex-column app-card-console my-auto"
+            >
               <div class="d-flex align-center justify-space-between">
                 <div>
                   serve for
@@ -544,11 +569,13 @@ onUnmounted(() => {
                   Stop
                 </VBtn>
               </div>
-              <div class="position-relative fill-height">
+              <div
+                class="position-relative fill-height"
+                :style="{ maxHeight: 'calc(100vh - 191px)' }"
+              >
                 <PerfectScrollbar
-                  class="fill-height text-nowrap"
-                  style="border-radius: 6px;"
-                  :style="{ maxHeight: 'calc(100vh - 191px)' }"
+                  ref="loggerScrollbar"
+                  :style="{ borderRadius: '6px', maxBlockSize: '100%' }"
                   :options="{ wheelPropagation: false }"
                 >
                   <!-- eslint-disable-next-line vue/no-v-html -->
@@ -652,13 +679,12 @@ onUnmounted(() => {
 code[class*="language-"],
 pre[class*="language-"] {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 14px;
+  font-size: 10px;
 }
 
 :not(pre) > code[class*="language-"],
 pre[class*="language-"] {
   border-radius: vuetify.$card-border-radius;
-  max-block-size: 500px;
 }
 
 .app-card-console-copy-icon {

@@ -2,6 +2,7 @@ import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import chalk from 'chalk'
+import dotenv from 'dotenv'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,14 +18,17 @@ import svgLoader from 'vite-svg-loader'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
+  dotenv.config({ path: path.normalize(path.join(__dirname, '..', '.env')) })
+
   const isServe = command === 'serve'
   const isBuild = command === 'build'
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
+  const appVersion = process.env.VITE_PSC_VERSION
 
   console.log(chalk.blueBright('Build Ftontend'))
-  if (isBuild) {
+  console.log(`App version: ${appVersion}`)
+  if (isBuild)
     fs.rmSync(path.join(__dirname, 'dist', 'frontend'), { recursive: true, force: true })
-  }
 
   return {
     base: "/app/",
@@ -107,7 +111,10 @@ export default defineConfig(({ command, mode }) => {
       svgLoader(),
 
     ],
-    define: { 'process.env': {} },
+    define: {
+      PYSC_APP_VERSION: `"${appVersion}"`,
+      'process.env': {},
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -141,6 +148,7 @@ export default defineConfig(({ command, mode }) => {
         'top-level-await': true,
       },
     },
+
     // server: !isBuild && (() => {
     //   const url = new URL(pkg.debug.env.VITE_DEV_SERVER_URL)
 

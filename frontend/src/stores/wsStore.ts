@@ -53,6 +53,12 @@ export const useWSStore = defineStore('pyscWSConf', () => {
           appStore.$patch({
             osConf: JSON.parse(atob(jObj.data.data)),
           })
+
+          const selBroadcast = listBroadCast.value.filter(v => v.name === jObj.module)
+
+          selBroadcast.forEach(b => {
+            nextTick(() => b.callable(jObj))
+          })
         }
         else
 
@@ -93,6 +99,7 @@ export const useWSStore = defineStore('pyscWSConf', () => {
     onMessage: (ws: WebSocket, e: MessageEvent) => {
       try {
         const jObj = JSON.parse(e.data)
+
         if (jObj.hasOwnProperty('module') && jObj.hasOwnProperty('id')) {
           const selBroadcast = listBroadCast.value.filter(v => v.id === jObj.id && v.name === jObj.module)
 

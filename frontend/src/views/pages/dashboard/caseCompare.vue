@@ -10,6 +10,7 @@ import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
 import BarChartCompare from '@/views/components/chartBarCompare.vue'
+import CFChartCompare from '@/views/components/chartCFCompare.vue'
 import ChartCompare from '@/views/components/chartCompare.vue'
 import ColCollapsible from '@/views/components/colCollapsible.vue'
 import TableCompare from '@/views/components/tableCompare.vue'
@@ -45,6 +46,7 @@ const dataTableCompare = ref([])
 const dataChartCompare = ref([])
 const dataBarChartBase = ref({ name: 'Base', value: [] })
 const dataBarChartCompare = ref([])
+const dataCFChartCompare = ref<{ y: number[]; d: number[] }[]>([])
 const isCalcData = ref(false)
 
 const targetCases = computed(() => {
@@ -67,13 +69,24 @@ const closeChips = (caseID: number) => {
 // }
 
 const calcData = async () => {
+  const CompCF: { y: number[]; d: number[] }[] = []
   const CompOut = []
+
+  const calcDiff = (base: number, value: number) => {
+    // ((CompOut[20][idx + 1] - CompOut[20][0]) !== 0.0 ? (math.abs((CompOut[20][idx + 1] - CompOut[20][0]) / CompOut[20][0])) : 0.0) * (CompOut[20][idx + 1] < CompOut[20][0] ? -1 : 1) * 100.0
+    if (base !== 0)
+      return math.abs(value - base) / math.abs(base) * 100 * (value < base ? -1 : 1)
+
+    return null
+  }
+
   let dataLoaded = false
   dataBarChartCompare.value.splice(0, dataBarChartCompare.value.length, ...[])
   dataBarChartBase.value.value.splice(0, dataBarChartBase.value.value.length, ...[])
+  dataCFChartCompare.value.splice(0, dataCFChartCompare.value.length, ...[])
   try {
     if ((CompareConf.value.source === appStore.curSelCase || CompareConf.value.comp.includes(appStore.curSelCase))
-      && appStore.selectedCase.state === 1) {
+    /* && appStore.selectedCase.state === 1 */) {
       await useDataStore().saveCaseData(appStore.curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,
@@ -114,6 +127,8 @@ const calcData = async () => {
         CompOut.splice(0, CompOut.length, ...result.summary.map((v, index) => [typeof v === "number" ? (v * (Pysc.templateSummary[index].unit === '%' ? 100 : 1)) : v]))
       else
         CompOut.forEach((row, index) => row.push(typeof result.summary[index] === "number" ? (result.summary[index] * (Pysc.templateSummary[index].unit === '%' ? 100 : 1)) : result.summary[index]))
+
+      CompCF.push({ y: result.cf.y, d: result.cf.d })
     }
     dataLoaded = true
   }
@@ -124,6 +139,7 @@ const calcData = async () => {
     })
     dataTableCompare.value.splice(0, dataTableCompare.value.length, ...[])
     dataChartCompare.value.splice(0, dataChartCompare.value.length, ...[])
+    dataCFChartCompare.value.splice(0, dataCFChartCompare.value.length, ...[])
   }
   if (dataLoaded) {
     // CompSetting.value.data.splice(0, CompSetting.value.data.length, ...CompOut)
@@ -155,18 +171,20 @@ const calcData = async () => {
       CompOut[33][0],
     ])
     dataBarChartCompare.value.splice(0, dataBarChartCompare.value.length, ...CompareConf.value.comp.map((row, idx) => {
-      return [{ value: CompOut[20][idx + 1], percent: ((CompOut[20][idx + 1] - CompOut[20][0]) !== 0.0 ? (math.abs((CompOut[20][idx + 1] - CompOut[20][0]) / CompOut[20][0])) : 0.0) * (CompOut[20][idx + 1] < CompOut[20][0] ? -1 : 1) * 100.0 }, // 'NCS'
-        { value: CompOut[24][idx + 1], percent: ((CompOut[24][idx + 1] - CompOut[24][0]) !== 0.0 ? (math.abs((CompOut[24][idx + 1] - CompOut[24][0]) / CompOut[24][0])) : 0.0) * (CompOut[24][idx + 1] < CompOut[24][0] ? -1 : 1) * 100.0 }, // 'Ctr. NPV'
-        { value: CompOut[28][idx + 1], percent: ((CompOut[28][idx + 1] - CompOut[28][0]) !== 0.0 ? (math.abs((CompOut[28][idx + 1] - CompOut[28][0]) / CompOut[28][0])) : 0.0) * (CompOut[28][idx + 1] < CompOut[28][0] ? -1 : 1) * 100.0 }, // 'Ctr. PI'
-        { value: CompOut[25][idx + 1], percent: ((CompOut[25][idx + 1] - CompOut[25][0]) !== 0.0 ? (math.abs((CompOut[25][idx + 1] - CompOut[25][0]) / CompOut[25][0])) : 0.0) * (CompOut[25][idx + 1] < CompOut[25][0] ? -1 : 1) * 100.0 }, // 'Ctr. IRR'
-        { value: CompOut[26][idx + 1], percent: ((CompOut[26][idx + 1] - CompOut[26][0]) !== 0.0 ? (math.abs((CompOut[26][idx + 1] - CompOut[26][0]) / CompOut[26][0])) : 0.0) * (CompOut[26][idx + 1] < CompOut[26][0] ? -1 : 1) * 100.0 }, // 'Ctr. POT'
-        { value: CompOut[15][idx + 1], percent: ((CompOut[15][idx + 1] - CompOut[15][0]) !== 0.0 ? (math.abs((CompOut[15][idx + 1] - CompOut[15][0]) / CompOut[15][0])) : 0.0) * (CompOut[15][idx + 1] < CompOut[15][0] ? -1 : 1) * 100.0 }, // 'CR/DC'
-        { value: CompOut[34][idx + 1], percent: ((CompOut[34][idx + 1] - CompOut[34][0]) !== 0.0 ? (math.abs((CompOut[34][idx + 1] - CompOut[34][0]) / CompOut[34][0])) : 0.0) * (CompOut[34][idx + 1] < CompOut[34][0] ? -1 : 1) * 100.0 }, // 'GoS'
-        { value: CompOut[36][idx + 1], percent: ((CompOut[36][idx + 1] - CompOut[36][0]) !== 0.0 ? (math.abs((CompOut[36][idx + 1] - CompOut[36][0]) / CompOut[36][0])) : 0.0) * (CompOut[36][idx + 1] < CompOut[36][0] ? -1 : 1) * 100.0 }, // 'GoI NPV'
-        { value: CompOut[32][idx + 1], percent: ((CompOut[32][idx + 1] - CompOut[32][0]) !== 0.0 ? (math.abs((CompOut[32][idx + 1] - CompOut[32][0]) / CompOut[32][0])) : 0.0) * (CompOut[32][idx + 1] < CompOut[32][0] ? -1 : 1) * 100.0 }, // 'DMO'
-        { value: CompOut[33][idx + 1], percent: ((CompOut[33][idx + 1] - CompOut[33][0]) !== 0.0 ? (math.abs((CompOut[33][idx + 1] - CompOut[33][0]) / CompOut[33][0])) : 0.0) * (CompOut[33][idx + 1] < CompOut[33][0] ? -1 : 1) * 100.0 }, // 'Tax'
+      return [
+        { value: CompOut[20][idx + 1], percent: calcDiff(CompOut[20][0], CompOut[20][idx + 1]) }, // 'NCS'
+        { value: CompOut[24][idx + 1], percent: calcDiff(CompOut[24][0], CompOut[24][idx + 1]) }, // 'Ctr. NPV'
+        { value: CompOut[28][idx + 1], percent: calcDiff(CompOut[28][0], CompOut[28][idx + 1]) }, // 'Ctr. PI'
+        { value: CompOut[25][idx + 1], percent: calcDiff(CompOut[25][0], CompOut[25][idx + 1]) }, // 'Ctr. IRR'
+        { value: CompOut[26][idx + 1], percent: calcDiff(CompOut[26][0], CompOut[26][idx + 1]) }, // 'Ctr. POT'
+        { value: CompOut[15][idx + 1], percent: calcDiff(CompOut[15][0], CompOut[15][idx + 1]) }, // 'CR/DC'
+        { value: CompOut[34][idx + 1], percent: calcDiff(CompOut[34][0], CompOut[34][idx + 1]) }, // 'GoS'
+        { value: CompOut[36][idx + 1], percent: calcDiff(CompOut[36][0], CompOut[36][idx + 1]) }, // 'GoI NPV'
+        { value: CompOut[32][idx + 1], percent: calcDiff(CompOut[32][0], CompOut[32][idx + 1]) }, // 'DMO'
+        { value: CompOut[33][idx + 1], percent: calcDiff(CompOut[33][0], CompOut[33][idx + 1]) }, // 'Tax'
       ]
     }))
+    dataCFChartCompare.value.splice(0, dataCFChartCompare.value.length, ...CompCF)
   }
   isCalcData.value = false
 }
@@ -183,6 +201,10 @@ const getSeriesBarChart = computed(() => {
 
 const getResultBarChart = computed(() => {
   return dataBarChartCompare.value
+})
+
+const getResultCFChart = computed(() => {
+  return dataCFChartCompare.value
 })
 
 const tableColumnHeader = computed(() => {
@@ -371,6 +393,18 @@ defineExpose({
                         :base-data="dataBarChartBase"
                         :series="getSeriesBarChart"
                         :data-chart="getResultBarChart"
+                      />
+                    </AppCardActions>
+                    <AppCardActions
+                      title="Cashflow Chart"
+                      action-collapsed
+                      compact-header
+                      class="mt-2"
+                      style="overflow:visible !important"
+                    >
+                      <CFChartCompare
+                        :series="dataChartSeries"
+                        :data-chart="getResultCFChart"
                       />
                     </AppCardActions>
                   </VCardText>

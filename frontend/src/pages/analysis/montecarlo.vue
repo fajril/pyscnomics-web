@@ -106,7 +106,21 @@ const FillDataTable = () => {
     else if (el.id === 1 && PyscConf.prodHasGas()) {
       const gasProd = PyscConf.getProducer(Pysc.ProducerType.Gas)
 
-      el.base = (gasProd?.prod_price[0][gasProd?.prod_price[0].length - 1].price) ?? 4.5
+      const arr = (gasProd ? gasProd.prod_price[0] : [0]).map(v => {
+        let val = 0
+        for (let i = 0; i < gasProd?.GSANumber; i++) {
+          if (Pysc.is_number(v.gsa[`price${i + 1}`]) && v.gsa[`price${i + 1}`] > 0) {
+            if (val === 0 || +v.gsa[`price${i + 1}`] < val)
+              val = +v.gsa[`price${i + 1}`]
+          }
+        }
+
+        return val
+      }).filter(v => v > 0)
+
+      const basePrc = math.min(arr)
+
+      el.base = basePrc > 0 ? basePrc : 4.5
     }
     else if (el.id === 2) {
       el.base = dataOpex.length ? math.sum(dataOpex) : 0
@@ -119,11 +133,26 @@ const FillDataTable = () => {
     }
 
     if (el.base) {
-      if (el.min === null || el.min === undefined || el.min >= el.base)
+      if (!Pysc.is_number(el.min) || +el.min >= el.base)
         el.min = 0.7 * el.base
-      if (el.max === null || el.max === undefined || el.max >= el.base)
+      if (!Pysc.is_number(el.max === null) || el.max <= el.base)
         el.max = 1.3 * el.base
     }
+  })
+
+  MonteStore.$patch(state => {
+    state.monteConfig.params.splice(0, state.monteConfig.params.length, ...dataTable.value.map((v, index) => {
+      const distIndex = Object.values(MonteDistType).indexOf(v.dist)
+
+      return {
+        id: v.id,
+        dist: distIndex !== -1 ? distIndex : 2,
+        min: v.min,
+        max: v.max,
+        base: null,
+        stddev: v.stddev,
+      }
+    }))
   })
 }
 
@@ -214,8 +243,9 @@ const tableMonteConfig = computed(() => {
 function ValidateData() {
   let valid = true
   dataTable.value.forEach(el => {
-    if (math.isNaN(+el.min) || el.min === null || el.min >= el.base
-      || math.isNaN(+el.max) || el.max === null || el.max <= el.base || math.isNaN(+el.stddev) || el.stddev === null
+    if (math.isNaN(+el.min) || el.min === null || (el.min > el.base && el.base !== 0)
+      || math.isNaN(+el.max) || el.max === null || (el.max < el.base && el.base !== 0)
+      || (el.min > el.max) || math.isNaN(+el.stddev) || el.stddev === null
       || !(typeof el.dist === 'string' && Object.values(MonteDistType).map(e => e.toLowerCase()).includes(el.dist.toLowerCase())))
       valid = false
   })

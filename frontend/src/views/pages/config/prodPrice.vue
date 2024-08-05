@@ -27,7 +27,9 @@ const PyscConf = usePyscConfStore()
 const { dataProd } = storeToRefs(PyscConf)
 
 // console.log(dataProd.value)
-const ProdIndex = computed(() => dataProd.value.findIndex(e => e.Tipe === props.prodType))
+const ProdIndex = computed(() => {
+  return dataProd.value.findIndex(e => e.Tipe === props.prodType)
+})
 
 const columnTable = computed((): ExcelColumnType => {
   // console.log(props.prodType)

@@ -9,7 +9,7 @@ import logo from '../images/skk2.svg?raw'
 
 export const { themeConfig, layoutConfig } = defineThemeConfig({
   app: {
-    title: 'PySCnomicsApp',
+    title: 'PSCnomics',
     logo: h('div', { innerHTML: logo, style: 'line-height:0; color: rgb(var(--v-global-theme-primary))' }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,

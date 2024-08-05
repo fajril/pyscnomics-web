@@ -211,7 +211,7 @@ defineExpose({
     <!-- Dialog close btn -->
     <DialogCloseBtn @click="isDialogVisible = false" />
     <VCard
-      title="PySCnomics Setting"
+      title="PSCnomics Setting"
       :loading="IsLoading ? 'primary' : false"
     >
       <VCardText>

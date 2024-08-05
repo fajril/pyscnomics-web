@@ -17,7 +17,7 @@ export const useWSStore = defineStore('pyscWSConf', () => {
   const appStore = useAppStore()
   const clientID: string = getUniqueID()
 
-  const endPoint = computed(() => `ws://localhost:3142/ws?client=${clientID}`)
+  const endPoint = computed(() => `ws://localhost:3142/ws?client=${clientID}&elec=1`)
   const wsConnected = ref(false)
   const listBroadCast = ref<tbroadcastItem[]>([])
   const isFirstHit = ref(true)

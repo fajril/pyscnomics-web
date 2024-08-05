@@ -1,3 +1,4 @@
+/* eslint-disable @stylistic/ts/indent */
 import { router } from '@/plugins/1.router'
 import { useAppStore } from '@/stores/appStore'
 import { usePyscConfStore } from '@/stores/genfisStore'
@@ -54,9 +55,6 @@ export const useDataStore = () => {
     if (status !== 200 || result.state !== true)
       throw new Error(`${urlpath} can't read data: please re-open project files`)
 
-    // const resInit = await execPartData(urlpath, 'GET', costmode !== undefined ? { wspath: wsPath_, mode: costmode, caseid: id } : { wspath: wsPath_, caseid: id })
-    // if (resInit.state !== true)
-    //   throw `error ${urlpath}: can't read data: please re-open project files`
     const respData = JSON.parse(JSON.stringify(result.data))
 
     // update data
@@ -82,21 +80,14 @@ export const useDataStore = () => {
         fiscal_.Fiskal2["profitability_discounted"] = false
     }
     else if (urlpath === 'rdproducer') {
-      const producer_ = respData as Array<Pysc.producerConfig>
-
-      const liftingHasBase = !isEmpty(producer_) && !isEmpty(producer_[0]) && !isEmpty(producer_[0].prod_price)
-        && !isEmpty(producer_[0].prod_price[0]) && Object.keys(producer_[0].prod_price[0]).includes("base")
-
-      if (!liftingHasBase) {
-        producer_.forEach(_lifting => {
-          _lifting?.prod_price.forEach(_rows => {
-            _rows.forEach(cols => {
-              if (cols)
-                cols["base"] = null
-            })
+      respData.forEach(_liftings => {
+        _liftings?.prod_price.forEach(_lifting => {
+          _lifting.forEach(rows => {
+            if (rows.base === undefined)
+              rows.base = null
           })
         })
-      }
+      })
     }
     else if (urlpath === 'rdcontracts') {
       const contract_ = respData as Pysc.Contracts
@@ -113,6 +104,18 @@ export const useDataStore = () => {
           if (!_keysec.includes("amortization"))
             (contract_.second as Pysc.GS)["amortization"] = false
         }
+      }
+    }
+    else if (urlpath === 'rdoptim') {
+      const optim_ = respData as optimCfg
+      if (optim_.optimization.length === 11) {
+        optim_.optimization.push({
+          parameter: 11,
+          min: 0.2,
+          max: 0.4,
+          pos: 11,
+          checked: false,
+        })
       }
     }
 
@@ -163,7 +166,7 @@ export const useDataStore = () => {
     }
   }
 
-  const resetDataStore = (newVer: number, newWS: string, _incVer: boolean = true, _incProjPath: boolean = false) => {
+  const resetDataStore = (newVer: any, newWS: string, _incVer: boolean = true, _incProjPath: boolean = false) => {
     appStore.$patch(state => {
       PyscConf.$patch(state => {
         state.tangible.splice(0, state.tangible.length, ...[Array(9).fill(null)])
@@ -314,7 +317,9 @@ export const useDataStore = () => {
       }
     }
 
-    if (dataOnly) { applyData() }
+    if (dataOnly) {
+      applyData()
+    }
     else {
       appStore.$patch(state => {
         appStore.curSelCase = curSelCase
@@ -432,6 +437,8 @@ export const useDataStore = () => {
       })
     }
     catch (err) { }
+
+    console.log('done save case')
   }
 
   const extractProject = async (projSource: string | null, wsPath: string, _oldwsPath: string | null = null) => {
@@ -1059,20 +1066,33 @@ export const useDataStore = () => {
 
     const lifting2Json = (prod: Pysc.producerConfig[], hasGas: boolean, isTransistion: boolean = false, icontract: number = 0) => {
       let lifting = {}
+
+      const validGSA = (gsa: any, numGSA: number) => {
+        const keys = Object.keys(gsa)
+        for (let i = 0; i < numGSA; i++) {
+          if (keys.includes(`vol${i + 1}`) && keys.includes(`ghv${i + 1}`)
+            && (Pysc.is_number(gsa[`vol${i + 1}`]) && +gsa[`vol${i + 1}`] > 0)
+            && (Pysc.is_number(gsa[`ghv${i + 1}`]) && +gsa[`ghv${i + 1}`] > 0))
+            return true
+        }
+
+        return false
+      }
+
       prod.forEach((value, index) => {
         for (let i = 0; i < value.ProdNumber; i++) {
           // Filtering data is has values
-          const prod_price: Pysc.prodPriceBase[] = JSON.parse(JSON.stringify(value.prod_price[i])).filter(row => {
+          const prod_price: Pysc.prodPriceBase[] = JSON.parse(JSON.stringify(value.prod_price[i])).filter((row: Pysc.prodPriceBase) => {
             if (value.Tipe === 0) {
-              return (Pysc.is_number(row.year) && Pysc.is_number(row.sales) && +row.sales > 0)
-                || (Pysc.is_number(row.year) && Pysc.is_number(row.condensate_sales)
-                  && +row.condensate_sales > 0)
+              return (Pysc.is_number(row.year) && +row.year > 0
+                && ((Pysc.is_number(row.sales) && +row.sales > 0)
+                  || (Pysc.is_number(row.condensate_sales) && +row.condensate_sales > 0)))
             }
             else if (value.Tipe === 1) {
-              return Pysc.is_number(row.year) && Pysc.is_number(row.production) && +row.production > 0
+              return Pysc.is_number(row.year) && +row.year > 0 && row.gsa && validGSA(row.gsa, value.GSANumber)
             }
             else {
-              return Pysc.is_number(row.year) && Pysc.is_number(row.sales) && +row.sales > 0
+              return Pysc.is_number(row.year) && +row.year > 0 && Pysc.is_number(row.sales) && +row.sales > 0
             }
           })
 
@@ -1083,18 +1103,9 @@ export const useDataStore = () => {
             prod_price.map(p => p.year += DelAccYear)
 
             // cut project
-            // if (+dGConf.delayAccMode === 1) {
             const del_index = prod_price.findIndex(p => p.year > (isTransistion ? end2Y : endY))
             if (del_index !== -1)
               prod_price.splice(del_index)
-
-            // }
-
-            // else if (dGConf.delayAccMode === 2) {
-            //   const del_index = prod_price.findIndex(p => p.year >= startY)
-            //   if (del_index > 0)
-            //     prod_price.splice(0, del_index)
-            // }
           }
 
           if (isTransistion) {
@@ -1113,17 +1124,17 @@ export const useDataStore = () => {
               prod_price.splice(0, prod_price.length, ...prod_price.map(row => {
                 if (row.year === endY) {
                   if (value.Tipe === 1) {
-                    if (row.production !== null)
-                      row.production *= (icontract === 0 ? factorD : (1 - factorD))
+                    if (Pysc.is_number(row.production))
+                      row.production = +row.production * (icontract === 0 ? factorD : (1 - factorD))
                     for (let ii = 0; ii < value.GSANumber; ii++) {
                       // if (row.gsa[`ghv${ii + 1}`] !== null) row.gsa[`ghv${ii + 1}`] *= (icontract === 0 ? factorD : (1 - factorD))
-                      if (row.gsa[`vol${ii + 1}`] !== null)
-                        row.gsa[`vol${ii + 1}`] *= (icontract === 0 ? factorD : (1 - factorD))
+                      if (Pysc.is_number(row.gsa[`vol${ii + 1}`]))
+                        row.gsa[`vol${ii + 1}`] = +row.gsa[`vol${ii + 1}`] * (icontract === 0 ? factorD : (1 - factorD))
                     }
                   }
                   else {
-                    if (row.sales !== null)
-                      row.sales *= (icontract === 0 ? factorD : (1 - factorD))
+                    if (Pysc.is_number(row.sales))
+                      row.sales = +row.sales * (icontract === 0 ? factorD : (1 - factorD))
                   }
                 }
 
@@ -1133,19 +1144,34 @@ export const useDataStore = () => {
           }
           if (value.Tipe === 1) {
             // GAS
-            for (var ii = 0; ii < value.GSANumber; ii++) {
+            const gasProdprice = prod_price.map(row => {
+              let production_ = +(row.production ?? 0)
+              if (production_ === 0) {
+                for (let ii = 0; ii < value.GSANumber; ii++) {
+                  if (row.gsa[`vol${ii + 1}`] && row.gsa[`ghv${ii + 1}`])
+                    production_ += +row.gsa[`vol${ii + 1}`]
+                }
+                row.production = production_
+              }
+
+              return row
+            })
+
+            for (let ii = 0; ii < value.GSANumber; ii++) {
+              const gsaFluid = gasProdprice.map(row => ({ year: Pysc.toNumnber(row.year), base: Pysc.toNumnber(row.base), production: Pysc.toNumnber(row.production), vol: Pysc.toNumnber(row.gsa[`vol${ii + 1}`]), ghv: Pysc.toNumnber(row.gsa[`ghv${ii + 1}`]), price: Pysc.toNumnber(row.gsa[`price${ii + 1}`]) })).filter(r => r.year && r.vol && r.ghv)
+
               lifting = {
                 ...lifting,
-                [`GSA${value.ProdNumber ? (` ${i + 1}`) : ''}${value.GSANumber ? (` ${ii + 1}`) : ''}`]: prod_price.length
+                [`GSA${value.ProdNumber ? (` ${i + 1}`) : ''}${value.GSANumber ? (` ${ii + 1}`) : ''}`]: gsaFluid.length
                   ? {
                     start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                     end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                    prod_rate_baseline: prod_price.map(v => v.base ?? 0),
-                    prod_rate: prod_price.map(v => v.production),
-                    lifting_rate: prod_price.map(v => v.gsa[`vol${ii + 1}`] ?? 0),
-                    price: prod_price.map(v => v.gsa[`price${ii + 1}`] ?? 0),
-                    prod_year: prod_price.map(v => v.year),
-                    ghv: prod_price.map(v => v.gsa[`ghv${ii + 1}`] ?? 0),
+                    prod_rate_baseline: gsaFluid.map(v => v.base ?? 0),
+                    prod_rate: gsaFluid.map(v => v.production ?? 0),
+                    lifting_rate: gsaFluid.map(v => v.vol ?? 0),
+                    price: gsaFluid.map(v => v.price ?? 0),
+                    prod_year: gsaFluid.map(v => v.year),
+                    ghv: gsaFluid.map(v => v.ghv ?? 0),
                     fluid_type: "Gas",
                   }
                   : undefined,
@@ -1153,11 +1179,9 @@ export const useDataStore = () => {
             }
           }
           else if (value.Tipe === 0) {
-            const oilData = prod_price.filter(row => Pysc.is_number(row.sales) && Pysc.is_number(row.price)
-              && +row.sales > 0 && +row.price > 0)
+            const oilData = prod_price.filter(row => Pysc.is_number(row.sales) && +row.sales > 0)
 
-            const condsData = prod_price.filter(row => Pysc.is_number(row.condensate_sales) && Pysc.is_number(row.condensate_price)
-              && +row.condensate_sales > 0 && +row.condensate_price > 0)
+            const condsData = prod_price.filter(row => Pysc.is_number(row.condensate_sales) && +row.condensate_sales > 0)
 
             if (oilData.length) {
               lifting = {
@@ -1166,11 +1190,11 @@ export const useDataStore = () => {
                   ? {
                     start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                     end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                    prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                    prod_rate_baseline: oilData.map(v => Pysc.toNumnber(v.base)),
                     prod_rate: null,
-                    lifting_rate: oilData.map(v => v.sales),
-                    price: oilData.map(v => v.price),
-                    prod_year: oilData.map(v => v.year),
+                    lifting_rate: oilData.map(v => Pysc.toNumnber(v.sales)),
+                    price: oilData.map(v => Pysc.toNumnber(v.price)),
+                    prod_year: oilData.map(v => Pysc.toNumnber(v.year)),
                     fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
                   }
                   : undefined,
@@ -1183,11 +1207,11 @@ export const useDataStore = () => {
                   ? {
                     start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                     end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                    prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                    prod_rate_baseline: condsData.map(v => Pysc.toNumnber(v.base)),
                     prod_rate: null,
-                    lifting_rate: condsData.map(v => v.condensate_sales),
-                    price: condsData.map(v => v.condensate_price),
-                    prod_year: condsData.map(v => v.year),
+                    lifting_rate: condsData.map(v => Pysc.toNumnber(v.condensate_sales)),
+                    price: condsData.map(v => Pysc.toNumnber(v.condensate_price)),
+                    prod_year: condsData.map(v => Pysc.toNumnber(v.year)),
                     fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
                   }
                   : undefined,
@@ -1201,11 +1225,11 @@ export const useDataStore = () => {
                 ? {
                   start_year: (isTransistion && icontract === 1 ? start2Y : startY),
                   end_year: (isTransistion && icontract === 1 ? end2Y : endY),
-                  prod_rate_baseline: prod_price.map(v => v.base ?? 0),
+                  prod_rate_baseline: prod_price.map(v => Pysc.toNumnber(v.base)),
                   prod_rate: null,
-                  lifting_rate: prod_price.map(v => v.sales),
-                  price: prod_price.map(v => v.price),
-                  prod_year: prod_price.map(v => v.year),
+                  lifting_rate: prod_price.map(v => Pysc.toNumnber(v.sales)),
+                  price: prod_price.map(v => Pysc.toNumnber(v.price)),
+                  prod_year: prod_price.map(v => Pysc.toNumnber(v.year)),
                   fluid_type: Object.values(Pysc.ProducerType)[value.Tipe],
                 }
                 : undefined,
@@ -1277,7 +1301,7 @@ export const useDataStore = () => {
           "expense_year": cost_data.length ? cost_data.map(e => toValue(e[0], null)) : (isTransistion && icontract === 1 ? [start2Y] : [startY]),
           "cost_allocation": cost_data.length ? cost_data.map(e => e[1] ?? 'Oil') : ['Oil'],
           "description": cost_data.length ? cost_data.map(e => e.slice(-1)[0] ?? '-') : ['-'],
-          "vat_portion": tcost != 3 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(tcost === 2 ? -3 : -2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
+          "vat_portion": tcost !== 3 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(tcost === 2 ? -3 : -2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
           "vat_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],
           "lbt_portion": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(-2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
           "lbt_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],

@@ -101,7 +101,7 @@ const showSumm = () => {
       <Draggable
         :initial-value="{ x: -100, y: 0 }"
         prevent-default
-        class="select-none cursor-move position-fixed"
+        class="select-none cursor-move position-absolute"
         :style="{ zIndex: 1000 }"
         :on-move="moveDragging"
       >

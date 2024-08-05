@@ -35,7 +35,7 @@ watch(alertFunc, val => {
       isShowAlert.value = false
 
     // update content
-    alertProps.value.header = val?.header ?? 'PySCnomicsApp'
+    alertProps.value.header = val?.header ?? 'PSCnomics'
     alertProps.value.text = val?.text ?? ''
     alertProps.value.isalert = val?.isalert ?? false
 

@@ -9,125 +9,133 @@ import * as lzs from 'lz-string'
 export const usePyscConfStore = defineStore('pyscEcoConf', () => {
   const generalConfig = useStorage<genConfig>(namespaceConfig('genConf'), defGenConfig(), undefined, {
     serializer: {
-      read: (v: any) => {
-        const _genConf = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defGenConfig()
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defGenConfig(),
 
-        // add field "delayAccMode, delayAccYear"
-        if (!Object.keys(_genConf).includes("delayAccMode")) {
-          _genConf["delayAccMode"] = 0
-          _genConf["delayAccYear"] = 0
-        }
+      //   const _genConf = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defGenConfig()
 
-        return _genConf
-      },
+      //   // add field "delayAccMode, delayAccYear"
+      //   if (!Object.keys(_genConf).includes("delayAccMode")) {
+      //     _genConf["delayAccMode"] = 0
+      //     _genConf["delayAccYear"] = 0
+      //   }
+
+      //   return _genConf
+      // },
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
 
   const producer = useStorage<producerConfig[]>(namespaceConfig('prod'), defProdConfig(), undefined, {
     serializer: {
-      read: (v: any) => {
-        const _liftings = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defProdConfig()
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defProdConfig(),
 
-        // add field "base" at 24/7/11
-        const hasBase = !isEmpty(_liftings) && !isEmpty(_liftings[0]) && !isEmpty(_liftings[0].prod_price)
-          && !isEmpty(_liftings[0].prod_price[0]) && Object.keys(_liftings[0].prod_price[0]).includes("base")
+      //   const _liftings = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defProdConfig()
 
-        if (!hasBase) {
-          _liftings.forEach(_lifting => {
-            _lifting?.prod_price.forEach(_rows => {
-              _rows.forEach(cols => {
-                if (cols)
-                  cols["base"] = null
-              })
-            })
-          })
-        }
+      //   // add field "base" at 24/7/11
+      //   const hasBase = !isEmpty(_liftings) && !isEmpty(_liftings[0]) && !isEmpty(_liftings[0].prod_price)
+      //     && !isEmpty(_liftings[0].prod_price[0]) && Object.keys(_liftings[0].prod_price[0]).includes("base")
 
-        return _liftings
-      },
+      //   if (!hasBase) {
+      //     _liftings.forEach(_lifting => {
+      //       _lifting?.prod_price.forEach(_rows => {
+      //         _rows.forEach(cols => {
+      //           if (cols)
+      //             cols["base"] = null
+      //         })
+      //       })
+      //     })
+      //   }
+
+      //   return _liftings
+      // },
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
 
   const contracts = useStorage<Contracts>(namespaceConfig('contract'), defContracts(), undefined, {
     serializer: {
-      read: (v: any) => {
-        const _contract = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defContracts()
-        const _keys = Object.keys(_contract.gs)
-        if (!_keys.includes("cum_production_split_offset"))
-          _contract.gs["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
-        if (!_keys.includes("amortization"))
-          _contract.gs["amortization"] = false
-        if (_contract.second) {
-          const _keysec = Object.keys(_contract.second)
-          if (_keysec.includes("field_status")) {
-            if (!_keysec.includes("cum_production_split_offset"))
-              _contract.second["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
-            if (!_keysec.includes("amortization"))
-              _contract.second["amortization"] = false
-          }
-        }
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defContracts(),
 
-        return _contract
-      },
+      //   const _contract = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defContracts()
+      //   const _keys = Object.keys(_contract.gs)
+      //   if (!_keys.includes("cum_production_split_offset"))
+      //     _contract.gs["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
+      //   if (!_keys.includes("amortization"))
+      //     _contract.gs["amortization"] = false
+      //   if (_contract.second) {
+      //     const _keysec = Object.keys(_contract.second)
+      //     if (_keysec.includes("field_status")) {
+      //       if (!_keysec.includes("cum_production_split_offset"))
+      //         _contract.second["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
+      //       if (!_keysec.includes("amortization"))
+      //         _contract.second["amortization"] = false
+      //     }
+      //   }
+
+      //   return _contract
+      // },
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
 
   const fiscal = useStorage<Fiskal>(namespaceConfig('fiscal'), defFiskal(), undefined, {
     serializer: {
-      read: (v: any) => {
-        const _fiscals = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defFiskal()
-        const fiscKey = Object.keys(_fiscals.Fiskal)
-        const fiscKey2 = Object.keys(_fiscals.Fiskal2)
-        if (!fiscKey.includes("regime"))
-          _fiscals.Fiskal["regime"] = 3
-        if (!fiscKey.includes("profitability_discounted"))
-          _fiscals.Fiskal["profitability_discounted"] = false
-        if (!fiscKey2.includes("regime"))
-          _fiscals.Fiskal2["regime"] = 3
-        if (!fiscKey2.includes("profitability_discounted"))
-          _fiscals.Fiskal2["profitability_discounted"] = false
+      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defFiskal(),
 
-        return _fiscals
-      },
+      //   const _fiscals = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defFiskal()
+      //   const fiscKey = Object.keys(_fiscals.Fiskal)
+      //   const fiscKey2 = Object.keys(_fiscals.Fiskal2)
+      //   if (!fiscKey.includes("regime"))
+      //     _fiscals.Fiskal["regime"] = 3
+      //   if (!fiscKey.includes("profitability_discounted"))
+      //     _fiscals.Fiskal["profitability_discounted"] = false
+      //   if (!fiscKey2.includes("regime"))
+      //     _fiscals.Fiskal2["regime"] = 3
+      //   if (!fiscKey2.includes("profitability_discounted"))
+      //     _fiscals.Fiskal2["profitability_discounted"] = false
+
+      //   return _fiscals
+      // },
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
 
   // costs
   const tangible = useStorage<Array<number | string | null>[]>(namespaceConfig('tangible'),
-    [Array(9).fill(null)], undefined, {
-    serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(9).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
-    },
-  })
+    [Array(9).fill(null)], undefined,
+    {
+      serializer: {
+        read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(9).fill(null)],
+        write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
+      },
+    })
 
   const intangible = useStorage<Array<number | string | null>[]>(namespaceConfig('intangible'),
-    [Array(5).fill(null)], undefined, {
-    serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(5).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
-    },
-  })
+    [Array(5).fill(null)], undefined,
+    {
+      serializer: {
+        read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(5).fill(null)],
+        write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
+      },
+    })
 
   const opex = useStorage<Array<number | string | null>[]>(namespaceConfig('opex'),
-    [Array(8).fill(null)], undefined, {
-    serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(8).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
-    },
-  })
+    [Array(8).fill(null)], undefined,
+    {
+      serializer: {
+        read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(8).fill(null)],
+        write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
+      },
+    })
 
   const asr = useStorage<Array<number | string | null>[]>(namespaceConfig('asr'),
-    [Array(4).fill(null)], undefined, {
-    serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(4).fill(null)],
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
-    },
-  })
+    [Array(4).fill(null)], undefined,
+    {
+      serializer: {
+        read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(4).fill(null)],
+        write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
+      },
+    })
 
   const appStore = useAppStore()
 

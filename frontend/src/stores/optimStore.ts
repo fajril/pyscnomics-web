@@ -1,13 +1,13 @@
-import { useAppStore } from "@/stores/appStore";
-import { namespaceConfig } from '@layouts/stores/config';
-import { useStorage } from '@vueuse/core';
-import * as lzs from 'lz-string';
+import { useAppStore } from "@/stores/appStore"
+import { namespaceConfig } from '@layouts/stores/config'
+import { useStorage } from '@vueuse/core'
+import * as lzs from 'lz-string'
 
 export const optimTarget = {
   IRR: "IRR",
   NPV: "NPV",
   PI: "PI",
-} as const;
+} as const
 export const optimParamType = {
   OIL_CTR_PRETAX: "Oil Contractor Pre Tax",
   GAS_CTR_PRETAX: "Gas Contractor Pre Tax",
@@ -20,7 +20,8 @@ export const optimParamType = {
   VAT_RATE: "VAT Rate",
   EFFECTIVE_TAX_RATE: "Effective Tax Rate",
   MINISTERIAL_DISCRETION: "Ministerial Discretion",
-} as const;
+  DEPRECIATION_ACCELERATION: "Depreciation Acceleration",
+} as const
 export interface optim_Cfg {
   parameter: number
   min: number
@@ -36,6 +37,7 @@ export interface optimCfg {
 export const usePyscOptimStore = defineStore('pyscOptimConf', () => {
   const defOptimCfg = (): optimCfg => {
     const params2I = Object.keys(optimParamType)
+
     return {
       target_parameter: Object.keys(optimTarget).indexOf(optimTarget.IRR),
       target_optimization: 0.0,
@@ -45,20 +47,31 @@ export const usePyscOptimStore = defineStore('pyscOptimConf', () => {
           min: [0, 1].includes(i) ? 0.3 : (i === 9 ? 0.4 : 0.2),
           max: [0, 1].includes(i) ? 0.6 : (i === 9 ? 0.44 : ([6, 7].includes(i) ? 1.0 : 0.4)),
           pos: i,
-          checked: false
+          checked: false,
         }
-      }))
+      })),
     }
   }
 
   const optimConfig = useStorage<optimCfg>(namespaceConfig('optimCfg'), defOptimCfg(), undefined, {
     serializer: {
-      read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : defOptimCfg(),
-      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v))
+      read: (v: any) => {
+        const res = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defOptimCfg()
+        if (res.optimization.length === 11) {
+          res.optimization.push({
+            parameter: 11,
+            min: 0.2,
+            max: 0.4,
+            pos: 11,
+            checked: false,
+          })
+        }
+
+        return res
+      },
+      write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
-
-
 
   const watcherOptimCfg = pausableWatch(optimConfig,
     (value, oldValue) => {
@@ -68,7 +81,8 @@ export const usePyscOptimStore = defineStore('pyscOptimConf', () => {
     }, { deep: true })
 
   return {
-    optimConfig, defOptimCfg,
-    watcherOptimCfg
+    optimConfig,
+    defOptimCfg,
+    watcherOptimCfg,
   }
 })

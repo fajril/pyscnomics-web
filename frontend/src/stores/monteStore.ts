@@ -72,7 +72,12 @@ export const usePyscMonteStore = defineStore('pyscMonteConf', () => {
     try {
       const MonteJson = {
         numsim: monteConfig.value.numsim,
-        parameter: JSON.parse(JSON.stringify(monteConfig.value.params)),
+        parameter: JSON.parse(JSON.stringify(monteConfig.value.params)).map(p => {
+          if (p.base === 0)
+            p.base = (p.min + p.max) / 2
+
+          return p
+        }),
         contract: useDataStore().curCase2Json(),
       }
 

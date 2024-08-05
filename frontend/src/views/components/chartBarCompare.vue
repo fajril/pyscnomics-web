@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import * as Pysc from "@/utils/pysc/pyscType";
-import { hexToRgb } from '@layouts/utils';
-import { BarChart } from "echarts/charts";
+import { hexToRgb } from '@layouts/utils'
+import { BarChart } from "echarts/charts"
 import {
   GridComponent,
   LegendComponent,
   TitleComponent,
   TooltipComponent,
-} from "echarts/components";
-import { use } from "echarts/core";
-import { CanvasRenderer } from "echarts/renderers";
-import * as math from 'mathjs';
-import VChart from "vue-echarts";
-import type { ThemeInstance } from 'vuetify';
-import { useTheme } from 'vuetify';
+} from "echarts/components"
+import { use } from "echarts/core"
+import { CanvasRenderer } from "echarts/renderers"
+import * as math from 'mathjs'
+import VChart from "vue-echarts"
+import type { ThemeInstance } from 'vuetify'
+import { useTheme } from 'vuetify'
+import * as Pysc from "@/utils/pysc/pyscType"
+
+const props = withDefaults(defineProps<Props>(), {
+  mode: 0,
+})
 
 const numbro = Pysc.useNumbro()
+
 use([
   CanvasRenderer,
   BarChart,
@@ -23,8 +28,10 @@ use([
   GridComponent,
   TooltipComponent,
   LegendComponent,
-]);
+])
+
 const vuetifyTheme = useTheme()
+
 const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] = vuetifyTheme.current.value) => {
   const themeSecondaryTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['medium-emphasis-opacity']})`
   const themeDisabledTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['disabled-opacity']})`
@@ -35,15 +42,12 @@ const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] 
 }
 
 interface Props {
-  series: { id: number, title: string, subtitle?: string }[]
+  series: { id: number; title: string; subtitle?: string }[]
   dataChart: []
-  baseData: { name: string, value: [] }
+  baseData: { name: string; value: [] }
   mode?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  mode: 0
-})
 const refCompBarContainer = ref()
 const refCompBarChart = ref()
 
@@ -63,9 +67,10 @@ const yCatName = [
 const chtOption = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
-  const chartOpt = {
+  return {
     legend: {
-      left: "center", top: 'bottom',
+      left: "center",
+      top: 'bottom',
       textStyle: props.series.length > 1 ? { width: 80, color: themePrimaryTextColor, overflow: 'truncate' } : { color: themePrimaryTextColor },
       tooltip: { show: true },
     },
@@ -92,17 +97,17 @@ const chtOption = computed(() => {
     xAxis: {
       name: '%',
       type: 'value',
-      scale: true,
+      scale: false,
       axisLabel: { color: themePrimaryTextColor },
       splitLine: { show: false, lineStyle: { color: themeBorderColor } },
       nameTextStyle: {
         color: themeDisabledTextColor,
         verticalAlign: "top",
         align: "center",
-        padding: 10
+        padding: 10,
       },
       nameLocation: "middle",
-      valueFormatter: (value) => typeof value === 'number' ? numbro(value).format({ optionalMantissa: true }) : value,
+      valueFormatter: value => typeof value === 'number' ? numbro(value).format({ optionalMantissa: true }) : value,
     },
     series: props.dataChart.map((serData, idx) => {
       return {
@@ -113,28 +118,30 @@ const chtOption = computed(() => {
         data: serData.map(v => {
           if (typeof v.percent === 'number')
             v.percent = numbro.unformat(numbro(v.percent).format({ mantissa: 5 }))
+
           return v.percent
         }),
         tooltip: {
           formatter: (params: Object | [], ticket: string) => {
             const idx_value = yCatName.findIndex(v => v.title == params.name)
             const val_vase = typeof props.baseData.value[idx_value] === 'number' ? numbro(props.baseData.value[idx_value]).format({ thousandSeparated: true, mantissa: 2 }) : ''
-            const txt = `<b>${params.name + ', <span class="text-caption">' + yCatName[idx_value].unit}</span>:</b><table>` +
-              (`<tr><td>${props.baseData.name}</td><td><span  class="me-3 ms-1">:</span></td><td class="text-right">${val_vase}</td><td></td></tr>`) +
-              props.dataChart.reduce((txt, v, i) => {
-                const name = i < props.series.length ? props.series[i].title : ''
-                const val_percent = numbro((typeof v[idx_value].percent === 'number' ? v[idx_value].percent : 0) / 100).format({ output: 'percent', mantissa: 2 })
-                const val = numbro(typeof v[idx_value].value === 'number' ? v[idx_value].value : 0).format({ thousandSeparated: true, mantissa: 2 })
-                return txt + `<tr><td>${name}</td><td><span  class="me-3 ms-1">:</span></td><td class="text-right">${val}</td><td class="text-right"><span class="ml-2 text-caption ${v[idx_value].percent < 0 ? 'text-error' : ''}"><b>${val_percent}<b></span></td></tr>`
-              }, '') + '</table>'
-            return txt
-          }
-        }
+
+            return `<b>${`${params.name}, <span class="text-caption">${yCatName[idx_value].unit}`}</span>:</b><table>`
+              + `<tr><td>${props.baseData.name}</td><td><span  class="me-3 ms-1">:</span></td><td class="text-right">${val_vase}</td><td></td></tr>${
+                props.dataChart.reduce((txt, v, i) => {
+                  const name = i < props.series.length ? props.series[i].title : ''
+                  const val_percent = numbro((typeof v[idx_value].percent === 'number' ? v[idx_value].percent : 0) / 100).format({ output: 'percent', mantissa: 2 })
+                  const val = numbro(typeof v[idx_value].value === 'number' ? v[idx_value].value : 0).format({ thousandSeparated: true, mantissa: 2 })
+
+                  return `${txt}<tr><td>${name}</td><td><span  class="me-3 ms-1">:</span></td><td class="text-right">${val}</td><td class="text-right"><span class="ml-2 text-caption ${v[idx_value].percent < 0 ? 'text-error' : 'text-primary'}"><b>${val_percent}<b></span></td></tr>`
+                }, '')}</table>`
+          },
+        },
+
         // data: idx < props.dataChart.length ? props.dataChart[idx] : []
       }
     }),
   }
-  return chartOpt
 })
 
 // watch(() => [props.baseData, props.dataChart, props.series], (val) => refCompBarChart.value?.setOption(chtOption.value))
@@ -146,22 +153,27 @@ function updateCompareBarChart() {
   })
 }
 
-useResizeObserver(refCompBarContainer, (entries) => {
+useResizeObserver(refCompBarContainer, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
-  if (refCompBarContainer.value) nextTick(() => refCompBarChart.value?.resize())
+  if (refCompBarContainer.value)
+    nextTick(() => refCompBarChart.value?.resize())
 }, { box: 'device-pixel-content-box' })
 
 onMounted(() => updateCompareBarChart())
 
 defineExpose({
-  updateCompareBarChart
+  updateCompareBarChart,
 })
 </script>
 
 <template>
   <VCardText ref="refCompBarContainer">
-    <v-chart ref="refCompBarChart" class="compare-bar-chart" :option="chtOption"
-      :style="{ minBlockSize: (props.mode == 0 ? 425 : 390) + ((math.max($props.dataChart.length, 1) - 1) * yCatName.length * 10) + 'px' }" />
+    <VChart
+      ref="refCompBarChart"
+      class="compare-bar-chart"
+      :option="chtOption"
+      :style="{ minBlockSize: `${(props.mode == 0 ? 425 : 390) + ((math.max($props.dataChart.length, 1) - 1) * yCatName.length * 10)}px` }"
+    />
   </VCardText>
 </template>

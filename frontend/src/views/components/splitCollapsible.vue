@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { breakpointsVuetifyV3 } from '@vueuse/core';
+import { breakpointsVuetifyV3 } from '@vueuse/core'
 
 interface Emit {
   (e: 'update:container', pos: number): void
@@ -16,45 +16,85 @@ const isLessThanCardBreakxl = computed(() => useMediaQuery(`(max-width: ${breakp
 const LeftColref = ref()
 const RightColref = ref()
 
-useResizeObserver(LeftColref, (entries) => {
+useResizeObserver(LeftColref, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
-  nextTick(() => { if (LeftColref.value && !leftCollapsible.value) emit('update:container', 0) })
+
+  nextTick(() => {
+    if (LeftColref.value && !leftCollapsible.value)
+      emit('update:container', 0)
+  })
 }, { box: 'device-pixel-content-box' })
-useResizeObserver(RightColref, (entries) => {
+useResizeObserver(RightColref, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
-  nextTick(() => { if (RightColref.value && !rightCollapsible.value) emit('update:container', 1) })
+
+  nextTick(() => {
+    if (RightColref.value && !rightCollapsible.value)
+      emit('update:container', 1)
+  })
 }, { box: 'device-pixel-content-box' })
 </script>
 
 <template>
   <VRow style="overflow:visible !important">
-    <VCol ref="LeftColref" cols="12" :style="{
-      'border-inline-end': '1px solid rgba(var(--v-border-color), 0.4)',
-      maxWidth: leftCollapsible ? `${isLessThanCardBreakmd ? 30 : (isLessThanCardBreaklg ? 25 : 20)}% !important` :
-        (rightCollapsible ? (isLessThanCardBreakmd ? undefined : (`${isLessThanCardBreaklg ? 75 : 80}% !important`)) :
-          (isLessThanCardBreakmd ? undefined : `${50}% !important`))
-    }" :class="{ 'mr-auto': !isLessThanCardBreakmd }">
-      <div class="d-flex position-relative"
-        :style="{ marginBottom: '-20px', top: '-20px', left: 'calc(100% - 13px)', zIndex: '1000' }">
-        <IconBtn size="small" class="me-n1"
-          @click="() => { if (rightCollapsible) rightCollapsible = false; else leftCollapsible = !leftCollapsible; }">
-          <VIcon icon="tabler-caret-left" class="text-disabled" />
+    <VCol
+      ref="LeftColref"
+      cols="12"
+      :style="{
+        'border-inline-end': '1px solid rgba(var(--v-border-color), 0.4)',
+        'maxWidth': leftCollapsible ? `${isLessThanCardBreakmd ? 30 : (isLessThanCardBreaklg ? 25 : 20)}% !important`
+          : (rightCollapsible ? (isLessThanCardBreakmd ? undefined : (`${isLessThanCardBreaklg ? 75 : 80}% !important`))
+            : (isLessThanCardBreakmd ? undefined : `${50}% !important`)),
+      }"
+      :class="{ 'mr-auto': !isLessThanCardBreakmd }"
+    >
+      <div
+        class="d-flex position-relative"
+        :style="{ marginBottom: '-20px', top: '-20px', left: 'calc(100% - 17px)', zIndex: '1000' }"
+      >
+        <IconBtn
+          size="small"
+          class="me-n1"
+          @click="() => { if (rightCollapsible) rightCollapsible = false; else leftCollapsible = !leftCollapsible; }"
+        >
+          <VIcon
+            icon="tabler-caret-left"
+            class="text-disabled"
+          />
         </IconBtn>
-        <IconBtn size="small" class="ms-n1"
-          @click="() => { if (leftCollapsible) leftCollapsible = false; else rightCollapsible = !rightCollapsible; }">
-          <VIcon icon="tabler-caret-right" class="text-disabled" />
+        <IconBtn
+          size="small"
+          class="ms-n1"
+          @click="() => { if (leftCollapsible) leftCollapsible = false; else rightCollapsible = !rightCollapsible; }"
+        >
+          <VIcon
+            icon="tabler-caret-right"
+            class="text-disabled"
+          />
         </IconBtn>
       </div>
-      <slot name="left" :collapsible="leftCollapsible" :collapsed="(val: boolean) => leftCollapsible = val" />
+      <slot
+        name="left"
+        :collapsible="leftCollapsible"
+        :collapsed="(val: boolean) => leftCollapsible = val"
+      />
     </VCol>
-    <VCol ref="RightColref" cols="12" :style="{
-      maxWidth: rightCollapsible ? `${isLessThanCardBreakmd ? 30 : (isLessThanCardBreaklg ? 25 : 20)}% !important` :
-        (leftCollapsible ? (isLessThanCardBreakmd ? undefined : (`${isLessThanCardBreaklg ? 75 : 80}% !important`)) :
-          (isLessThanCardBreakmd ? undefined : `${50}% !important`))
-    }" :class="{ 'ml-auto': !isLessThanCardBreakmd }">
-      <slot name="right" :collapsible="rightCollapsible" :collapsed="(val: boolean) => rightCollapsible = val" />
+    <VCol
+      ref="RightColref"
+      cols="12"
+      :style="{
+        maxWidth: rightCollapsible ? `${isLessThanCardBreakmd ? 30 : (isLessThanCardBreaklg ? 25 : 20)}% !important`
+          : (leftCollapsible ? (isLessThanCardBreakmd ? undefined : (`${isLessThanCardBreaklg ? 75 : 80}% !important`))
+            : (isLessThanCardBreakmd ? undefined : `${50}% !important`)),
+      }"
+      :class="{ 'ml-auto': !isLessThanCardBreakmd }"
+    >
+      <slot
+        name="right"
+        :collapsible="rightCollapsible"
+        :collapsed="(val: boolean) => rightCollapsible = val"
+      />
     </VCol>
   </VRow>
 </template>

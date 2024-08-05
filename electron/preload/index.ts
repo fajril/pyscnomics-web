@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   listPath: (lookup: string) => ipcRenderer.invoke('app:readPath', lookup),
   getPort: () => ipcRenderer.invoke('config:getPort'),
   setPort: (port?: number, showLog?: boolean) => ipcRenderer.invoke('config:setPort', port, showLog),
+  isFreshInstall: () => ipcRenderer.invoke('app:fresh'),
 
   chkPython: () => ipcRenderer.invoke('config:chkPython'),
   chkPIP: () => ipcRenderer.invoke('config:chkPIP'),
