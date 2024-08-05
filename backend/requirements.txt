@@ -15,5 +15,5 @@ pyxirr==0.9.3
 pyxlsb>=1.0.10
 scipy==1.13.1
 click==8.1.7
-joblib
+dask[distributed]
 psutil

@@ -1,35 +1,25 @@
-import asyncio
 import base64
 import copy
-import hashlib
 import json
-import logging
-import multiprocessing
 import os as os
 import pickle
 import struct
 import sys
-import threading
-import time
 from pathlib import Path
 
 import numpy as np
-from joblib import Parallel, delayed
-from pyscnomics.api.adapter import (
-    get_baseproject,
-    get_costrecovery,
-    get_grosssplit,
-    get_transition,
-)
-from pyscnomics.optimize.uncertainty import (
-    get_multipliers_montecarlo,
-)
 
 
 class ProcessMonte:
     target = ["npv", "irr", "pi", "pot", "gov_take", "ctr_net_share"]
 
     def __init__(self, type, ws, id, contract, numSim, params):
+        import hashlib
+
+        from pyscnomics.optimize.uncertainty import (
+            get_multipliers_montecarlo,
+        )
+
         self.type = type
         self.ws = ws
         self.id = id
@@ -45,6 +35,23 @@ class ProcessMonte:
             json.dumps(contract, separators=(",", ":")).encode()
         ).hexdigest()
 
+        # Get multipliers
+        self.multipliers = np.ones([self.numSim, len(self.parameter)], dtype=np.float64)
+
+        for i in range(len(self.parameter)):
+            self.multipliers[:, i] = get_multipliers_montecarlo(
+                run_number=self.numSim,
+                distribution=(
+                    "Uniform"
+                    if self.parameter[i]["dist"] == 0
+                    else "Triangular" if self.parameter[i]["dist"] == 1 else "Normal"
+                ),
+                min_value=self.parameter[i]["min"],
+                mean_value=self.parameter[i]["base"],
+                max_value=self.parameter[i]["max"],
+                std_dev=self.parameter[i]["stddev"],
+            )
+
     def Adjust_Data(self, multipliers: np.ndarray):
         Adj_Contract = copy.deepcopy(self.baseContract)
 
@@ -53,6 +60,12 @@ class ProcessMonte:
         ):
             for item_key in contract_[key].keys():
                 item = contract_[key][item_key]
+                if (
+                    par == "Lifting"
+                    and key == "lifting"
+                    and item["fluid_type"] == "Gas"
+                ):
+                    continue
                 if key == "lifting":
                     if (
                         (par == "Oil Price" and item["fluid_type"] == "Oil")
@@ -73,42 +86,52 @@ class ProcessMonte:
                             np.array(item[data_key]) * multiplier
                         ).tolist()
 
-        for iloop in range(2 if self.type >= 3 else 1):
-            contract_ = (
-                Adj_Contract if self.type < 3 else Adj_Contract[f"contract_{iloop+1}"]
-            )
-            for i in range(len(self.parameter)):
-                # OIl
-                if self.parameter[i]["id"] == 0:
-                    Adj_Partial_Data(contract_, "Oil Price", "lifting", multipliers[i])
-                elif self.parameter[i]["id"] == 1:
-                    Adj_Partial_Data(contract_, "Gas Price", "lifting", multipliers[i])
-                elif self.parameter[i]["id"] == 2:
-                    Adj_Partial_Data(
-                        contract_,
-                        "OPEX",
-                        "opex",
-                        multipliers[i],
-                        ["fixed_cost", "cost_per_volume"],
-                    )
-                elif self.parameter[i]["id"] == 3:
-                    Adj_Partial_Data(
-                        contract_, "CAPEX", "tangible", multipliers[i], ["cost"]
-                    )
-                    Adj_Partial_Data(
-                        contract_, "CAPEX", "intangible", multipliers[i], ["cost"]
-                    )
-                elif self.parameter[i]["id"] == 4:
-                    Adj_Partial_Data(contract_, "Lifting", "lifting", multipliers[i])
+        # for iloop in range(2 if self.type >= 3 else 1):
+        contract_ = (
+            # Adj_Contract if self.type < 3 else Adj_Contract[f"contract_{iloop+1}"]
+            Adj_Contract
+            if self.type < 3
+            else Adj_Contract[f"contract_{2}"]
+        )
+        for i in range(len(self.parameter)):
+            # OIl
+            if self.parameter[i]["id"] == 0:
+                Adj_Partial_Data(contract_, "Oil Price", "lifting", multipliers[i])
+            elif self.parameter[i]["id"] == 1:
+                Adj_Partial_Data(contract_, "Gas Price", "lifting", multipliers[i])
+            elif self.parameter[i]["id"] == 2:
+                Adj_Partial_Data(
+                    contract_,
+                    "OPEX",
+                    "opex",
+                    multipliers[i],
+                    ["fixed_cost", "cost_per_volume"],
+                )
+            elif self.parameter[i]["id"] == 3:
+                Adj_Partial_Data(
+                    contract_, "CAPEX", "tangible", multipliers[i], ["cost"]
+                )
+                Adj_Partial_Data(
+                    contract_, "CAPEX", "intangible", multipliers[i], ["cost"]
+                )
+            elif self.parameter[i]["id"] == 4:
+                Adj_Partial_Data(contract_, "Lifting", "lifting", multipliers[i])
 
-            return Adj_Contract
+        return Adj_Contract
 
-    def calcContract(self, n: int, multipiers: np.ndarray):
+    def calcContract(self, n: int):
+        from pyscnomics.api.adapter import (
+            get_baseproject,
+            get_costrecovery,
+            get_grosssplit,
+            get_transition,
+        )
+
         try:
             print(f"Monte Progress:{n}", flush=True)
             # time.sleep(100)
 
-            dataAdj = self.Adjust_Data(multipiers)
+            dataAdj = self.Adjust_Data(self.multipliers[n, :])
             csummary = (
                 get_costrecovery(data=dataAdj)[0]
                 if self.type == 1
@@ -149,44 +172,27 @@ class ProcessMonte:
             }
 
     def calculate(self):
-        # Get multipliers
-        multipliers = np.ones([self.numSim, len(self.parameter)], dtype=np.float64)
-
-        for i in range(len(self.parameter)):
-            multipliers[:, i] = get_multipliers_montecarlo(
-                run_number=self.numSim,
-                distribution=(
-                    "Uniform"
-                    if self.parameter[i]["dist"] == 0
-                    else "Triangular" if self.parameter[i]["dist"] == 1 else "Normal"
-                ),
-                min_value=self.parameter[i]["min"],
-                mean_value=self.parameter[i]["base"],
-                max_value=self.parameter[i]["max"],
-                std_dev=self.parameter[i]["stddev"],
-            )
-
-        # Execute MonteCarlo simulation
-        parallel = Parallel(
-            n_jobs=-1,
-            return_as="generator_unordered",
-        )
-        output_generator = parallel(
-            delayed(self.calcContract)(n, multipliers[n, :]) for n in range(self.numSim)
-        )
+        import dask.bag as db
+        from dask.distributed import Client
 
         results = np.zeros(
             [self.numSim, len(self.target) + len(self.parameter)], dtype=np.float64
         )
 
-        for res in output_generator:
+        # Execute MonteCarlo simulation
+        client = Client()
+        b = db.from_sequence(range(self.numSim), partition_size=100)
+        futures = b.map(self.calcContract).compute()
+        # print(futures)
+        for res in futures:
+            # for res in outcalcmonte.get():
             results[res["n"], 0 : len(self.target)] = res["output"]
             results[res["n"], len(self.target) :] = [
-                multipliers[res["n"], index] * item["base"]
+                self.multipliers[res["n"], index] * item["base"]
                 for index, item in enumerate(self.parameter)
             ]
 
-        del output_generator
+        client.close()
 
         # Sorted the results
         results_sorted = np.take_along_axis(
@@ -239,14 +245,10 @@ class ProcessMonte:
 
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
-    print(sys.argv)
     wsPathB64 = sys.argv[1] if len(sys.argv) == 2 else None
-    print(wsPathB64)
     if wsPathB64 is None:
         exit(1)
     dataPath = Path(base64.b64decode(wsPathB64).decode("utf-8"))
-    print(dataPath)
     if not dataPath.exists():
         exit(1)
     with open(dataPath, "rb") as fl:
@@ -256,11 +258,12 @@ if __name__ == "__main__":
     id = jsonData["id"]
     dataJson = base64.b64decode(jsonData["json"]).decode("utf-8")
     json_dict: dict = json.loads(dataJson)
-    ProcessMonte(
+    monteProcessing = ProcessMonte(
         type,
         dataPath.parent,
         id,
         json_dict["contract"],
         json_dict["numsim"],
         json_dict["parameter"],
-    ).calculate()
+    )
+    monteProcessing.calculate()

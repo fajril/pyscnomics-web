@@ -9,6 +9,7 @@ import select
 import shutil
 import string
 import struct
+import threading
 import traceback
 
 # from distutils.sysconfig import EXEC_PREFIX
@@ -22,7 +23,8 @@ from fastapi import APIRouter, Body, Depends, Form, HTTPException, status
 # from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pyapp.modules.filebrowser import list_drives, list_files
-from pyapp.modules.monte import ProcessMonte
+
+# from pyapp.modules.monte import ProcessMonte
 from pyapp.modules.sens import ProcessSens
 from pyapp.shemas import TableRequest
 from pyapp.shemas.project import ProjectCreate, ProjectUpdate
@@ -232,6 +234,31 @@ async def extractProject(data: dict):
         else:
             raise Exception(resPackar)
 
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/chkprjintegrity", response_class=JSONResponse)
+async def chkexistingcases(data: dict):
+    try:
+        datajson = json.loads(base64.b64decode(data["json"]).decode("utf-8"))
+        ws = datajson["ws"]
+        cases = datajson["cases"]
+        wsPath: Path = Path(basePyPath, "~tmp", f"{ws}")
+        if not wsPath.exists() and not Path(wsPath, "cases.bin").exists():
+            return {"valid": False}
+        # tes genconf only
+        for idx, icase in enumerate(cases):
+            id = icase["id"]
+            if not Path(wsPath, f"genconf_{id}.bin").exists():
+                return {"valid": False}
+
+        return {"valid": True}
     except Exception as err:
         print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
         print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
@@ -501,7 +528,8 @@ async def rdproducer(wspath: str, caseid: int):
     pathFile = Path(basePyPath, "~tmp", f"{wspath}")
     if pathFile.exists():
         packer = pyscPacker()
-        return {"state": True, "data": packer.loadproducer(pathFile, caseid)}
+        proddata = {"state": True, "data": packer.loadproducer(pathFile, caseid)}
+        return proddata
     return {"state": False}
 
 
@@ -930,11 +958,16 @@ async def get_case_summaries(dataEnt: dict):
         sumCalc = Summaries(type, json_dict)
         summary = sumCalc.summary
         contracts = sumCalc.contract
+
         return {
             "summary": [
                 summary[key] if key != "none" else None
                 for i, key in enumerate(keyofsum)
-            ]
+            ],
+            "cf": {
+                "y": sumCalc.Year,
+                "d": sumCalc.getCashFlow()["table"][0],
+            },
         }
     except Exception as err:
         print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
@@ -1006,19 +1039,25 @@ async def calc_monte(data: dict):
         with open(dataPath, "wb") as fw:
             pickle.dump(data, fw)
             fw.close()
+        b64filePath = base64.b64encode(str(dataPath).encode())
+        return {"state": "running", "path": b64filePath}
+
         # type = data["type"]
         # dataJson = base64.b64decode(data["json"]).decode("utf-8")
         # json_dict: dict = json.loads(dataJson)
-        # ProcessMonte(
+        # monte = ProcessMonte(
         #     type,
         #     ws,
         #     id,
         #     json_dict["contract"],
         #     json_dict["numsim"],
         #     json_dict["parameter"],
-        # ).run()
-        b64filePath = base64.b64encode(str(dataPath).encode())
-        return {"state": "running", "path": b64filePath}
+        # )
+        # await monte.calculate()
+        # # del monte
+        # # print("monte del")
+        # return {"state": "off", "path": False}
+
     except Exception as err:
         print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
         print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
@@ -1087,7 +1126,9 @@ async def calc_optim(dataDict: dict):
             else (
                 get_contract_optimization(data=json_dict, contract_type="Gross Split")
                 if type == 2
-                else None
+                else get_contract_optimization(
+                    data=json_dict, contract_type="Transition"
+                )
             )
         )
         if resOptim is not None:
@@ -1095,59 +1136,60 @@ async def calc_optim(dataDict: dict):
             sumCalc = Summaries(type, json_dict)
             baseSummary = sumCalc.summary
             json_dict2 = copy.deepcopy(json_dict)
+            contract = json_dict2 if type < 3 else json_dict2["contract_2"]
             for i, key in enumerate(resOptim["list_params_value"].keys()):
                 if (
                     key == "Oil Contractor Pre Tax"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["costrecovery"]["oil_ctr_pretax_share"] = resOptim[
+                    contract["costrecovery"]["oil_ctr_pretax_share"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Gas Contractor Pre Tax"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["costrecovery"]["gas_ctr_pretax_share"] = resOptim[
+                    contract["costrecovery"]["gas_ctr_pretax_share"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Oil FTP Portion"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["costrecovery"]["oil_ftp_portion"] = resOptim[
+                    contract["costrecovery"]["oil_ftp_portion"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Gas FTP Portion"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["costrecovery"]["gas_ftp_portion"] = resOptim[
+                    contract["costrecovery"]["gas_ftp_portion"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Oil IC"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["costrecovery"]["oil_ic_rate"] = resOptim[
+                    contract["costrecovery"]["oil_ic_rate"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Gas IC"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["costrecovery"]["gas_ic_rate"] = resOptim[
+                    contract["costrecovery"]["gas_ic_rate"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Oil DMO Fee"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    if type == 1:
-                        json_dict2["costrecovery"]["oil_dmo_fee_portion"] = resOptim[
+                    if type in [1, 3, 6]:
+                        contract["costrecovery"]["oil_dmo_fee_portion"] = resOptim[
                             "list_params_value"
                         ][key]
                     else:
-                        json_dict2["grosssplit"]["oil_dmo_fee_portion"] = resOptim[
+                        contract["grosssplit"]["oil_dmo_fee_portion"] = resOptim[
                             "list_params_value"
                         ][key]
                 elif (
@@ -1155,34 +1197,44 @@ async def calc_optim(dataDict: dict):
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
                     if type == 1:
-                        json_dict2["costrecovery"]["gas_dmo_fee_portion"] = resOptim[
+                        contract["costrecovery"]["gas_dmo_fee_portion"] = resOptim[
                             "list_params_value"
                         ][key]
                     else:
-                        json_dict2["grosssplit"]["gas_dmo_fee_portion"] = resOptim[
+                        contract["grosssplit"]["gas_dmo_fee_portion"] = resOptim[
                             "list_params_value"
                         ][key]
                 elif (
                     key == "VAT Rate"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["contract_arguments"]["vat_rate"] = resOptim[
+                    contract["contract_arguments"]["vat_rate"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Effective Tax Rate"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["contract_arguments"]["tax_rate"] = resOptim[
+                    contract["contract_arguments"]["tax_rate"] = resOptim[
                         "list_params_value"
                     ][key]
                 elif (
                     key == "Ministerial Discretion"
                     and resOptim["list_params_value"][key] != "Base Value"
                 ):
-                    json_dict2["grosssplit"]["split_ministry_disc"] = resOptim[
+                    contract["grosssplit"]["split_ministry_disc"] = resOptim[
                         "list_params_value"
                     ][key]
+                elif (
+                    key == "Depreciation Acceleration"
+                    and resOptim["list_params_value"][key]["depreciation acceleration"]
+                    != "Base Value"
+                ):
+                    for k in contract["tangible"].keys():
+                        contract["tangible"][k]["useful_life"] = resOptim[
+                            "list_params_value"
+                        ][key]["optimized_useful_life"]["useful_life_optimized"]
+
             sumCalc2 = Summaries(type, json_dict2)
             optimSummary = sumCalc2.summary
             keyofsum = [

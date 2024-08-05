@@ -461,11 +461,15 @@ class pyscPacker:
         self.writePack(value["sunk_cost_reference_year"], "i", fs)
         # versi 13
         self.writePack(
-          value["profitability_discounted"] if "profitability_discounted" in value.keys() else False, "?", fs  
+            (
+                value["profitability_discounted"]
+                if "profitability_discounted" in value.keys()
+                else False
+            ),
+            "?",
+            fs,
         )
-        self.writePack(
-          value["regime"] if "regime" in value.keys() else 3, "h", fs  
-        )
+        self.writePack(value["regime"] if "regime" in value.keys() else 3, "h", fs)
 
     def readFiscalBase(self, fs: BufferedReader, vfl: int) -> dict:
         return {
@@ -486,8 +490,10 @@ class pyscPacker:
             "co2_revenue_config": self.readPack("h", fs, 0),
             "sunk_cost_reference_year": self.readPack("i", fs, 0),
             # versi 13
-            "profitability_discounted": self.readPack("?", fs, False) if vfl>=13 else False,
-            "regime": self.readPack("h", fs, 3) if vfl>=13 else 3,
+            "profitability_discounted": (
+                self.readPack("?", fs, False) if vfl >= 13 else False
+            ),
+            "regime": self.readPack("h", fs, 3) if vfl >= 13 else 3,
         }
 
     def writeDMO(self, value: dict, fs: BufferedWriter):
@@ -707,17 +713,23 @@ class pyscPacker:
                                 for idx, key in enumerate(keys):
                                     self.writePack(gsa[key], "d", fs)
                                 # versi 13
-                                self.writePack(item["base"] if "base" in item.keys() else None, "d", fs)
+                                self.writePack(
+                                    item["base"] if "base" in item.keys() else None,
+                                    "d",
+                                    fs,
+                                )
                 else:
                     self.writePack(len(prodItem), "i", fs)
                     if len(prodItem) > 0:
                         for i, item in enumerate(prodItem):
                             if isinstance(item, dict):
-                              for idx, key in enumerate(item.keys()):
-                                  self.writePack(item[key], "i" if key =="year" else "d", fs)
-                              # versi 13
-                              if "base" not in item.keys():
-                                 self.writePack(None, "d", fs)
+                                for idx, key in enumerate(item.keys()):
+                                    self.writePack(
+                                        item[key], "i" if key == "year" else "d", fs
+                                    )
+                                # versi 13
+                                if "base" not in item.keys():
+                                    self.writePack(None, "d", fs)
                     # self.writeTable(prodItem, ["i", "d"], fs)
 
     def readProducer(self, fs: BufferedReader, vfl: int):
@@ -737,45 +749,56 @@ class pyscPacker:
 
         def readTable_(tipeProd: int):
             if tipeProd == 0:  # Oil Producer
-                
+
                 return self.readTable(
-                    {
-                      "year": "i",
-                      "sales": "d",
-                      "price": "d",
-                      "condensate_sales": "d",
-                      "condensate_price": "d",
-                      "base": "d",
-                    } if vfl>=13 else {
-                      "year": "i",
-                      "sales": "d",
-                      "price": "d",
-                      "condensate_sales": "d",
-                      "condensate_price": "d",
-                    },
+                    (
+                        {
+                            "year": "i",
+                            "sales": "d",
+                            "price": "d",
+                            "condensate_sales": "d",
+                            "condensate_price": "d",
+                            "base": "d",
+                        }
+                        if vfl >= 13
+                        else {
+                            "year": "i",
+                            "sales": "d",
+                            "price": "d",
+                            "condensate_sales": "d",
+                            "condensate_price": "d",
+                        }
+                    ),
                     fs,
                 )
             elif tipeProd == 1:  # Gas Producer
                 len_iTable = int(self.readPack("i", fs, 0))
                 return [
-                    {
-                        "year": self.readPack("i", fs),
-                        "production": self.readPack("d", fs),
-                        "gsa": readGSA(),
-                        "base": "d",
-                    } if vfl>=13 else {
-                        "year": self.readPack("i", fs),
-                        "production": self.readPack("d", fs),
-                        "gsa": readGSA(),
-                    }
+                    (
+                        {
+                            "year": self.readPack("i", fs),
+                            "production": self.readPack("d", fs),
+                            "gsa": readGSA(),
+                            "base": self.readPack("d", fs),
+                        }
+                        if vfl >= 13
+                        else {
+                            "year": self.readPack("i", fs),
+                            "production": self.readPack("d", fs),
+                            "gsa": readGSA(),
+                        }
+                    )
                     for i in range(len_iTable)
                 ]
             else:
                 return self.readTable(
-                    {
-                      "year": "i", "sales": "d", "price": "d", "base": "d"
-                    } if vfl>=13 else { "year": "i", "sales": "d", "price": "d" }
-                    , fs)
+                    (
+                        {"year": "i", "sales": "d", "price": "d", "base": "d"}
+                        if vfl >= 13
+                        else {"year": "i", "sales": "d", "price": "d"}
+                    ),
+                    fs,
+                )
 
         def readProdPrice(tipeProd: int):
             TableProdPrice = []
@@ -811,9 +834,7 @@ class pyscPacker:
                         )
                     else:
                         TableProdPrice.append(
-                            [
-                              {"year": None, "sales": None, "price": None, "base": None}
-                            ]
+                            [{"year": None, "sales": None, "price": None, "base": None}]
                         )
                 else:
                     TableProdPrice.append(iTable)
@@ -993,6 +1014,7 @@ class pyscPacker:
                 for idx, icase in enumerate(cases):
                     id = icase["id"] if useID else idx
                     self.extractSens(target, fs, id, True)
+
                 # extract monte
                 for idx, icase in enumerate(cases):
                     id = icase["id"] if useID else idx
@@ -1160,7 +1182,7 @@ class pyscPacker:
         numsim = int(self.readPack("i", fs, 1000))
         lenParams = int(self.readPack("i", fs, 0))
         if lenParams:
-            return {
+            montecfgs_ = {
                 "numsim": numsim,
                 "params": [
                     {
@@ -1174,6 +1196,7 @@ class pyscPacker:
                     for i in range(lenParams)
                 ],
             }
+            return montecfgs_
         else:
             return self.defMonteCfg()
 
@@ -1377,9 +1400,7 @@ class pyscPacker:
 
     def extractProject(self, filePath: Path, oldWSPath: str | None, newWSPath: str):
         owsPath: Path | None = (
-            None
-            if oldWSPath is None
-            else Path(self.root_path,"~tmp", f"{oldWSPath}")
+            None if oldWSPath is None else Path(self.root_path, "~tmp", f"{oldWSPath}")
         )
         wsPath: Path = Path(self.root_path, "~tmp", f"{newWSPath}")
         result = "Path not found"
@@ -1405,14 +1426,12 @@ class pyscPacker:
             except Exception:
                 pass
 
-        tmpPath = Path(self.root_path,"~tmp", f"{wspath}")
+        tmpPath = Path(self.root_path, "~tmp", f"{wspath}")
         if typechg:
             try:
                 genconf = self.loadGenConfig(tmpPath, sourceid)
                 genconf["type_of_contract"] = ctrType
-                with open(
-                    Path(tmpPath, f"genconf_{targetid}.bin"), "wb"
-                ) as out1:
+                with open(Path(tmpPath, f"genconf_{targetid}.bin"), "wb") as out1:
                     pickle.dump(genconf, out1)
             except Exception:
                 pass
@@ -1445,9 +1464,7 @@ class pyscPacker:
                     ]:
                         contracts["gs"] = contracts["second"]
                     contracts["second"] = None
-                with open(
-                    Path(tmpPath, f"contracts_{targetid}.bin"), "wb"
-                ) as out2:
+                with open(Path(tmpPath, f"contracts_{targetid}.bin"), "wb") as out2:
                     pickle.dump(contracts, out2)
             except Exception:
                 pass
@@ -1468,9 +1485,7 @@ class pyscPacker:
         try:
             genconf = self.loadGenConfig(tmpPath, sourceid)
             genconf["type_of_contract"] = newCtrType
-            with open(
-                Path(tmpPath, f"genconf_{sourceid}.bin"), "wb"
-            ) as out1:
+            with open(Path(tmpPath, f"genconf_{sourceid}.bin"), "wb") as out1:
                 pickle.dump(genconf, out1)
         except Exception:
             pass
@@ -1498,9 +1513,7 @@ class pyscPacker:
                 ]:
                     contracts["gs"] = contracts["second"]
                 contracts["second"] = None
-            with open(
-                Path(tmpPath, f"contracts_{sourceid}.bin"), "wb"
-            ) as out2:
+            with open(Path(tmpPath, f"contracts_{sourceid}.bin"), "wb") as out2:
                 pickle.dump(contracts, out2)
         except Exception:
             pass
