@@ -203,7 +203,8 @@ $typography-body-1-line-height: 1.375rem;
   $chip-height: 32px !default,
   $chip-close-size: 1.25rem !default,
   $chip-elevation: 0 !default,
-  $chip-icon-font-size: 1.25rem !default,
+  $chip-icon-size-multiplier: calc(18/21) !default,
+  //$chip-icon-font-size: 1.25rem !default,
 
   // 👉 Button
   $button-height: 38px !default,

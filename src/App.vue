@@ -65,6 +65,10 @@ watch(alertFunc, val => {
 </template>
 
 <style lang="scss">
+html {
+ overflow-y: auto !important;
+}
+
 .htMenu.htContextMenu.handsontable {
   z-index: 9000 !important;
 }

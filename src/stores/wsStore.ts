@@ -40,8 +40,21 @@ export const useWSStore = defineStore('pyscWSConf', () => {
       try {
         const jObj = JSON.parse(e.data)
         if (jObj.module && jObj.module === 'os:conf') {
-          appStore.$patch({
-            osConf: JSON.parse(atob(jObj.data.data)),
+          const selBroadcast = listBroadCast.value.filter(v => v.name === jObj.module)
+          const msg = JSON.parse(atob(jObj.data.data))
+          if (jObj.data.type === 'os:conf') {
+            appStore.$patch({
+              osConf: msg,
+            })
+          }
+          else if (jObj.data.type === 'os:failPort') {
+            appStore.showAlert({
+              text: `port ${msg.port} is already in use, please choose another one`,
+              isalert: true,
+            })
+          }
+          selBroadcast.forEach(b => {
+            b.callable(jObj)
           })
         }
         else if (jObj.module && jObj.id && jObj.id === clientID) {

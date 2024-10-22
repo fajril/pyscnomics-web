@@ -38,6 +38,10 @@ const CompSetting = computed(() => {
     },
     columns: [],
     contextMenu: Pysc.TableContextMenus([{ name: 'copy' }, { name: 'copy_with_column_headers' }]),
+    beforeCopy: (data, coords) => {
+      if (data.length)
+        data.splice(0, data.length, ...data.map(r => r.map(c => `${c ?? ''}`.replace(/<\/?("[^"]*"|'[^']*'|[^>])*(>|$)/g, " "))))
+    },
     height: 'auto',
     width: '100%',
     fixedColumnsStart: 1,
@@ -137,14 +141,85 @@ watch(() => [propData.value, propColumn.value], val => {
     tblCompare.value?.hotInstance.updateSettings(CompSetting.value)
   })
 }, { deep: true })
+
+const getDataSource = () => {
+  return [tblCompare.value?.hotInstance.getColHeader().map(v => v.replace(/<\/?("[^"]*"|'[^']*'|[^>])*(>|$)/g, " ")), ...tblCompare.value?.hotInstance.getData()]
+}
+
+defineExpose({
+  getDataSource,
+})
 </script>
 
 <template>
   <VCardText>
     <HotTable
       ref="tblCompare"
+      class="ht-compare-case"
       :settings="CompSetting"
       license-key="non-commercial-and-evaluation"
     />
   </VCardText>
 </template>
+
+<style lang="scss">
+ .ht-compare-case {
+  $bg-rank-1: #01c014;
+  $bg-rank-2: #00948d;
+  $bg-rank-3: #0011ab;
+  $bg-rank-4: #a900af;
+  $bg-rank-5: #b4b700;
+  $bg-rank-6: #c68400;
+  $bg-rank-7: #b20059;
+  $bg-rank-8: #6f0101;
+  $bg-rank-9: #730177;
+  $bg-rank-10: #0d0071;
+  $bg-rank-11: #00655ed4;
+  $bg-rank-12: #00651493;
+  $bg-rank-13: #445000;
+  $bg-rank-14: #c62100;
+  th:nth-child(2) {
+    background-color: rgba($bg-rank-1, 0.7) !important;
+  }
+  th:nth-child(3) {
+    background-color: rgba($bg-rank-2, 0.7) !important;
+  }
+  th:nth-child(4) {
+    background-color: rgba($bg-rank-3, 0.7) !important;
+  }
+  th:nth-child(5) {
+    background-color: rgba($bg-rank-4, 0.7) !important;
+  }
+  th:nth-child(6) {
+    background-color: rgba($bg-rank-5, 0.7) !important;
+  }
+  th:nth-child(7) {
+    background-color: rgba($bg-rank-6, 0.7) !important;
+  }
+  th:nth-child(8) {
+    background-color: rgba($bg-rank-7, 0.7) !important;
+  }
+  th:nth-child(9) {
+    background-color: rgba($bg-rank-8, 0.7) !important;
+  }
+  th:nth-child(10) {
+    background-color: rgba($bg-rank-9, 0.7) !important;
+  }
+  th:nth-child(11) {
+    background-color: rgba($bg-rank-10, 0.7) !important;
+  }
+  th:nth-child(12) {
+    background-color: rgba($bg-rank-11, 0.7) !important;
+  }
+  th:nth-child(13) {
+    background-color: rgba($bg-rank-12, 0.7) !important;
+  }
+  th:nth-child(14) {
+    background-color: rgba($bg-rank-13, 0.7) !important;
+  }
+  th:nth-child(15) {
+    background-color: rgba($bg-rank-14, 0.7) !important;
+  }
+
+ }
+</style>

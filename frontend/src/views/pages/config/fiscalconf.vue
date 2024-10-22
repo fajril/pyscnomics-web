@@ -116,6 +116,10 @@ const lbt_discount = computed({
       fiscal.value.lbt_discount = percent2Numb(val)
   },
 })
+
+const getNPVSelMode = computed(() => {
+  return appStore.NPVSelSett ? Field2Array(NVPType) : Field2Array(NVPType).filter(v => v.value >= 2)
+})
 </script>
 
 <template>
@@ -356,7 +360,7 @@ const lbt_discount = computed({
       <span class="ml-n4 font-weight-bold text-primary">Net Present Value</span>
       <AppSelect
         v-model="fiscal.npv_mode"
-        :items="Field2Array(NVPType)"
+        :items="getNPVSelMode"
         item-props
         variant="outlined"
         label-placeholder="NPV Mode"
@@ -463,8 +467,18 @@ const lbt_discount = computed({
       <AppCheckBox
         class="mt-4"
         :model-value="props.profitability_discounted"
-        label="Profitability discounted"
+        label="Calculate Profitability Index with Discounted method"
         @update:model-value="(val) => emit('update:profitability_discounted', val)"
+      />
+    </VCol>
+    <VCol
+      cols="12"
+      class="mt-2 ms-n4"
+    >
+      <AppCheckBox
+        v-model="fiscal.sum_undepreciated_cost"
+        class="mt-4"
+        label="Sum undepreciated cost"
       />
     </VCol>
   </VRow>

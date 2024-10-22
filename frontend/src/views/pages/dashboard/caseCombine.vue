@@ -18,15 +18,17 @@ import { useTheme } from 'vuetify'
 // import BarChartCompare from '@/views/components/chartBarCompare.vue';
 // import ChartCompare from '@/views/components/chartCompare.vue';
 import { hexToRgb } from '@layouts/utils'
+import DotdotOpt from "@/pages/components/dotdotOpt.vue"
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import ColCollapsible from '@/views/components/colCollapsible.vue'
+import ColapsibleCols from "@/views/components/colapsibleCols.vue"
 import TableCombine from '@/views/components/tableCombine.vue'
 import 'handsontable/dist/handsontable.full.css'
+import { PerfectScrollbar } from "vue3-perfect-scrollbar"
 
 const emit = defineEmits<Emit>()
 
@@ -160,7 +162,7 @@ const isCalcData = ref(false)
 
 const targetCases = computed(() => {
   if (!isEmpty(CombineConf.value.source))
-    return appStore.projects.filter(f => f.type >= 1 && f.type <= 2 && f.id !== CombineConf.value.source).map(v => ({ name: v.name, value: v.id, desc: v.description, tipe: v.type }))
+    return appStore.projects.filter(f => f.type >= 1 && f.type <= 2 && f.id !== CombineConf.value.source).map(v => ({ name: v.name, value: v.id, desc: v.description, tipe: v.type, subtitle: Pysc.is_number(v.type) ? Object.values(Pysc.ContractType)[+v.type] : '' }))
 
   return []
 })
@@ -268,7 +270,8 @@ const CombSummSetting = computed(() => {
 const chtOption = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
-  return {
+  const Opt = {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     title: { show: false },
     tooltip: {
       trigger: 'axis',
@@ -294,7 +297,7 @@ const chtOption = computed(() => {
         alignWithLabel: true,
       },
       axisLine: {
-        onZero: false,
+        onZero: true,
       },
       nameTextStyle: {
         color: themeDisabledTextColor,
@@ -317,7 +320,7 @@ const chtOption = computed(() => {
         onZero: false,
       },
       name: 'Cum. Cashflow, MUSD',
-      splitLine: { show: true, lineStyle: { color: themeBorderColor } },
+      splitLine: { show: false, lineStyle: { color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
@@ -342,7 +345,7 @@ const chtOption = computed(() => {
       axisLine: {
         onZero: false,
       },
-      splitLine: { show: true, lineStyle: { type: 'dotted', color: themeBorderColor } },
+      splitLine: { show: false, lineStyle: { type: 'dotted', color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
@@ -373,6 +376,46 @@ const chtOption = computed(() => {
       },
     ],
   }
+
+  // scale Y axis
+  try {
+    const lenData = Opt.xAxis.data.length
+    const contCF_col = Opt.series[1].data.map(v => Pysc.toNumnber(v))
+    const contcumCF_col = Opt.series[0].data.map(v => Pysc.toNumnber(v))
+    if (contcumCF_col) {
+      let minCFValue = +math.min(contCF_col)
+      let maxCFValue = +math.max(contCF_col)
+      const lenCFValue = math.abs(maxCFValue - minCFValue)
+      const prcLowCFValue = math.abs(minCFValue) / lenCFValue
+      const prcHiCFValue = math.abs(maxCFValue) / lenCFValue
+
+      let minCCFValue = +math.min(contcumCF_col)
+      let maxCCFValue = +math.max(contcumCF_col)
+      const lenCCFValue = math.abs(maxCCFValue - minCCFValue)
+      const prcLowCCFValue = math.abs(minCCFValue) / lenCCFValue
+      const prcHiCCFValue = math.abs(maxCCFValue) / lenCCFValue
+
+      if (prcLowCCFValue < prcLowCFValue)
+        minCCFValue = prcLowCFValue * lenCCFValue * (minCCFValue < 0 ? -1 : 1)
+      else if (prcLowCFValue < prcLowCCFValue)
+        minCFValue = prcLowCCFValue * lenCFValue * (minCFValue < 0 ? -1 : 1)
+
+      if (prcHiCCFValue < prcHiCFValue)
+        maxCCFValue = prcHiCFValue * lenCCFValue * (maxCCFValue < 0 ? -1 : 1)
+      else if (prcHiCFValue < prcHiCCFValue)
+        maxCFValue = prcHiCCFValue * lenCFValue * (maxCFValue < 0 ? -1 : 1)
+
+      Opt.yAxis[0].min = minCCFValue
+      Opt.yAxis[0].max = maxCCFValue
+      Opt.yAxis[1].min = minCFValue
+      Opt.yAxis[1].max = maxCFValue
+    }
+  }
+  catch (error) {
+    console.log(error)
+  }
+
+  return Opt
 })
 
 const chtDistOption = computed(() => {
@@ -381,6 +424,7 @@ const chtDistOption = computed(() => {
   const valueName = Object.values(tableHeaderType)
 
   return {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     title: { show: false },
     legend: {
       left: "center",
@@ -476,7 +520,7 @@ const calcData = async () => {
       await useDataStore().saveCaseData(appStore.curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr,
+        PyscConf.opex, PyscConf.asr, PyscConf.cos, PyscConf.lbt,
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)
@@ -492,9 +536,11 @@ const calcData = async () => {
       const dIntan = _caseid === appStore.curSelCase ? PyscConf.intangible : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 1))
       const dOpex = _caseid === appStore.curSelCase ? PyscConf.opex : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 2))
       const dASR = _caseid === appStore.curSelCase ? PyscConf.asr : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 3))
+      const dCOS = _caseid === appStore.curSelCase ? PyscConf.cos : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 4))
+      const dLBT = _caseid === appStore.curSelCase ? PyscConf.lbt : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 5))
 
       const dataJson = useDataStore().makeJSONofCase(_caseid,
-        dGConf, dProd, dContr, dFisc, dTan, dIntan, dOpex, dASR, true)
+        dGConf, dProd, dContr, dFisc, dTan, dIntan, dOpex, dASR, dCOS, dLBT, true)
 
       const { status, result } = await useHTTP().put({
         path: 'combinecase',
@@ -618,6 +664,102 @@ const inflation_rate = computed({
   },
 })
 
+const getNPVSelMode = computed(() => {
+  return appStore.NPVSelSett ? Pysc.Field2Array(Pysc.NVPType) : Pysc.Field2Array(Pysc.NVPType).filter(v => v.value >= 2)
+})
+
+const optOption = computed(() => {
+  return (source: string) => [
+    { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: source === 'table' ? 'text' : source },
+    { title: `Save to file (*.${source === 'table' ? 'xlsx' : 'png'})`, value: 'save2File', icon: 'tabler-download', sourceType: source },
+  ]
+})
+
+const getDataSource = (refName: any, setName: any, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+  if (sourceType === 'text' || sourceType === 'table') {
+    let tblDataScr = []
+    if (!isNullOrUndefined(setName))
+      tblDataScr = [refName.hotInstance.getColHeader(), ...refName.hotInstance.getData()]
+
+    else
+      tblDataScr = refName.getDataSource()
+
+    if (sourceType === 'text') {
+      return tblDataScr.reduce((rowTxt, rowVal) => {
+        return `${rowTxt + rowVal.join('\t')}\n`
+      }, '')
+    }
+    else if (sourceType === 'table') {
+      return {
+        data: [{
+          name: (!isNullOrUndefined(setName) ? 'combine summary' : 'combine cashflow'),
+          header: [],
+          data: tblDataScr,
+        }],
+        filename: `${!isNullOrUndefined(setName) ? 'combine_summ' : 'combine_cf'}_${rndid}_${appStore.caseByID(CombineConf.value.source)?.name}`.replace(/[/\\ #$~&.]/g, ''),
+      }
+    }
+  }
+  else {
+    return {
+      url: refName.getDataURL({
+        type: 'png',
+        excludeComponents: ['toolbox'],
+      }),
+      filename: `combine_chart_${rndid}_${appStore.caseByID(CombineConf.value.source)?.name}`.replace(/[/\\ #$~&.]/g, ''),
+    }
+  }
+}
+
+const showListComb = ref(false)
+
+const combinelist = computed(() => {
+  const _lst = appStore.caseCombine
+  if (_lst.length === 0)
+    return _lst
+  if (_lst[0].source !== CombineConf.value.source) {
+    const idx_ = _lst.findIndex(l => l.source === CombineConf.value.source)
+    if (idx_ !== -1) {
+      _lst.splice(0, 0, _lst[idx_])
+      _lst.splice(idx_ + 1, 1)
+    }
+  }
+
+  return _lst
+})
+
+const getTargetLst = (comp: any[]) => {
+  return comp.map(c => {
+    const case_ = appStore.caseByID(c)
+
+    return {
+      id: c,
+      name: case_?.name,
+      type: case_?.type,
+    }
+  })
+}
+
+const chgActiveSource = (source: number) => {
+  if (CombineConf.value.source !== source) {
+    CombineConf.value = appStore.getCombine(source)
+    if (CombineConf.value.reference_year === 0)
+      CombineConf.value.reference_year = PyscConf.generalConfig.discount_rate_start_year
+    nextTick(() => {
+      calcData()
+    })
+  }
+}
+
+const delSource = (source: number) => {
+  if (CombineConf.value.source !== source) {
+    const idx_ = appStore.caseCombine.findIndex(l => l.source === source)
+    if (idx_ !== -1)
+      appStore.$patch(state => state.caseCombine.splice(idx_, 1))
+  }
+}
+
 const showCaseCombine = (caseID: number) => {
   if (!(appStore.caseByID(caseID)?.type > 0))
     return appStore.showAlert({ text: "Only PSC Cost Recovery (CR), PSC Gross Split (GS), and Transition can be combined", isalert: false })
@@ -647,21 +789,120 @@ defineExpose({
   >
     <VCard>
       <div>
-        <VToolbar color="primary">
+        <VToolbar :color="`rgba(var(--v-theme-primary), ${vuetifyTheme.global.name.value === 'dark' ? 0.2 : 0.8})`">
           <VBtn
             icon
             variant="plain"
+            color="white"
             @click="isCombineVisible = false"
           >
-            <VIcon
-              color="white"
-              icon="tabler-x"
-            />
+            <VIcon icon="tabler-x" />
           </VBtn>
 
           <VToolbarTitle>
-            <div class="d-flex h-100 align-center">
+            <div class="d-flex h-100 gap-2 align-center">
               <div>Case Combine</div>
+              <IconBtn color="white">
+                <VIcon icon="tabler-fold-down" />
+                <VMenu
+                  v-model="showListComb"
+                  activator="parent"
+                  persistent
+                  offset="15"
+                >
+                  <VCard
+                    class="d-flex flex-column"
+                    title="List of comparison"
+                    border
+                  >
+                    <template #append>
+                      <IconBtn @click.prevent="showListComb = !showListComb">
+                        <VIcon icon="tabler-x" />
+                      </IconBtn>
+                    </template>
+                    <VCardText class="px-2 py-1">
+                      <PerfectScrollbar
+                        tag="div"
+                        :options="{ wheelPropagation: false, suppressScrollX: true }"
+                        style="max-block-size: calc(100vh - 13.125rem);"
+                      >
+                        <VList>
+                          <VListItem
+                            v-for="item in combinelist"
+                            :key="`comp-${item.source}`"
+                            :active="item.source === CombineConf.source"
+                            lines="two"
+                            :title="appStore.caseByID(item.source)?.name"
+                            @click.prevent="() => chgActiveSource(item.source)"
+                          >
+                            <template #append>
+                              <IconBtn
+                                v-show="CombineConf.source !== item.source"
+                                class="ms-10"
+                                @click.stop.prevent="() => delSource(item.source)"
+                              >
+                                <VIcon icon="tabler-trash-filled" />
+                              </IconBtn>
+                            </template>
+                            <template #subtitle>
+                              <div
+                                class="d-flex gap-1 text-truncate"
+                                style="max-inline-size: 900px;"
+                              >
+                                <VChip
+                                  v-for="tgt in getTargetLst(item.comp)"
+                                  :key="`comb-tgt-${item.source}-${tgt.id}`"
+                                  variant="elevated"
+                                  color="default"
+                                  density="compact"
+                                >
+                                  <template #prepend>
+                                    <VAvatar
+                                      start
+                                      size="x-small"
+                                      color="primary"
+                                      class="text-xsmall"
+                                    >
+                                      <h6>{{ tgt.type === 1 ? 'CR' : (tgt.type === 2 ? 'GS' : 'T') }}</h6>
+                                    </VAvatar>
+                                  </template>
+                                  <h5
+                                    class="text-truncate text-small"
+                                    :style="{ maxInlineSize: '80px', overflow: 'hidden', textOverflow: 'ellipsis' }"
+                                  >
+                                    {{ tgt.name }}
+                                  </h5>
+                                </VChip>
+                              </div>
+                            </template>
+                            <VTooltip activator="parent">
+                              <div class="flex-grow-1">
+                                <h4 class="text-secondary text-subtitle-2">
+                                  Source:
+                                </h4>
+                                <h4 class="text-secondary">
+                                  {{ appStore.caseByID(item.source)?.name }}
+                                </h4>
+                                <h4 class="text-secondary text-subtitle-2">
+                                  Target:
+                                </h4>
+                                <h5
+                                  v-for="tgt in getTargetLst(item.comp)"
+                                  :key="tgt.name"
+                                  class="text-secondary"
+                                >
+                                  {{ tgt.name }}
+                                </h5>
+                              </div>
+                            </VTooltip>
+                          </VListItem>
+                        </VList>
+                      </PerfectScrollbar>
+                    </VCardText>
+                  </VCard>
+                </VMenu>
+              </IconBtn>
+
               <div
                 class="mx-4 my-2"
                 :style="{ maxInlineSize: '170px' }"
@@ -689,8 +930,8 @@ defineExpose({
                 class="mx-2"
                 item-value="value"
                 item-title="name"
-                item-sub-title="desc"
                 :items="targetCases"
+                item-props
                 multiple
                 clearable
                 clear-icon="tabler-x"
@@ -751,7 +992,7 @@ defineExpose({
             />
             <AppSelect
               v-model="CombineConf.npv_mode"
-              :items="Pysc.Field2Array(Pysc.NVPType)"
+              :items="getNPVSelMode"
               item-props
               variant="outlined"
               label-placeholder="NPV Mode"
@@ -863,84 +1104,95 @@ defineExpose({
             </div>
           </VCol>
         </VRow>
-        <ColCollapsible>
-          <template #left="{ collapsible, collapsed }">
-            <AppCardActions
-              action-collapsed
-              title="Summary"
-              compact-header
-              :collapsed="collapsible"
-              style="overflow: visible !important;"
-              @collapsed="val => collapsed(val)"
-            >
-              <VCardText>
-                <HotTable
-                  ref="tblCombSummRef"
-                  :settings="CombSummSetting"
-                  license-key="non-commercial-and-evaluation"
-                />
-              </VCardText>
-            </AppCardActions>
+        <ColapsibleCols class="mt-5">
+          <template #left-header="{ isCollapsed }">
+            Summary
           </template>
-          <template #right="{ collapsible, collapsed }">
-            <AppCardActions
-              action-collapsed
-              title="Cashflow Table"
-              compact-header
-              :collapsed="collapsible"
-              style="overflow: visible !important;"
-              @collapsed="val => collapsed(val)"
-            >
-              <VCardText>
-                <TableCombine
-                  ref="TablCombineRef"
-                  :lst-ctr="CombineSumm.ctrType"
-                  :columns="tableColumnHeader"
-                  :data="dataTableCombine"
-                />
-              </VCardText>
-            </AppCardActions>
+          <template #after-left-header="{ isCollapsed }">
+            <DotdotOpt
+              v-if="!isCollapsed"
+              :menu-list="optOption('table')"
+              title="Options"
+              item-props
+              dot-only
+              :get-source="(value: string, sourceType: string) => getDataSource(tblCombSummRef, CombSummSetting, sourceType)"
+            />
           </template>
-        </ColCollapsible>
-        <ColCollapsible @update:container="resizeChart">
-          <template #left="{ collapsible, collapsed }">
-            <AppCardActions
-              action-collapsed
-              title="Cashflow Chart"
-              compact-header
-              :collapsed="collapsible"
-              style="overflow: visible !important;"
-              @collapsed="val => collapsed(val)"
-            >
-              <VCardText>
-                <VChart
-                  ref="CombChartRef"
-                  class="combine-chart"
-                  :option="chtOption"
-                />
-              </VCardText>
-            </AppCardActions>
+          <template #left>
+            <HotTable
+              ref="tblCombSummRef"
+              :settings="CombSummSetting"
+              license-key="non-commercial-and-evaluation"
+            />
           </template>
-          <template #right="{ collapsible, collapsed }">
-            <AppCardActions
-              action-collapsed
-              title="Contribution"
-              compact-header
-              :collapsed="collapsible"
-              style="overflow: visible !important;"
-              @collapsed="val => collapsed(val)"
-            >
-              <VCardText>
-                <VChart
-                  ref="DistChartRef"
-                  class="dist-chart"
-                  :option="chtDistOption"
-                  :style="{ minBlockSize: `${425 + ((math.max(CombineConf.comp.length, 1) - 1) * (CombineDist.length * 2))}px` }"
-                />
-              </VCardText>
-            </AppCardActions>
+          <template #right-header="{ isCollapsed }">
+            Cashflow Table
           </template>
-        </ColCollapsible>
+          <template #after-right-header="{ isCollapsed }">
+            <DotdotOpt
+              v-if="!isCollapsed"
+              :menu-list="optOption('table')"
+              title="Options"
+              item-props
+              dot-only
+              :get-source="(value: string, sourceType: string) => getDataSource(TablCombineRef, null, sourceType)"
+            />
+          </template>
+          <template #right>
+            <TableCombine
+              ref="TablCombineRef"
+              :lst-ctr="CombineSumm.ctrType"
+              :columns="tableColumnHeader"
+              :data="dataTableCombine"
+            />
+          </template>
+        </ColapsibleCols>
+        <ColapsibleCols
+          class="mt-5"
+          @update:container="resizeChart"
+        >
+          <template #left-header="{ isCollapsed }">
+            Cashflow Chart
+          </template>
+          <template #after-left-header="{ isCollapsed }">
+            <DotdotOpt
+              v-if="!isCollapsed"
+              :menu-list="optOption('image')"
+              title="Options"
+              item-props
+              dot-only
+              :get-source="(value: string, sourceType: string) => getDataSource(CombChartRef, null, sourceType)"
+            />
+          </template>
+          <template #left>
+            <VChart
+              ref="CombChartRef"
+              class="combine-chart"
+              :option="chtOption"
+            />
+          </template>
+          <template #right-header="{ isCollapsed }">
+            Contribution Chart
+          </template>
+          <template #after-right-header="{ isCollapsed }">
+            <DotdotOpt
+              v-if="!isCollapsed"
+              :menu-list="optOption('image')"
+              title="Options"
+              item-props
+              dot-only
+              :get-source="(value: string, sourceType: string) => getDataSource(DistChartRef, null, sourceType)"
+            />
+          </template>
+          <template #right>
+            <VChart
+              ref="DistChartRef"
+              class="dist-chart"
+              :option="chtDistOption"
+              :style="{ minBlockSize: `${425 + ((math.max(CombineConf.comp.length, 1) - 1) * (CombineDist.length * 2))}px` }"
+            />
+          </template>
+        </ColapsibleCols>
       </VCardText>
     </VCard>
   </VDialog>

@@ -25,7 +25,7 @@ export const useWSStore = defineStore('pyscWSConf', () => {
 
   // const baseHostName = import.meta.env.VITE_API_BASE_URL
   // const port = baseHostName?.match(/:(\d+)/)[1]
-  const endPoint = computed(() => `ws://localhost:${appStore.osConf.port ?? 8888}/ws/${clientID.value}`)
+  const endPoint = computed(() => `ws://localhost:${appStore.osConf.port ?? 9999}/ws/${clientID.value}`)
   const endPointE = computed(() => `ws://localhost:3142/ws?client=${clientIDE}`)
   const wsConnected = ref(false)
   const listBroadCast = ref<tbroadcastItem[]>([])

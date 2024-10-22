@@ -7,12 +7,13 @@ import { useDataStore } from '@/utils/pysc/useDataStore'
 import { useHTTP } from '@/utils/pysc/useHttp'
 import BarChartCompare from '@/views/components/chartBarCompare.vue'
 import ChartCompare from '@/views/components/chartCompare.vue'
-import ColCollapsible from '@/views/components/colCollapsible.vue'
+import ColapsibleCols from '@/views/components/colapsibleCols.vue'
 import TableCompare from '@/views/components/tableCompare.vue'
 import { breakpointsVuetifyV3 } from '@vueuse/core'
 import * as math from 'mathjs'
 import { useDraggable } from 'vue-draggable-plus'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
+import DotdotOpt from '../components/dotdotOpt.vue'
 
 definePage({
   name: 'pysc-optim',
@@ -39,11 +40,48 @@ const isPSC = computed(() => {
 
 const paramsOptim = computed(() => {
   const lst = isPSC.value
-    ? Array(11).fill(0).map((v, i) => i === 10 ? 11 : i)
-    : [8, 9, 10, 11]
+    ? [0, 1, 2, 3, 4, 5, 6, 7, /* 8, */9, 12, 13, 11]
+    : [/* 8, */9, 12, 13, 11, 10]
 
   return lst.map((v, i) => ({ title: Object.values(optimParamType)[v], value: v }))
 })
+
+const isHigher = (paramId: number) => ![2, 3, 8, 9].includes(paramId)
+
+const getInfoParam = (paramId: number) => {
+  const higher = '<span class="text-success font-weight-bold">higher</span>'
+  const lower = '<span class="text-error font-weight-bold">lower</span>'
+  if (paramId === 0)
+    return `A ${higher} value of this optimization parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 1)
+    return `A ${higher} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 2)
+    return `A ${lower} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 3)
+    return `A ${lower} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 4)
+    return `A ${higher} value of this parameter typically enhances the contractor's economic indicator while diminishing the government's. However, under certain conditions, the opposite effect may occur`
+  else if (paramId === 5)
+    return `A ${higher} value of this parameter typically enhances the contractor's economic indicator while diminishing the government's. However, under certain conditions, the opposite effect may occur`
+  else if (paramId === 6)
+    return `A ${higher} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 7)
+    return `A ${higher} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 8)
+    return `A ${lower} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 9)
+    return `A ${lower} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 10)
+    return `A ${higher} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 11)
+    return `A ${higher} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator.`
+  else if (paramId === 12)
+    return `A ${higher}  value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+  else if (paramId === 13)
+    return `A ${higher} value of this parameter enhances the contractor's economic indicator while diminishing the government's economic indicator`
+
+  return ''
+}
 
 const optimParamChanged = (parID: number) => {
   if (parID === -2) {
@@ -145,6 +183,18 @@ const getBaseValue = (paramID: number) => {
 
     return values.sort((a, b) => a.year - b.year)
   }
+  else if (paramID === 12) {
+    if (PyscConf.generalConfig.type_of_contract >= 3)
+      return PyscConf.fiscal.Fiskal2.vat_discount
+    else
+      return PyscConf.fiscal.Fiskal.vat_discount
+  }
+  else if (paramID === 13) {
+    if (PyscConf.generalConfig.type_of_contract >= 3)
+      return PyscConf.fiscal.Fiskal2.lbt_discount
+    else
+      return PyscConf.fiscal.Fiskal.lbt_discount
+  }
 
   return null
 }
@@ -161,8 +211,10 @@ const getBaseTarget = (targetIndex: number | string, valueOnly: boolean = false)
 const buildDataParams = async (calcBase: boolean = false) => {
   watcherOptimData.pause()
 
+  console.log(PyscOptim.optimConfig.optimization)
+
   const lParsChecked = PyscOptim.optimConfig.optimization
-    .filter(p => paramsOptim.value.map(l => l.value).includes(p.parameter) && p.checked)
+    .filter(p => paramsOptim.value.map(l => l.value).includes(p.parameter) && p.parameter !== 8 && p.checked)
     .sort((a, b) => a.pos - b.pos)
 
   dataParams.value.splice(0, dataParams.value.length, ...lParsChecked.map(el =>
@@ -450,6 +502,8 @@ const createNewCase = async () => {
     const dataIntan = JSON.parse(JSON.stringify(PyscConf.dataIntan))
     const dataOpex = JSON.parse(JSON.stringify(PyscConf.dataOpex))
     const dataASR = JSON.parse(JSON.stringify(PyscConf.dataASR))
+    const dataCOS = JSON.parse(JSON.stringify(PyscConf.dataCOS))
+    const dataLBT = JSON.parse(JSON.stringify(PyscConf.dataLBT))
 
     let _hasUpdated = false
 
@@ -529,12 +583,26 @@ const createNewCase = async () => {
             })
           })
         }
+        else if (v.parameter === 12) {
+          _hasUpdated = true
+
+          const fiscal = dataGConf.type_of_contract < 3 ? dataFisc.Fiskal : dataFisc.Fiskal2
+
+          fiscal.vat_discount = val
+        }
+        else if (v.parameter === 13) {
+          _hasUpdated = true
+
+          const fiscal = dataGConf.type_of_contract < 3 ? dataFisc.Fiskal : dataFisc.Fiskal2
+
+          fiscal.lbt_discount = val
+        }
       }
     })
 
     if (_hasUpdated) {
       await useDataStore().addOptimCase(optimcases, dataGConf, dataProd, dataContr, dataFisc,
-        dataTan, dataIntan, dataOpex, dataASR)
+        dataTan, dataIntan, dataOpex, dataASR, dataCOS, dataLBT)
     }
     else { appStore.showAlert({ text: 'Optimization value is the same as baseCase', isalert: false }) }
   }
@@ -555,6 +623,47 @@ const isAccomplished = computed(() => {
 
   return false
 })
+
+const chartMonteRadar = ref()
+const chartMonteBar = ref()
+
+const tableResOptim = ref()
+
+const optOption = computed(() => {
+  return (source: string) => [
+    { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: source === 'table' ? 'text' : source },
+    { title: `Save to file (*.${source === 'table' ? 'xlsx' : 'png'})`, value: 'save2File', icon: 'tabler-download', sourceType: source },
+  ]
+})
+
+const getDataSource = (refName: any, setName: any, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+  if (sourceType === 'text' || sourceType === 'table') {
+    const tblDataScr = [...refName?.getDataSource()]
+
+    if (sourceType === 'text') {
+      return tblDataScr.reduce((rowTxt, rowVal) => {
+        return `${rowTxt + rowVal.join('\t')}\n`
+      }, '')
+    }
+    else if (sourceType === 'table') {
+      return {
+        data: [{
+          name: `Optimization`,
+          header: [],
+          data: tblDataScr,
+        }],
+        filename: `optim_summary_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+      }
+    }
+  }
+  else {
+    return {
+      url: refName?.getImageSourceUrl(),
+      filename: `optim_${appStore.selectedCase.name}`.replace(/[/\\ #$~&.]/g, ''),
+    }
+  }
+}
 
 watchDebounced(optimConfig, val => {
   if (PyscOptim.watcherOptimCfg.isActive && watcherOptimData.isActive?.value)
@@ -663,7 +772,10 @@ onUnmounted(() => {
                       size="26"
                       icon="tabler-plus"
                     />
-                    <VMenu activator="parent">
+                    <VMenu
+                      activator="parent"
+                      :close-on-content-click="false"
+                    >
                       <VList density="compact">
                         <template
                           v-for="(item, index) in [...paramsOptim, { title: 'separator', value: -1 }, { title: 'Checked All', value: -2 }, { title: 'Unchecked All', value: -3 }]"
@@ -678,7 +790,7 @@ onUnmounted(() => {
                             <template #prepend>
                               <VIcon
                                 v-if="item.value >= 0"
-                                :icon="optimConfig.optimization.filter(p => p.parameter === item.value).findIndex(l => l.checked) != -1 ? 'tabler-check' : ''"
+                                :icon="optimConfig.optimization.filter(p => p.parameter === item.value).findIndex(l => l.checked) !== -1 ? 'tabler-check' : ''"
                               />
                             </template>
                             <VListItemTitle>
@@ -706,6 +818,21 @@ onUnmounted(() => {
                         :title="Object.values(optimParamType)[item.parameter]"
                         :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (`base value: ${Pysc.is_number(item.base) ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : ''}`)"
                       >
+                        <template #title="{ title }">
+                          {{ title }}
+                          <IconBtn size="x-small">
+                            <VIcon
+                              icon="tabler-info-triangle-filled"
+                              :color="isHigher(Object.values(optimParamType).findIndex(v => v === title)) ? 'success' : 'error'"
+                            />
+                            <VTooltip
+                              activator="parent"
+                              max-width="340"
+                            >
+                              <span v-html="getInfoParam(Object.values(optimParamType).findIndex(v => v === title)) " />
+                            </VTooltip>
+                          </IconBtn>
+                        </template>
                         <template #subtitle="{ subtitle }">
                           <VListItemSubtitle v-if="Array.isArray(item.base)">
                             base value:<span
@@ -755,9 +882,10 @@ onUnmounted(() => {
                         </template>
                         <template #prepend>
                           <VIcon
-                            icon="tabler-dots-vertical"
-                            style="cursor: move;inline-size: 24px;"
+                            icon="tabler-arrows-move-vertical"
+                            style="cursor: ns-resize;inline-size: 24px;"
                             class="ms-n3 list-drag-handle"
+                            tabler-arrows-move-vertical
                           />
                         </template>
                         <template #append>
@@ -963,62 +1091,82 @@ onUnmounted(() => {
           </AppCardActions>
         </VCol>
         <VCol cols="12">
-          <ColCollapsible :col-ratio="[isLessThanCardBreaklg ? 65 : 60, isLessThanCardBreaklg ? 35 : 40]">
-            <template #left="{ collapsible, collapsed }">
-              <AppCardActions
-                action-collapsed
-                title="Summary"
-                compact-header
-                :collapsed="collapsible"
-                @collapsed="val => collapsed(val)"
-              >
-                <VCardText>
-                  <TableCompare
-                    :columns="[{ title: 'Base Case' }, { title: 'Optimized Case' }]"
-                    :data="getResultTable"
-                  />
-                </VCardText>
-              </AppCardActions>
+          <ColapsibleCols>
+            <template #left-header="{ isCollapsed }">
+              Summary
             </template>
-            <template #right="{ collapsible, collapsed }">
+            <template #after-left-header="{ isCollapsed }">
+              <DotdotOpt
+                v-if="!isCollapsed"
+                :menu-list="optOption('table')"
+                title="Options"
+                item-props
+                size="x-small"
+                dot-only
+                :get-source="(value: string, sourceType: string) => getDataSource(tableResOptim, null, sourceType)"
+              />
+            </template>
+            <template #left>
+              <TableCompare
+                ref="tableResOptim"
+                :columns="[{ title: 'Base Case' }, { title: 'Optimized Case' }]"
+                :data="getResultTable"
+              />
+            </template>
+            <template #right-header="{ isCollapsed }">
+              <span v-if="isCollapsed">Chart</span>
+            </template>
+            <template #right>
               <AppCardActions
+                title="Radar Chart"
                 action-collapsed
-                title="Chart"
-                :collapsed="collapsible"
                 compact-header
                 style="overflow: visible !important;"
-                @collapsed="val => collapsed(val)"
               >
-                <VCardText class="px-0 py-0">
-                  <AppCardActions
-                    title="Radar Chart"
-                    action-collapsed
-                    compact-header
-                    style="overflow: visible !important;"
-                  >
-                    <ChartCompare
-                      :series="[{ id: 0, title: 'Base case' }, { id: 1, title: 'Optimized case' }]"
-                      :data-chart="getResultChart"
-                    />
-                  </AppCardActions>
-                  <AppCardActions
-                    title="Bar Chart"
-                    action-collapsed
-                    compact-header
-                    class="mt-2"
-                    style="overflow: visible !important;"
-                  >
-                    <BarChartCompare
-                      :base-data="getBaseResult"
-                      :series="[{ id: 1, title: 'Optimized case' }]"
-                      :data-chart="getResultBarChart"
-                      :mode="1"
-                    />
-                  </AppCardActions>
-                </VCardText>
+                <template #before-actions="{ isContentCollapsed }">
+                  <DotdotOpt
+                    v-if="!isContentCollapsed"
+                    :menu-list="optOption('image')"
+                    title="Options"
+                    item-props
+                    dot-only
+                    :get-source="(value: string, sourceType: string) => getDataSource(chartMonteRadar, null, sourceType)"
+                  />
+                </template>
+                <ChartCompare
+                  ref="chartMonteRadar"
+                  :series="[{ id: 0, title: 'Base case' }, { id: 1, title: 'Optimized case' }]"
+                  :data-chart="getResultChart"
+                />
+              </AppCardActions>
+              <AppCardActions
+                title="Bar Chart"
+                action-collapsed
+                compact-header
+                class="mt-2"
+                style="overflow: visible !important;"
+              >
+                <template #before-actions="{ isContentCollapsed }">
+                  <DotdotOpt
+                    v-if="!isContentCollapsed"
+                    :menu-list="optOption('image')"
+                    title="Options"
+                    item-props
+                    dot-only
+                    :get-source="(value: string, sourceType: string) => getDataSource(chartMonteBar, null, sourceType)"
+                  />
+                </template>
+
+                <BarChartCompare
+                  ref="chartMonteBar"
+                  :base-data="getBaseResult"
+                  :series="[{ id: 1, title: 'Optimized case' }]"
+                  :data-chart="getResultBarChart"
+                  :mode="1"
+                />
               </AppCardActions>
             </template>
-          </ColCollapsible>
+          </ColapsibleCols>
         </VCol>
       </VRow>
     </VCardText>

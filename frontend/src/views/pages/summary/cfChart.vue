@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useAppStore } from '@/stores/appStore'
 import { hexToRgb } from '@layouts/utils'
 import { BarChart, LineChart } from "echarts/charts"
 import {
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
   TitleComponent,
@@ -15,14 +17,27 @@ import type { ThemeInstance } from 'vuetify'
 import { useTheme } from 'vuetify'
 import * as Pysc from "@/utils/pysc/pyscType"
 
+interface Props {
+
+  // dataTable: Pysc.TableCFOption
+  dataChart: Pysc.TableCFOption
+  type: 'Oil' | 'Gas' | 'Cons'
+  contractType: 'CR' | 'GS' | 'BASE'
+  title: string
+  multiContract?: boolean
+  isContract2?: boolean
+}
+
 const props = withDefaults(defineProps<Props>(), {
   multiContract: false,
   isContract2: false,
 })
 
 const numbro = Pysc.useNumbro()
+const appStore = useAppStore()
 
 use([
+  DataZoomComponent,
   CanvasRenderer,
   BarChart,
   LineChart,
@@ -45,22 +60,13 @@ const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] 
   return { themeSecondaryTextColor, themeDisabledTextColor, themeBorderColor, themePrimaryTextColor }
 }
 
-interface Props {
-
-  // dataTable: Pysc.TableCFOption
-  dataChart: Pysc.TableCFOption
-  type: 'Oil' | 'Gas' | 'Cons'
-  contractType: 'CR' | 'GS' | 'BASE'
-  title: string
-  multiContract?: boolean
-  isContract2?: boolean
-}
 const chartCF = ref()
 
 const chtOption = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
   const Opt = {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     title: {
       text: props.title,
       left: "center",
@@ -71,6 +77,10 @@ const chtOption = computed(() => {
       valueFormatter: value => value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value,
       axisPointer: { type: 'cross' },
     },
+    dataZoom: {
+      type: 'inside',
+    },
+
     legend: {
       left: "center",
       top: 'bottom',
@@ -90,7 +100,7 @@ const chtOption = computed(() => {
         alignWithLabel: true,
       },
       axisLine: {
-        onZero: false,
+        onZero: true,
       },
       nameTextStyle: {
         color: themeDisabledTextColor,
@@ -117,7 +127,7 @@ const chtOption = computed(() => {
         onZero: false,
       },
       name: 'Cum. Cashflow, MUSD',
-      splitLine: { show: true, lineStyle: { color: themeBorderColor } },
+      splitLine: { show: false, lineStyle: { color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
@@ -146,7 +156,7 @@ const chtOption = computed(() => {
       axisLine: {
         onZero: false,
       },
-      splitLine: { show: true, lineStyle: { type: 'dotted', color: themeBorderColor } },
+      splitLine: { show: false, lineStyle: { type: 'dotted', color: themeBorderColor } },
       axisLabel: {
         color: themePrimaryTextColor,
         formatter: (value, index) => {
@@ -194,24 +204,59 @@ const chtOption = computed(() => {
   }
 
   const lenData = props.dataChart.data.length
-  const contCF_col = props.contractType === 'BASE' ? props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1) : props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1)
-  const contcumCF_col = props.contractType === 'BASE' ? (!isEmpty(contCF_col) ? math.cumsum(contCF_col.map(d => Pysc.is_number(d) ? d : 0)) : []) : props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1)
+  const contCF_col = props.contractType === 'BASE' ? props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v)) : props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
+  const contcumCF_col = props.contractType === 'BASE' ? (!isEmpty(contCF_col) ? math.cumsum(contCF_col) : []) : props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
 
-  const interV = [contcumCF_col.length ? (math.max(contcumCF_col) - math.min(contcumCF_col)) / 4 : 0, contCF_col.length ? (math.max(contCF_col) - math.min(contCF_col)) / 4 : 0]
+  // const interV = [contcumCF_col.length ? (math.max(contcumCF_col) - math.min(contcumCF_col)) / 4 : 0, contCF_col.length ? (math.max(contCF_col) - math.min(contCF_col)) / 4 : 0]
 
-  interV.forEach((el, index) => {
-    const txInterV = numbro(math.abs(el)).format({ average: true, mantissa: 1 })
-    if (txInterV.includes('k'))
-      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" k"))) * 1000
-    else if (txInterV.includes('m'))
-      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" m"))) * 1e6
-    else if (txInterV.includes('b'))
-      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" b"))) * 1e9
-    else if (txInterV.includes('t'))
-      interV[index] = (+txInterV.slice(0, txInterV.indexOf(" t"))) * 1e12
-  })
-  Opt.yAxis[0].minInterval = interV[0]
-  Opt.yAxis[1].minInterval = interV[1]
+  if (contcumCF_col.length) {
+    try {
+      let minCFValue = +math.min(contCF_col)
+      let maxCFValue = +math.max(contCF_col)
+      const lenCFValue = math.abs(maxCFValue - minCFValue)
+      const prcLowCFValue = math.abs(minCFValue) / lenCFValue
+      const prcHiCFValue = math.abs(maxCFValue) / lenCFValue
+
+      let minCCFValue = +math.min(contcumCF_col)
+      let maxCCFValue = +math.max(contcumCF_col)
+      const lenCCFValue = math.abs(maxCCFValue - minCCFValue)
+      const prcLowCCFValue = math.abs(minCCFValue) / lenCCFValue
+      const prcHiCCFValue = math.abs(maxCCFValue) / lenCCFValue
+
+      if (prcLowCCFValue < prcLowCFValue)
+        minCCFValue = prcLowCFValue * lenCCFValue * (minCCFValue < 0 ? -1 : 1)
+      else if (prcLowCFValue < prcLowCCFValue)
+        minCFValue = prcLowCCFValue * lenCFValue * (minCFValue < 0 ? -1 : 1)
+
+      if (prcHiCCFValue < prcHiCFValue)
+        maxCCFValue = prcHiCFValue * lenCCFValue * (maxCCFValue < 0 ? -1 : 1)
+      else if (prcHiCFValue < prcHiCCFValue)
+        maxCFValue = prcHiCCFValue * lenCFValue * (maxCFValue < 0 ? -1 : 1)
+
+      Opt.yAxis[0].min = minCCFValue
+      Opt.yAxis[0].max = maxCCFValue
+      Opt.yAxis[1].min = minCFValue
+      Opt.yAxis[1].max = maxCFValue
+    }
+    catch (error) {
+      console.log(error)
+    }
+  }
+
+  // interV.forEach((el, index) => {
+  //   const txInterV = numbro(math.abs(el)).format({ average: true, mantissa: 1 })
+  //   if (txInterV.includes('k'))
+  //     interV[index] = (+txInterV.slice(0, txInterV.indexOf(" k"))) * 1000
+  //   else if (txInterV.includes('m'))
+  //     interV[index] = (+txInterV.slice(0, txInterV.indexOf(" m"))) * 1e6
+  //   else if (txInterV.includes('b'))
+  //     interV[index] = (+txInterV.slice(0, txInterV.indexOf(" b"))) * 1e9
+  //   else if (txInterV.includes('t'))
+  //     interV[index] = (+txInterV.slice(0, txInterV.indexOf(" t"))) * 1e12
+  // })
+
+  // Opt.yAxis[0].minInterval = interV[0]
+  // Opt.yAxis[1].minInterval = interV[1]
 
   // const GovTake_col = props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1)
   // const Tangible_col = props.dataChart.data.map(v => v.slice(4)[0]).slice(0, lenData - 1)
@@ -270,6 +315,30 @@ function updateChart() {
 
 const refContainer = ref()
 
+const optOption = [
+  { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: 'image' },
+  { title: `Save to file (*.png)`, value: 'save2File', icon: 'tabler-download', sourceType: 'image' },
+  { type: 'divider' },
+  { title: 'Reload', value: 'reload', icon: 'tabler-reload' },
+]
+
+const getDataSource = (value: string, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+
+  return {
+    url: chartCF.value?.getDataURL({
+      type: 'png',
+      excludeComponents: ['toolbox'],
+    }),
+    filename: `${props.title + (props.multiContract ? (props.isContract2 ? ' 2nd Contract' : ' 1st Contract') : '')}_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+  }
+}
+
+const actionOption = (type: string) => {
+  if (type === 'reload')
+    updateChart()
+}
+
 useResizeObserver(refContainer, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
@@ -280,25 +349,20 @@ useResizeObserver(refContainer, entries => {
 onMounted(() => updateChart())
 
 defineExpose({
-
   updateChart,
+  getDataSource,
+  actionOption,
 })
 </script>
 
 <template>
-  <AppCardActions
-    :title="$props.title + ($props.multiContract ? ($props.isContract2 ? ' 2nd Contract' : ' 1st Contract') : '')"
-    action-collapsed
-    compact-header
-  >
-    <VCardText ref="refContainer">
-      <VChart
-        ref="chartCF"
-        class="cf-chart"
-        :option="chtOption"
-      />
-    </VCardText>
-  </AppCardActions>
+  <VCardText ref="refContainer">
+    <VChart
+      ref="chartCF"
+      class="cf-chart"
+      :option="chtOption"
+    />
+  </VCardText>
 </template>
 
 <style scoped>

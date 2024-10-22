@@ -21,6 +21,8 @@ export const optimParamType = {
   EFFECTIVE_TAX_RATE: "Effective Tax Rate",
   MINISTERIAL_DISCRETION: "Ministerial Discretion",
   DEPRECIATION_ACCELERATION: "Depreciation Acceleration",
+  VAT_DISCOUNT: 'VAT Discount',
+  LBT_DISCOUNT: 'LBT Discount',
 } as const
 export interface optim_Cfg {
   parameter: number
@@ -57,14 +59,15 @@ export const usePyscOptimStore = defineStore('pyscOptimConf', () => {
     serializer: {
       read: (v: any) => {
         const res = v ? JSON.parse(lzs.decompressFromUTF16(v)) : defOptimCfg()
-        if (res.optimization.length === 11) {
-          res.optimization.push({
-            parameter: 11,
+        const lres = res.optimization.length
+        if (lres < 14) {
+          res.optimization.push(...Array(14 - lres).fill(undefined).map((v, i) => ({
+            parameter: lres + i,
             min: 0.2,
             max: 0.4,
-            pos: 11,
+            pos: lres + i,
             checked: false,
-          })
+          })))
         }
 
         return res

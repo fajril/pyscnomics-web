@@ -2,6 +2,7 @@
 import { useAppStore } from '@/stores/appStore'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import GenConfig from '@/views/pages/config/genconf.vue'
+import GenConfig2 from '@/views/pages/config/genconfig2.vue'
 
 definePage({
   name: 'pysc-conf',
@@ -24,20 +25,48 @@ const dataGConf = computed(() => PyscConf.dataGConf)
         :title="$t('GenTitle')"
         :subtitle="$t('Configuration')"
       >
+        <template #append>
+          <IconBtn>
+            <VIcon
+              size="20"
+              icon="tabler-settings"
+              @click="appStore.showSetting(2)"
+            />
+            <VTooltip
+              activator="parent"
+              location="top"
+            >
+              Tax Setting
+            </VTooltip>
+          </IconBtn>
+        </template>
         <VCardText>
           <VRow>
             <VCol
               cols="12"
               md="6"
             >
-              <AppCardActions
-                action-collapsed
-                :title="$t('General')"
+              <VCard
+                variant="flat"
+                :style="{ border: 'none' }"
               >
                 <VCardText>
                   <GenConfig />
                 </VCardText>
-              </AppCardActions>
+              </VCard>
+            </VCol>
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VCard
+                variant="flat"
+                :style="{ border: 'none' }"
+              >
+                <VCardText>
+                  <GenConfig2 />
+                </VCardText>
+              </VCard>
             </VCol>
           </VRow>
         </VCardText>

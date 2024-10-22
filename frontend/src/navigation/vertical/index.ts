@@ -5,7 +5,6 @@ export default [
     icon: { icon: 'tabler-smart-home' },
     fixed: true,
   },
-  { heading: 'Project', fixed: true },
   {
     control: 'cases', fixed: true,
   },
@@ -45,17 +44,31 @@ export default [
         icon: { icon: 'tabler-circle-4-filled', size: '21' },
         to: { name: 'pysc-asr' },
       },
+      {
+        title: 'LBT',
+        icon: { icon: 'tabler-circle-5-filled', size: '21' },
+        to: { name: 'pysc-lbt' },
+      },
+      {
+        title: 'Cost of Sales',
+        icon: { icon: 'tabler-circle-6-filled', size: '21' },
+        to: { name: 'pysc-cos' },
+        cosNav: true,
+        access: [1, 3, 4, 6],
+      },
     ],
   },
   {
     title: 'FisTitle',
     icon: { icon: 'tabler-user-dollar' },
     to: { name: 'pysc-fis' },
+    access: [1, 2, 3, 4, 5, 6],
   },
   {
     title: 'CR/GS',
     icon: { icon: 'tabler-basket-dollar' },
     to: { name: 'pysc-crgs' },
+    access: [1, 2, 3, 4, 5, 6],
   },
   { heading: 'Summary' },
   {
@@ -83,5 +96,6 @@ export default [
     title: 'Optimization',
     icon: { icon: 'tabler-settings-automation' },
     to: { name: 'pysc-optim' },
+    access: [1, 2, 3, 4, 5, 6],
   },
 ]

@@ -137,6 +137,24 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       },
     })
 
+  const cos = useStorage<Array<number | string | null>[]>(namespaceConfig('cos'),
+    [Array(3).fill(null)], undefined,
+    {
+      serializer: {
+        read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(3).fill(null)],
+        write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
+      },
+    })
+
+  const lbt = useStorage<Array<number | string | null>[]>(namespaceConfig('lbt2'),
+    [Array(5).fill(null)], undefined,
+    {
+      serializer: {
+        read: (v: any) => v ? JSON.parse(lzs.decompressFromUTF16(v)) : [Array(5).fill(null)],
+        write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
+      },
+    })
+
   const appStore = useAppStore()
 
   function $reset() {
@@ -144,6 +162,8 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     intangible.value = JSON.parse(JSON.stringify([Array(5).fill(null)]))
     opex.value = JSON.parse(JSON.stringify([Array(8).fill(null)]))
     asr.value = JSON.parse(JSON.stringify([Array(4).fill(null)]))
+    cos.value = JSON.parse(JSON.stringify([Array(3).fill(null)]))
+    lbt.value = JSON.parse(JSON.stringify([Array(5).fill(null)]))
 
     generalConfig.value = JSON.parse(JSON.stringify(defGenConfig()))
     producer.value = JSON.parse(JSON.stringify(defProdConfig()))
@@ -162,6 +182,8 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
       localStorage.removeItem(namespaceConfig('intangible'))
       localStorage.removeItem(namespaceConfig('opex'))
       localStorage.removeItem(namespaceConfig('asr'))
+      localStorage.removeItem(namespaceConfig('cos'))
+      localStorage.removeItem(namespaceConfig('lbt2'))
       $reset()
     }
   }
@@ -215,6 +237,24 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     return result
   }
 
+  const COSJson = () => {
+    let result = [Array(3).fill(null)]
+    result = mapTable(cos.value, [1], ['gas'])
+    if (result.length === 0)
+      result = [Array(3).fill(null)]
+
+    return result
+  }
+
+  const LBTJson = () => {
+    let result = [Array(5).fill(null)]
+    result = mapTable(lbt.value, [1], ['gas'])
+    if (result.length === 0)
+      result = [Array(5).fill(null)]
+
+    return result
+  }
+
   const dataGConf = computed(() => appStore.IndexCase !== -1 ? generalConfig.value : defGenConfig())
   const dataFisc = computed(() => appStore.IndexCase !== -1 ? fiscal.value : defFiskal())
   const dataProd = computed(() => appStore.IndexCase !== -1 ? producer.value : defProdConfig())
@@ -223,6 +263,8 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
   const dataIntan = computed(() => appStore.IndexCase !== -1 ? intangible.value : [Array(5).fill(null)])
   const dataOpex = computed(() => appStore.IndexCase !== -1 ? opex.value : [Array(8).fill(null)])
   const dataASR = computed(() => appStore.IndexCase !== -1 ? asr.value : [Array(4).fill(null)])
+  const dataCOS = computed(() => appStore.IndexCase !== -1 ? cos.value : [Array(3).fill(null)])
+  const dataLBT = computed(() => appStore.IndexCase !== -1 ? lbt.value : [Array(5).fill(null)])
 
   const getProducer = (tipe: typeof ProducerType[keyof typeof ProducerType]) => {
     const selProd = producer.value.filter(item => item.Tipe == Object.keys(ProducerType).indexOf(tipe))
@@ -233,7 +275,7 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
   const prodHasGas = () => dataProd.value.findIndex(e => e.Tipe === 1) != -1
 
   const watcherAllData = pausableWatch(
-    [generalConfig, fiscal, producer, contracts, tangible, intangible, opex, asr],
+    [generalConfig, fiscal, producer, contracts, tangible, intangible, opex, asr, cos, lbt],
     (value, oldValue) => {
       if (appStore.watcherSelCase.isActive)
         nextTick(() => appStore.dataChanges())
@@ -268,6 +310,12 @@ export const usePyscConfStore = defineStore('pyscEcoConf', () => {
     asr,
     dataASR,
     ASRJson,
+    cos,
+    dataCOS,
+    COSJson,
+    lbt,
+    dataLBT,
+    LBTJson,
 
     prodHasGas,
     $reset,

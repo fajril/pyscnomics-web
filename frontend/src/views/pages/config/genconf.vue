@@ -5,7 +5,6 @@ import { usePyscConfStore } from '@/stores/genfisStore'
 import {
   ContractType,
   Field2Array,
-  InflateToType,
   getCtrType,
   numb2Percent,
   percent2Numb,
@@ -18,7 +17,7 @@ const PyscConf = usePyscConfStore()
 const { dataGConf } = storeToRefs(PyscConf)
 
 onMounted(() => {
-  if (!dataGConf.value.hasOwnProperty('delayAccMode')) {
+  if (!dataGConf.value.delayAccMode) {
     dataGConf.value.delayAccMode = 0
     dataGConf.value.delayAccYear = 0
   }
@@ -101,35 +100,6 @@ const { getToolTip } = useTooltip()
         @update:model-value="(str: string) => dataGConf.end_date_project_second = dayjs(str).utc().valueOf()"
       />
     </VCol>
-    <VCol cols="12">
-      <AppTextField
-        v-model.number="dataGConf.discount_rate_start_year"
-        label-placeholder="Discount Rate Start Year"
-        class="mt-4"
-        :rules="[requiredValidator, integerValidator]"
-        :tooltip-content="getToolTip('genfis.dy')"
-      />
-    </VCol>
-    <VCol cols="12">
-      <AppTextField
-        v-model.number="discount_rate"
-        :label-placeholder="['Discount Rate', '%']"
-        class="mt-4"
-        :rules="[requiredValidator, numberValidator, betweenValidator(discount_rate, 0, 100, appStore.showAlert)]"
-        :tooltip-content="getToolTip('genfis.dr')"
-      />
-    </VCol>
-    <VCol cols="12">
-      <AppSelect
-        v-model="dataGConf.inflation_rate_applied_to"
-        :items="Field2Array(InflateToType)"
-        item-props
-        :tooltip-content="getToolTip('genfis.iato')"
-        label-placeholder="Inflation Rate Applied to"
-        variant="outlined"
-        class="mt-4"
-      />
-    </VCol>
     <VCol
       cols="12"
       class="mt-2"
@@ -139,14 +109,27 @@ const { getToolTip } = useTooltip()
         :false-value="0"
         :true-value="1"
         label="Delayed"
+        :tooltip-content="getToolTip('genfis.delayed')"
         class="mt-2"
       />
       <AppTextField
         v-model.number="dataGConf.delayAccYear"
         label-placeholder="Year(s)"
         class="mt-4 ms-4"
+        :tooltip-content="getToolTip('genfis.delayed')"
         :rules="[requiredValidator, integerValidator]"
         :disabled="!(dataGConf.delayAccMode >= 1)"
+      />
+    </VCol>
+    <VCol
+      v-if="[1, 3, 4, 6].includes(dataGConf.type_of_contract)"
+      cols="12"
+      class="mt-2"
+    >
+      <AppCheckBox
+        v-model.number="dataGConf.useCOS"
+        label="use Cost of Sales"
+        class="mt-2"
       />
     </VCol>
   </VRow>

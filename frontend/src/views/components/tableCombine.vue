@@ -90,6 +90,10 @@ const CompSetting = computed(() => {
     columns: Array(props.columns.length).fill({ readOnly: true, renderer: renderedColumn }),
     colWidths: 120,
     contextMenu: Pysc.TableContextMenus([{ name: 'copy' }, { name: 'copy_with_column_headers' }]),
+    beforeCopy: (data, coords) => {
+      if (data.length)
+        data.splice(0, data.length, ...data.map(r => r.map(c => `${c ?? ''}`.replace(/<\/?("[^"]*"|'[^']*'|[^>])*(>|$)/g, " "))))
+    },
     height: 'auto',
     width: '100%',
     fixedColumnsStart: 1,
@@ -112,6 +116,14 @@ watch(() => [props.data, props.columns], val => {
     tblCombine.value?.hotInstance.updateSettings(CompSetting.value)
   })
 }, { deep: true })
+
+const getDataSource = () => {
+  return tblCombine.value ? [tblCombine.value.hotInstance.getColHeader(), ...tblCombine.value.hotInstance.getData()] : []
+}
+
+defineExpose({
+  getDataSource,
+})
 </script>
 
 <template>

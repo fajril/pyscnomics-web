@@ -2,6 +2,7 @@
 import { hexToRgb } from '@layouts/utils'
 import { LineChart } from "echarts/charts"
 import {
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
   TitleComponent,
@@ -19,6 +20,7 @@ const props = defineProps<Props>()
 const numbro = Pysc.useNumbro()
 
 use([
+  DataZoomComponent,
   CanvasRenderer,
   LineChart,
   TitleComponent,
@@ -50,12 +52,17 @@ const chtOption = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
   return {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     legend: {
       left: "center",
       top: 'bottom',
       textStyle: props.series.length > 1 ? { width: 80, color: themePrimaryTextColor, overflow: 'truncate' } : { color: themePrimaryTextColor },
       tooltip: { show: true },
     },
+    dataZoom: {
+      type: 'inside',
+    },
+
     grid: {
       show: true,
       borderColor: themeBorderColor,
@@ -114,6 +121,9 @@ const chtOption = computed(() => {
     series: props.dataChart.map((serData, idx) => {
       return {
         type: "line",
+        itemStyle: {
+          color: `rgba(${hexToRgb(Pysc.bg_color_table[idx])}, 0.7)`,
+        },
         name: idx < props.series.length ? props.series[idx].title : '',
         data: serData.y.map((y, i) => [y, serData.d[i]]),
         symbol: 'none',
@@ -140,8 +150,16 @@ useResizeObserver(refCompCFContainer, entries => {
 
 onMounted(() => updateCompareCFChart())
 
+const getImageSourceUrl = () => {
+  return refCompCFChart.value?.getDataURL({
+    type: 'png',
+    excludeComponents: ['toolbox'],
+  })
+}
+
 defineExpose({
   updateCompareCFChart,
+  getImageSourceUrl,
 })
 </script>
 

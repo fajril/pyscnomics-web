@@ -31,6 +31,10 @@
     "iato": {
       "id": "Inflasi berpengaruh pada",
       "en": "In which cost the inflation will be applied"
+    },
+    "delayed": {
+      "id": "Komponen yang akan di tunda adalah Lifting dan Biaya-Biaya",
+      "en": "The component that will be delayed are Lifting and Cost"
     }
   },
   "fiscal": {
@@ -155,6 +159,190 @@
     "dmof": {
       "id": "Persentase fee untuk Domestic Market Obligation (DMO)",
       "en": "TThe percentage of the Domestic Market Obligation (DMO) fee"
+    }
+  },
+  "oProdPrice": {
+    "Year": {
+      "id": "Tahun dimana terdapat produksi minyak atau condensate",
+      "en": "The year of oil or condensate production"
+    },
+    "Sales": {
+      "id": "Total volume minyak per tahun dalam satuan ribuan barel",
+      "en": "Total volume of oil sales per year in thousand stock tank barrels units"
+    },
+    "Price": {
+      "id": "Harga jual minyak per barel dalam Dolar AS.",
+      "en": "Oil sales price per barrel in USD"
+    },
+    "Cond_sales": {
+      "id": "Total volume kondensat dalam ribuan barel.",
+      "en": "Total volume of condensate sales in thousand stock tank barrels"
+    },
+    "Cond_price": {
+      "id": "Harga jual kondensat per barel dalam Dolar AS",
+      "en": "Condensate sales price per barrel in USD"
+    }
+  },
+  "gProdPrice": {
+    "Year": {
+      "id": "Tahun dimana terdapat produksi gas",
+      "en": "The year of gas production"
+    },
+    "Production": {
+      "id": "Total produksi gas dalam per tahun dalam satuan miliar kaki kubik standar (BSCF)",
+      "en": "Total gas production per year in billion standard cubic feet (BSCF) unit"
+    },
+    "GSA_Volume": {
+      "id": "Volume gas yang dijual berdasarkan Perjanjian Penjualan Gas (GSA) dalam BSCF",
+      "en": "Gas sales volume under the Gas Sales Agreement (GSA) in BSCF"
+    },
+    "GSA_GHV": {
+      "id": "Gas Heating Value berdasarkan GSA, dalam BTU per SCF",
+      "en": "Gas Heating Value sold under the Gas Sales Agreement (GSA), in BTU per SCF"
+    },
+    "GSA_Price": {
+      "id": "Harga gas yang dijual berdasarkan GSA dalam Dolar AS per MMBTU",
+      "en": "Gas sales price under the Gas Sales Agreement (GSA) in USD per MMBTU"
+    }
+  },
+  "capCost": {
+    "year": {
+      "id": "Tahun dimana terdapat biaya tangible dikeluarkan",
+      "en": "The year in which tangible costs were incurred."
+    },
+    "assoc": {
+      "id": "Menunjukkan pada fluida terproduksi apa biaya kapital akan dibebankan",
+      "en": "Shows which fluid the capital cost is allocated to."
+    },
+    "cost": {
+      "id": "Nilai biaya tangible dalam satuan MUSD",
+      "en": "The value of tangible costs in million USD."
+    },
+    "VAT": {
+      "id": "Porsi dari Pajak Pertambahan Nilai (PPN) yang akan dikenakan pada biaya kapital",
+      "en": "The portion of the Value Added Tax (VAT) that will be applied to the capital cost"
+    },
+    "desc": {
+      "id": "Memberikan keterangan tambahan atau konteks tentang biaya tersebut apakah berhubungan biaya pengeboran, Pembangunan, dan lainnya. (opsional)",
+      "en": "Provides additional details or context about the costs, such as whether they relate to drilling, development, or other areas (optional)."
+    }
+  },
+  "intang": {
+    "year": {
+      "id": "Menunjukkan tahun-tahun adanya biaya intangible",
+      "en": "The year in which intangible costs were incurred."
+    },
+    "assoc": {
+      "id": "Menunjukkan pada fluida terproduksi apa biaya intangible akan dibebankan.",
+      "en": "Shows which fluid the intangible cost is allocated to."
+    },
+    "cost": {
+      "id": "Nilai biaya intangible dalam satuan MUSD",
+      "en": "The value of intangible costs in million USD."
+    },
+    "VAT": {
+      "id": "Porsi dari Pajak Pertambahan Nilai (PPN) yang akan dikenakan pada biaya kapital",
+      "en": "The portion of the Value Added Tax (VAT) that will be applied to the capital cost"
+    },
+    "desc": {
+      "id": "Memberikan keterangan tambahan atau konteks tentang biaya tersebut apakah berhubungan biaya pengeboran, Pembangunan, dan lainnya. (opsional)",
+      "en": "Provides additional details or context about the costs, such as whether they relate to drilling, development, or other areas (optional)."
+    }
+  },
+  "OPEX": {
+    "year": {
+      "id": "Menunjukkan tahun-tahun di mana terdapat biaya operasional.",
+      "en": "The year in which operational costs were incurred."
+    },
+    "assoc": {
+      "id": "Menunjukkan pada fluida terproduksi apa biaya operasional akan dibebankan.",
+      "en": "Shows which fluid the operational cost is allocated to."
+    },
+    "fixed": {
+      "id": "Menunjukkan jumlah biaya operasional tetap dalam juta dolar AS (MUSD) yang dikeluarkan setiap tahun.",
+      "en": "Indicates the total annual operational costs in million USD."
+    },
+    "prod": {
+      "id": "Laju produksi setiap tahunnya",
+      "en": "The rate of production for each year."
+    },
+    "cost": {
+      "id": "Biaya operasional per unit volume produksi",
+      "en": "Operational cost per unit of production volume."
+    },
+    "VAT": {
+      "id": "Porsi dari Pajak Pertambahan Nilai (PPN) yang akan dikenakan pada biaya kapital",
+      "en": "The portion of the Value Added Tax (VAT) that will be applied to the capital cost"
+    },
+    "LBT": {
+      "id": "Bagian dari biaya yang dikenakan Pajak Penghasilan (PPh).",
+      "en": "The portion of the cost subjected to Local Business Tax (LBT)."
+    },
+    "desc": {
+      "id": "Memberikan keterangan tambahan atau konteks tentang OPEX tersebut (opsional)",
+      "en": "Provides additional details or context about the costs (optional)."
+    }
+  },
+  "ASR": {
+    "year": {
+      "id": "Menunjukkan tahun dimana terdapat biaya ASR",
+      "en": "The year associated with or projected for this ASR cost."
+    },
+    "assoc": {
+      "id": "Menunjukkan pada fluida terproduksi apa biaya ASR akan dibebankan.",
+      "en": "Shows which fluid the ASR cost is allocated to."
+    },
+    "cost": {
+      "id": "nilai biaya ASR dalam satuan juta dolar AS (MUSD)",
+      "en": "Indicates the ASR costs in million USD."
+    },
+    "desc": {
+      "id": "Memberikan keterangan tambahan atau konteks berkaitan dengan biaya ASR (opsional)",
+      "en": "Provides additional details or context about the ASR costs (optional)."
+    }
+  },
+  "sens": {
+    "param": {
+      "id": "Parameter spesifik yang diuji sensitifitasnya dalam model.",
+      "en": "The specific parameter tested for sensitivity in the model."
+    },
+    "min": {
+      "id": "Nilai minimum dari parameter yang dipertimbangkan dalam analisis sensitivitas.",
+      "en": "The minimum value of the parameter considered in the sensitivity analysis."
+    },
+    "base": {
+      "id": "Nilai dasar atau nilai awal dari parameter dalam analisis sensitivitas. Secara default akan mengikuti nilai yang dimasukkan pada case yang dikerjakan",
+      "en": "The base or initial value of the parameter in the sensitivity analysis. By default, it will follow the value entered for the case being worked on."
+    },
+    "max": {
+      "id": "Nilai maksimum dari parameter yang dipertimbangkan dalam analisis sensitivitas.",
+      "en": "The maximum value of the parameter considered in the sensitivity analysis"
+    }
+  },
+  "uncertainty": {
+    "param": {
+      "id": "Parameter spesifik yang dipertimbangkan ketidakpastiannya dalam model.",
+      "en": "The specific parameter considered for uncertainty in the model."
+    },
+    "dist": {
+      "id": "Distribusi probabilitas yang digunakan untuk memodelkan ketidakpastian parameter.",
+      "en": "The probability distribution used to model the uncertainty of the parameter."
+    },
+    "min": {
+      "id": "Nilai minimum dari parameter yang dipertimbangkan dalam analisis ketidakpastian",
+      "en": "The minimum value of the parameter considered in the uncertainty analysis."
+    },
+    "base": {
+      "id": "Nilai dasar atau nilai awal dari parameter dalam analisis ketidakpastian, secara default nilainya akan mengikuti nilai parameter pada basecase (case yang sedang dikerjakan pengguna)",
+      "en": "The base or initial value of the parameter in the uncertainty analysis. By default, its value will follow the parameter value in the base case (the case currently being worked on by the user)."
+    },
+    "max": {
+      "id": "Nilai maksimum dari parameter yang dipertimbangkan dalam analisis ketidakpastian",
+      "en": "The maximum value of the parameter considered in the uncertainty analysis."
+    },
+    "stdDev": {
+      "id": "Standar deviasi dari parameter yang digunakan untuk menentukan tingkat variasi atau ketidakpastian.",
+      "en": "The standard deviation of the parameter used to determine the degree of variation or uncertainty.  "
     }
   }
 }

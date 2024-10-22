@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAppStore } from '@/stores/appStore'
+import * as Pysc from "@/utils/pysc/pyscType"
 import { hexToRgb } from '@layouts/utils'
 import { BarChart, CustomChart } from "echarts/charts"
 import {
@@ -13,7 +15,13 @@ import { abs, max, min } from "mathjs"
 import VChart from "vue-echarts"
 import type { ThemeInstance } from 'vuetify'
 import { useTheme } from 'vuetify'
-import * as Pysc from "@/utils/pysc/pyscType"
+
+interface Props {
+  dataChart: []
+  category: string[]
+  title: string
+  mode?: 'Tornado' | 'Contrib'
+}
 
 const props = withDefaults(defineProps<Props>(), {
   mode: 'Contrib',
@@ -33,6 +41,8 @@ use([
 
 const vuetifyTheme = useTheme()
 
+const appStore = useAppStore()
+
 const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] = vuetifyTheme.current.value) => {
   const themeSecondaryTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['medium-emphasis-opacity']})`
   const themeDisabledTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['disabled-opacity']})`
@@ -40,13 +50,6 @@ const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] 
   const themePrimaryTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['high-emphasis-opacity']})`
 
   return { themeSecondaryTextColor, themeDisabledTextColor, themeBorderColor, themePrimaryTextColor }
-}
-
-interface Props {
-  dataChart: []
-  category: string[]
-  title: string
-  mode?: 'Tornado' | 'Contrib'
 }
 
 const doRenderItem = (params, api) => {
@@ -125,6 +128,7 @@ const chtOption = computed(() => {
   }
 
   return {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     grid: {
       show: true,
       borderColor: themeBorderColor,
@@ -256,24 +260,46 @@ const chtOption = computed(() => {
   }
 })
 
-const refSensBarContainer = ref()
+const chartSensContainer = ref()
 const refSensBarChart = ref()
 
-useResizeObserver(refSensBarContainer, entries => {
+const getDataSource = (value: string, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+
+  return {
+    url: refSensBarChart.value?.getDataURL({
+      type: 'png',
+      excludeComponents: ['toolbox'],
+    }),
+    filename: `sens_${props.title}_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+  }
+}
+
+useResizeObserver(chartSensContainer, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
-  if (refSensBarContainer.value)
-    nextTick(() => refSensBarChart.value?.resize())
+
+  nextTick(() => {
+    if (refSensBarChart.value)
+      refSensBarChart.value?.resize()
+  })
 }, { box: 'device-pixel-content-box' })
+
+defineExpose({
+  getDataSource,
+})
 </script>
 
 <template>
-  <div ref="refSensBarContainer">
+  <VCardText
+    ref="chartSensContainer"
+    class="p-0"
+  >
     <VChart
       ref="refSensBarChart"
       class="sens-bar-chart"
       :option="chtOption"
       :style="{ minBlockSize: `${(props.category.length ?? 5) * 80}px` }"
     />
-  </div>
+  </VCardText>
 </template>

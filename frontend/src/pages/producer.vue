@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
 import { min } from 'mathjs'
+import DotdotOpt from './components/dotdotOpt.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
+import { useLTP_RPDStore } from '@/stores/ltp_rdp'
 import type { producerConfig } from '@/utils/pysc/pyscType'
 import {
   IndexOfField,
@@ -11,6 +14,7 @@ import {
   useDayJs,
 } from '@/utils/pysc/pyscType'
 import { useDataStore } from '@/utils/pysc/useDataStore'
+import LTPRPD from '@/views/pages/config/ltprdpConf.vue'
 import ProdChart from '@/views/pages/config/prodChart.vue'
 import ProdPrice from '@/views/pages/config/prodPrice.vue'
 
@@ -118,10 +122,148 @@ const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   selProd.value = dataProd.value[0].Tipe
 })
 
-onMounted(() => CallableFunc())
-onUnmounted(() => stopCaseID())
+const LTPRPDRef = ref()
+const LTPRPDStore = useLTP_RPDStore()
+
+const ApplyLTPRPD = async (mode: 'LTP' | 'RPD') => {
+  try {
+    LTPRPDStore.LTPConfig.fluid_type = Object.values(ProducerType)[selProd.value]
+
+    const { status, result } = await useHTTP().put({
+      path: mode === 'LTP' ? 'calc_ltp' : 'calc_rpd',
+      body: mode === 'LTP' ? LTPRPDStore.LTPConfig : LTPRPDStore.RPDConfig,
+      onError: (error: any) => { throw error },
+    })
+
+    if (status !== 200)
+      throw { status, result }
+
+    const idx = dataProd.value.findIndex(e => e.Tipe === selProd.value)
+    if (idx !== -1) {
+      const _res = mode === 'LTP' ? result.ltp : result.rpd
+      if (_res) {
+        const _key = Object.keys(_res)
+        const _value = Object.values(_res)
+
+        PyscConf.$patch(state => {
+          state.producer[idx].prod_price[selProdIndex.value].splice(0, state.producer[idx].prod_price[selProdIndex.value].length,
+            ..._key.map((y, i) => {
+              const tmpl = defProdPriceBase(idx, selProd.value === 1 ? state.producer[idx].GSANumber : 1)[0]
+
+              tmpl.year = +y
+              if (selProd.value === 1)
+                tmpl.production = _value[i]
+              else
+                tmpl.sales = _value[i]
+
+              return tmpl
+            }))
+        })
+      }
+    }
+  }
+  catch (err) {
+    appStore.showAlert({
+      text: `Error ${(err?.status) ?? ''}: ${(err?.result) ?? 'unknown'}`,
+      isalert: true,
+    })
+  }
+  if (mode === 'LTP') {
+
+  }
+}
+
+const showLtpRdp = (mode: 'LTP' | 'RPD') => {
+  LTPRPDRef.value?.ShowLTPRPD(mode)
+}
 
 const currentTab = ref(0)
+const prodChartRef = ref()
+const prodTblRef = ref()
+
+const getDataSourceUrl = (type: string) => {
+  if (type === 'image') {
+  }
+  else {
+    const tblDataScr = prodTblRef.value?.getTblProd()
+    if (tblDataScr && tblDataScr.length) {
+      if (type === 'text') {
+        return tblDataScr.reduce((rowTxt, rowVal) => {
+          return `${rowTxt + rowVal.join('\t')}\n`
+        }, '')
+      }
+      else if (type === 'table') {
+        return {
+          data: [{
+            name: `lifting ${Object.values(ProducerType)[selProd.value]}`,
+            header: [],
+            data: tblDataScr,
+          }],
+          filename: `lifting_${Object.values(ProducerType)[selProd.value]}_${appStore.selectedCase.name}`.replace(/[/\\ #$~&.]/g, ''),
+        }
+      }
+    }
+
+    return null
+  }
+}
+
+const optOption = computed(() => {
+  return (source: string) => [
+    { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: source === 'table' ? 'text' : source },
+    { title: `Save to file (*.${source === 'table' ? 'xlsx' : 'png'})`, value: 'save2File', icon: 'tabler-download', sourceType: source },
+    { type: 'divider' },
+    {
+      title: 'RPD Calculator',
+      icon: 'tabler-calculator',
+      disabled: currentTab.value === 1,
+      value: 'RPD',
+    },
+    { type: 'divider' },
+    { title: 'Reload', value: 'reload', icon: 'tabler-reload' },
+  ]
+})
+
+const getDataSource = (refName: any, setName: any, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+  if (sourceType === 'text' || sourceType === 'table') {
+    const tblDataScr = prodTblRef.value?.getTblProd()
+
+    if (sourceType === 'text') {
+      return tblDataScr.reduce((rowTxt, rowVal) => {
+        return `${rowTxt + rowVal.join('\t')}\n`
+      }, '')
+    }
+    else if (sourceType === 'table') {
+      return {
+        data: [{
+          name: `lifting ${Object.values(ProducerType)[selProd.value]}`,
+          header: [],
+          data: tblDataScr,
+        }],
+        filename: `lifting_${Object.values(ProducerType)[selProd.value]}_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+      }
+    }
+  }
+  else {
+    return {
+      url: prodChartRef.value?.chartProd.getDataURL({
+        type: 'png',
+      }),
+      filename: `lifting_${Object.values(ProducerType)[selProd.value]}_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+    }
+  }
+}
+
+const actionOption = (type: string) => {
+  if (type === 'LTP' || type === 'RPD')
+    showLtpRdp(type)
+  else if (type === 'reload')
+    CallableFunc()
+}
+
+onMounted(() => CallableFunc())
+onUnmounted(() => stopCaseID())
 </script>
 
 <template>
@@ -159,10 +301,7 @@ const currentTab = ref(0)
                         @click="() => producerItemChanged(index)"
                       >
                         <template #prepend>
-                          <VIcon
-                            v-if="dataProd.findIndex(e => e.Tipe === index) != -1"
-                            icon="tabler-check"
-                          />
+                          <VIcon :icon="dataProd.findIndex(e => e.Tipe === index) != -1 ? 'tabler-check' : ''" />
                         </template>
                         <VListItemTitle>
                           {{ item }}
@@ -231,6 +370,17 @@ const currentTab = ref(0)
             action-collapsed
             :title="`${Object.values(ProducerType)[selProd]} ${$t('Production')} & ${$t('Price')}`"
           >
+            <template #before-actions="{ isContentCollapsed }">
+              <DotdotOpt
+                v-if="!isContentCollapsed"
+                :menu-list="optOption(currentTab === 0 ? 'table' : 'image')"
+                title="Options"
+                item-props
+                dot-only
+                :get-source="getDataSource"
+                @click:item="actionOption"
+              />
+            </template>
             <VCardText>
               <VTabs v-model="currentTab">
                 <VTab>{{ $t('Table Entry') }}</VTab>
@@ -241,13 +391,15 @@ const currentTab = ref(0)
                 <VWindow v-model="currentTab">
                   <VWindowItem value="0">
                     <ProdPrice
+                      ref="prodTblRef"
                       v-model:selProdIndex="selProdIndex"
                       :prod-type="selProd"
                     />
                   </VWindowItem>
                   <VWindowItem value="1">
                     <ProdChart
-                      v-if="currentTab == 1"
+                      v-if="currentTab === 1"
+                      ref="prodChartRef"
                       v-model:selProdIndex="selProdIndex"
                       :prod-type="selProd"
                     />
@@ -259,6 +411,10 @@ const currentTab = ref(0)
         </VCol>
       </VRow>
     </VCardText>
+    <LTPRPD
+      ref="LTPRPDRef"
+      @apply="ApplyLTPRPD"
+    />
   </VCard>
 </template>
 

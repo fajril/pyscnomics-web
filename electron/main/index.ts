@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, app, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, Menu, Notification, app, dialog, ipcMain, shell } from 'electron'
 import fs from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
@@ -45,6 +45,7 @@ process.env.APP_ROOT = path.normalize(path.join(__dirname, '../../..'))
 let isFresh = false
 let apiReady = false
 let elecClient = null
+let isUpdated = false
 const isMac = process.platform === 'darwin'
 const osType = (process.platform === 'win32' ? 'win' : (isMac ? 'mac' : 'linux'))
 
@@ -58,6 +59,9 @@ export const RENDERER_DIST = path.normalize(path.join(process.env.APP_ROOT, 'dis
 export const RESOURCE_DIST = app.isPackaged
   ? path.normalize(path.join(process.env.APP_ROOT, '..'))
   : path.normalize(path.join(process.env.APP_ROOT))
+export const TMP_UPDATE = app.isPackaged
+  ? path.normalize(path.join(process.env.APP_ROOT, '..', '..', '..', 'tmp-update'))
+  : path.normalize(path.join(process.env.APP_ROOT, 'tmp-update'))
 export const FRONTEND_DIST = app.isPackaged
   ? path.normalize(path.join(process.env.APP_ROOT, '..'))
   : path.normalize(path.join(process.env.APP_ROOT, 'dist'))
@@ -81,6 +85,8 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
   process.exit(0)
 }
+
+// console.log(app.getPath('home'))
 
 /*************************************************************
  * path browser
@@ -369,6 +375,24 @@ const broadCastNewPort = () => {
   }
 }
 
+const broadCastFailedPort = () => {
+  if (pyPort) {
+    wss?.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN && elecClient === client.id) {
+        client.send(JSON.stringify({
+          module: 'os:conf',
+          id: client.id,
+          data: {
+            type: 'os:failPort',
+            isFreshInst: (elecClient === client.id ? isFresh : isFreshInstall(null)),
+            data: btoa(JSON.stringify({ sep: path.sep, os: osType, port: pyPort })),
+          },
+        }), { binary: false })
+      }
+    })
+  }
+}
+
 const getScriptPath = () => {
   return path.normalize(path.join(RESOURCE_DIST, 'backend', `${PY_MODULE}.py`))
 }
@@ -389,6 +413,8 @@ const sendAPILog = async (msg: string) => {
   }
 }
 
+let portInUse = false
+
 const createPyProc = async (showLog: boolean = false) => {
   showAPILogger = showLog
 
@@ -398,6 +424,7 @@ const createPyProc = async (showLog: boolean = false) => {
     return `${script} port:${pyPort} failed to start`
 
   try {
+    portInUse = false
     if (app.isPackaged) {
       if (osType === 'win') {
         pyProc = require('node:child_process').spawn(`${path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'Scripts', 'python'))}`, [`${PY_MODULE}.py`, pyPort, `"${FRONTEND_DIST}"`], {
@@ -430,6 +457,7 @@ const createPyProc = async (showLog: boolean = false) => {
 
         // process.stdout?.addListener('data', processStrOutListenner)
       })
+
       pyProc.stdout.on('data', async data => {
         // tes if its monte progress
         const logs = `${data}`.replace(/(INFO:)(.*)"(PUT|GET|POST|OPTIONS)(.*)"(\s\d+\s.*)[\r\n$]/, `${bcolors.OKGREEN}[backend]${bcolors.ENDC} ${bcolors.OKCYAN}$1${bcolors.ENDC}$2"${bcolors.WARNING}$3${bcolors.ENDC}$4"${bcolors.WARNING}$5${bcolors.ENDC}`)
@@ -445,16 +473,30 @@ const createPyProc = async (showLog: boolean = false) => {
           // send looger
           sendAPILog(`${data}`)
         }
+
+        // [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8888): only one usage of each socket address (protocol/network address/port) is normally permitted
         console.log(`${bcolors.FAIL}[backend]${bcolors.ENDC} ${data}`)
+        if (`${data}`.includes(`Uvicorn running on http`)) {
+          console.log(`${bcolors.FAIL}[backend]${bcolors.ENDC} Uvicorn started`)
+          broadCastNewPort()
+        }
+        else if (`${data}`.includes('error while attempting to bind on address')) {
+          // port in used
+          apiReady = false
+          portInUse = true
+          broadCastFailedPort()
+        }
       })
       pyProc.on('exit', code => {
         apiReady = false
+
+        console.log(`${bcolors.FAIL}[backend]${bcolors.ENDC} Process exist`)
 
         // process.stdout?.removeListener('data', processStrOutListenner)
       })
     }
 
-    broadCastNewPort()
+    // broadCastNewPort()
   }
   catch (error) {
     if (error)
@@ -782,28 +824,29 @@ async function testFilePython(ev, noBrowseFile: any = false) {
     let pyValid: boolean = false
     process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Test Python File...`)
     try {
-      if (osType === 'win') {
-        python = require('node:child_process').execFileSync(pyFilePath || 'python', ['--version'],
-          {
-            cwd: pyFilePath ? path.normalize(path.dirname(pyFilePath)) : undefined,
-            windowsHide: true,
-            stdio: 'pipe',
-          })
-      }
-      else {
-        python = require('node:child_process').execFileSync(pyFilePath || 'python3', ['--version'],
-          {
-            cwd: pyFilePath ? path.normalize(path.dirname(pyFilePath)) : undefined,
-            windowsHide: true,
-            stdio: 'pipe',
-          })
-      }
+      // if (osType === 'win') {
+      //   python = require('node:child_process').execFileSync(pyFilePath || 'python3', ['--version'],
+      //     {
+      //       cwd: pyFilePath ? path.normalize(path.dirname(pyFilePath)) : undefined,
+      //       windowsHide: true,
+      //       stdio: 'pipe',
+      //     })
+      // }
+      // else {
+      python = require('node:child_process').execFileSync(pyFilePath || 'python', ['--version'],
+        {
+          cwd: pyFilePath ? path.normalize(path.dirname(pyFilePath)) : undefined,
+          windowsHide: true,
+          stdio: 'pipe',
+        })
+
+      // }
       process.stdout.write(`${python.toString()}\n`)
 
       const pyver_ = python.toString().match(/Python\s*(\d*\.\d*)(\.\d*)/i)
       if (pyver_) {
         // check ver
-        pyValid = pyver_[1] === '3.12'
+        pyValid = pyver_[1] === '3.12' && Number.parseInt(pyver_[2].slice(1)) >= 7
         python = pyver_.slice(1).join('')
       }
     }
@@ -828,31 +871,19 @@ async function checkPython() {
   if (envNotFound) {
     // check python
     try {
-      if (osType === 'win') {
-        python = require('node:child_process').execFileSync(path.join(PYTHON_EXEC, 'python'), ['--version'],
-          {
-            cwd: PYTHON_EXEC,
-            windowsHide: true,
-            stdio: 'pipe',
+      python = require('node:child_process').execFileSync('python', ['--version'],
+        {
+          windowsHide: true,
+          stdio: 'pipe',
 
-          })
-      }
-      else {
-        python = require('node:child_process').execFileSync('python3', ['--version'],
-          {
-            cwd: PYTHON_EXEC,
-            windowsHide: true,
-            stdio: 'pipe',
-
-          })
-      }
+        })
 
       process.stdout.write(`${python.toString()}\n`)
 
       const pyver_ = python.toString().match(/Python\s*(\d*\.\d*)(\.\d*)/i)
       if (pyver_) {
         // check ver
-        pyExists = pyver_[1] === '3.12'
+        pyExists = pyver_[1] === '3.12' && Number.parseInt(pyver_[2].slice(1)) >= 7
         python = pyver_.slice(1).join('')
       }
     }
@@ -867,8 +898,10 @@ async function checkPython() {
     env: !envNotFound,
     pyExist: pyExists,
     pyver: python,
+    isUpdate: isUpdated,
   }
 }
+
 async function checkPIP() {
   process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Test PIP...`)
   try {
@@ -899,16 +932,15 @@ async function installPIP(ev, clientid: string) {
   process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install pip...`)
   isFresh = true
   try {
-    require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['get-pip.py'],
+    require('node:child_process').execFile('python', ['get-pip.py'],
       {
         cwd: PYTHON_EXEC,
         windowsHide: true,
         stdio: ['pipe', process.stdout, process.stderr],
-
       },
       error => {
         if (error)
-          console.log(error)
+          console.log(error.toString())
         broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:instpip', data: !error } }), false, clientid)
         process.stdout.write(error ? "failed" : "done\n")
       })
@@ -926,16 +958,16 @@ async function installVirtualEnv(ev, clientid: string) {
   isFresh = true
   process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install virtualenv...`)
   try {
-    require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'), ['-m', 'pip', 'install', 'virtualenv'],
+    require('node:child_process').execFile('pip', ['install', 'virtualenv'],
       {
-        cwd: PYTHON_EXEC,
+        cwd: path.join(PYTHON_EXEC, 'Scripts'),
         windowsHide: true,
         stdio: ['pipe', process.stdout, process.stderr],
 
       },
       error => {
         if (error)
-          console.log(error)
+          console.log(error.toString())
         broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:instvenv', data: !error } }), false, clientid)
         process.stdout.write(error ? "failed" : "done\n")
       })
@@ -950,36 +982,42 @@ async function installVirtualEnv(ev, clientid: string) {
   return 'venv installing'
 }
 
-async function createPyEnv(ev, clientid: string, pyPath: string | null = null) {
+async function createPyEnv(ev, clientid: string, builtIn: boolean, pyPath: string | null = null) {
   isFresh = true
   try {
     process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Create Python environment for pyscnomics-env...`)
-    if (osType === 'win') {
-      require('node:child_process').execFile(path.join(PYTHON_EXEC, 'python'),
-        ['-m', 'virtualenv', '--copies', 'pyscnomics-env'],
-        { cwd: path.normalize(RESOURCE_DIST), windowsHide: true, stdio: ['pipe', process.stdout, process.stderr] },
-        error => {
-          if (error)
-            console.log(error)
-          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:makeEnv', data: !error } }), false, clientid)
-          process.stdout.write(error ? "failed" : "done\n")
-        })
-    }
-    else {
-      require('node:child_process').execFile(pyPath ? path.normalize(pyPath) : 'python3',
-        ['-m', 'venv', '--copies', 'pyscnomics-env'],
-        {
-          cwd: path.normalize(RESOURCE_DIST),
-          windowsHide: true,
-          stdio: ['pipe', process.stdout, process.stderr],
-        },
-        error => {
-          if (error)
-            console.log(error)
-          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:makeEnv', data: !error } }), false, clientid)
-          process.stdout.write(error ? "failed" : "done\n")
-        })
-    }
+
+    // if (osType === 'win' && builtIn) {
+    //   require('node:child_process').execFile(path.join(PYTHON_EXEC, 'Scripts', 'virtualenv'),
+    //     ['--copies', 'pyscnomics-env'],
+    //     {
+    //       cwd: path.normalize(RESOURCE_DIST),
+    //       windowsHide: true,
+    //       stdio: ['pipe', process.stdout, process.stderr],
+    //     },
+    //     error => {
+    //       if (error)
+    //         console.log(error.toString())
+    //       broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:makeEnv', data: !error } }), false, clientid)
+    //       process.stdout.write(error ? "failed" : "done\n")
+    //     })
+    // }
+    // else {
+    require('node:child_process').execFile(pyPath ? path.normalize(pyPath) : 'python',
+      ['-m', 'venv', '--copies', 'pyscnomics-env'],
+      {
+        cwd: path.normalize(RESOURCE_DIST),
+        windowsHide: true,
+        stdio: ['pipe', process.stdout, process.stderr],
+      },
+      error => {
+        if (error)
+          console.log(error.toString())
+        broadCastMessge(JSON.stringify({ module: 'setup', id: clientid, data: { type: 'config:makeEnv', data: !error } }), false, clientid)
+        process.stdout.write(error ? "failed" : "done\n")
+      })
+
+    // }
   }
   catch (error) {
     if (error)
@@ -1040,20 +1078,99 @@ async function installPyLib(ev, clientid: string) {
   return 'Install PyLib'
 }
 
+async function showAppUpdated(appver_: string) {
+  if (Notification.isSupported()) {
+    const _notif = new Notification({
+      title: 'PSCnomics',
+      icon: path.normalize(path.join(process.env.VITE_PUBLIC, 'favicon.ico')),
+      body: `Successfully updated to  ${typeof appver_ === 'string' && appver_.length ? (`version ${appver_}`) : 'the latest version'}`,
+    })
+
+    _notif.show()
+  }
+}
+
+async function chkPythonLibs(ev, clientid_: string, appver_: string) {
+  try {
+    process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} check Python library...`)
+    if (osType === 'win') {
+      require('node:child_process').execFile('activate',
+        ['&&',
+          'pip',
+          'install',
+          '-r',
+          `"${path.normalize(path.join(RESOURCE_DIST, 'backend', 'requirements.txt'))}"`,
+          '&&',
+          'deactivate'],
+        {
+          cwd: path.normalize(path.join(RESOURCE_DIST, 'pyscnomics-env', 'Scripts')),
+          windowsHide: true,
+          shell: true,
+          stdio: 'pipe',
+        }, error => {
+          if (!error)
+            showAppUpdated(appver_)
+          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid_, data: { type: 'config:chkLib', data: !error } }), false, clientid_)
+          process.stdout.write(error ? "failed" : "done\n")
+        })
+    }
+    else {
+      require('node:child_process').execFile('source ./pyscnomics-env/bin/activate',
+        ['&&',
+          'pip install -r ./backend/requirements.txt',
+          '&&',
+          'deactivate'],
+        {
+          cwd: RESOURCE_DIST,
+          windowsHide: true,
+          shell: true,
+          stdio: 'pipe',
+        }, error => {
+          if (!error)
+            showAppUpdated(appver_)
+          broadCastMessge(JSON.stringify({ module: 'setup', id: clientid_, data: { type: 'config:chkLib', data: !error } }), false, clientid_)
+          process.stdout.write(error ? "failed" : "done\n")
+        })
+    }
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+
+    return false
+  }
+
+  return 'check for PyLib'
+}
+
 async function installPy(ev, clientid: string) {
   isFresh = true
   process.stdout.write(`${bcolors.OKGREEN}[Setup]${bcolors.ENDC} Install Python 3.12...`)
   try {
-    require('node:child_process').exec('open python-3.12.4.pkg',
-      {
-        cwd: path.normalize(path.join(RESOURCE_DIST, 'python-mac-3.12')),
-        shell: true,
-        stdio: 'pipe',
-      }, (error, stdout, stderr) => {
-        process.stdout.write(error ? "failed" : "done\n")
-        if (error)
-          process.stdout.write(error.toString())
-      })
+    if (osType === 'win') {
+      require('node:child_process').exec('python-3.12.7.exe',
+        {
+          cwd: path.normalize(path.join(RESOURCE_DIST, 'python-win-3.12')),
+          shell: true,
+          stdio: 'pipe',
+        }, (error, stdout, stderr) => {
+          process.stdout.write(error ? "failed" : "done\n")
+          if (error)
+            process.stdout.write(error.toString())
+        })
+    }
+    else {
+      require('node:child_process').exec('open python-3.12.7.pkg',
+        {
+          cwd: path.normalize(path.join(RESOURCE_DIST, 'python-mac-3.12')),
+          shell: true,
+          stdio: 'pipe',
+        }, (error, stdout, stderr) => {
+          process.stdout.write(error ? "failed" : "done\n")
+          if (error)
+            process.stdout.write(error.toString())
+        })
+    }
   }
   catch (error) {
     if (error)
@@ -1151,6 +1268,243 @@ async function calcMonteCarlo(ev, clientID: string, CaseID: number, dataPath: st
   return false
 }
 
+async function checkUpdate(ev, clientID: string) {
+  try {
+    const resp = await fetch("https://raw.githubusercontent.com/edealam/pscnomics-packages/main/version.json")
+
+    const _txt = await resp.text()
+
+    return isMac ? (JSON.parse(_txt).mac) : (JSON.parse(_txt).windows)
+  }
+  catch (error) {
+    console.log(error.toString())
+  }
+
+  return null
+}
+
+const _7z = require('7zip-min-electron')
+
+async function downloadUpdate(url: string, clientID: string, ver: string) {
+  try {
+    // creating a new AbortController
+    const controller = new AbortController()
+
+    // Getting signal from the controller
+    const signal = controller.signal
+
+    // Setting timeout to automatically abort
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+    const response = await fetch(url, { signal })
+
+    clearTimeout(timeoutId)
+    if (!response.ok)
+      throw new Error(`HTTP error! status: ${response.status}`)
+
+    const contentLength = response.headers.get('content-length')
+
+    const totalSize = contentLength ? Number.parseInt(contentLength, 10) : 0
+
+    const reader = response.body.getReader()
+
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+    let loaded = 0
+
+    const stream = new ReadableStream({
+      // start the stream
+      async start(controller) {
+        while (true) {
+          // read the next chuck of data
+          const { done, value } = await reader.read()
+
+          //  simulate  network delay
+          await delay(100)
+
+          if (done)
+            break
+
+          // calcualte the progress %
+          loaded += value.length
+
+          broadCastMessge(JSON.stringify({
+            module: 'app:update',
+            id: clientID,
+            data: { type: 'download:progress', data: { loaded, totalSize, stage: 1 } },
+          }), false, clientID)
+
+          // send the data to the controller
+          controller.enqueue(value)
+        }
+
+        // close the stream
+        controller.close()
+      },
+    })
+
+    const responseStream = new Response(stream)
+    const buffer = await responseStream.arrayBuffer()
+    const view = new Uint8Array(buffer)
+    const fileExe = path.normalize(TMP_UPDATE)
+
+    const file7z = path.join(fileExe, `module-update-${ver}.7z`)
+    if (!fs.existsSync(fileExe))
+      fs.mkdirSync(fileExe)
+
+    fs.writeFileSync(file7z, view)
+
+    broadCastMessge(JSON.stringify({
+      module: 'app:update',
+      id: clientID,
+      data: { type: 'download:progress', data: { loaded, totalSize, stage: 2 } },
+    }), false, clientID)
+
+    return true
+  }
+  catch (error) {
+    console.log(error.toString())
+
+    return error
+  }
+
+  // return false
+}
+
+async function updateApp(ev, clientID: string, ver: string) {
+  try {
+    // console.log(process.env.APP_ROOT)
+    try {
+      console.log('stoping python...')
+      exitPyProc()
+    }
+    catch (error) { }
+
+    const resDownload = isMac
+      ? (await downloadUpdate(`https://github.com/edealam/pscnomics-packages/releases/download/mac-x64-${ver}/module-${ver}.7z`, clientID, ver))
+      : (await downloadUpdate(`https://github.com/edealam/pscnomics-packages/releases/download/win-x64-${ver}/module-${ver}.7z`, clientID, ver))
+
+    if (resDownload === true) {
+      const fileExe = path.normalize(TMP_UPDATE)
+      const file7z = path.join(fileExe, `module-update-${ver}.7z`)
+
+      // clear frontend/launcher content
+      fs.rmSync(path.join(RESOURCE_DIST, 'frontend'), { recursive: true, force: true })
+      fs.rmSync(path.join(RESOURCE_DIST, 'app', 'dist', 'launcher'), { recursive: true, force: true })
+
+      await _7z.unpack(file7z, RESOURCE_DIST, err => {
+        if (err)
+          throw new Error('extract update-file failed')
+      })
+    }
+    else {
+      throw new Error(typeof resDownload === 'string' ? resDownload : 'download update-file failed')
+    }
+    console.log('done, updated')
+
+    return true
+  }
+  catch (error) {
+    console.log(error.toString())
+
+    return error
+  }
+}
+
+async function reloadApp(ev, ver: string) {
+  try {
+    exitPyProc()
+    serverWS.close()
+    wss.close()
+    app.relaunch({ args: process.argv.slice(1).concat([`--relaunch="${ver}"`]) })
+  }
+  catch (error) {
+    if (error)
+      console.log(error.toString())
+  }
+  app.exit(0)
+}
+
+// async function updateApp2(ev, clientID: string, ver: string) {
+//   try {
+//     if (isMac) {
+//       const response = await fetch(`https://github.com/edealam/pscnomics-packages/releases/download/mac-${ver}/PSCnomics-Mac-${ver}.app.zip`)
+//       if (response.ok) {
+//         const buffer = await response.arrayBuffer()
+//         const view = new Uint8Array(buffer)
+//       }
+
+//       // const fileExe = path.normalize(TMP_UPDATE)
+
+//       // if (!fs.existsSync(fileExe))
+//       //   fs.mkdirSync(fileExe)
+//       // fs.writeFileSync(path.join(fileExe, `PSCnomics-Mac${ver}.app.zip`), view)
+
+//       // run update
+//       // require('node:child_process').spawn(path.join(fileExe, `PSCnomics-Mac${ver}.app`), {
+//       //   detached: true,
+//       //   stdio: 'ignore',
+//       // })
+
+//       // setTimeout(() => {
+//       //   // closeApp
+//       //   exitPyProc()
+//       //   try {
+//       //     serverWS.close()
+//       //     wss.close()
+//       //   }
+//       //   catch (error) {
+//       //     if (error)
+//       //       console.log(error.toString())
+//       //   }
+//       //   app.quit()
+//       // }, 1000)
+
+//       return null
+//     }
+//     else {
+//       const response = await fetch(`https://github.com/edealam/pscnomics-packages/releases/download/win-x64-${ver}/PSCnomics-Win-x64-${ver}-Setup.exe`)
+//       if (response.ok) {
+//         const buffer = await response.arrayBuffer()
+//         const view = new Uint8Array(buffer)
+//         const fileExe = path.normalize(TMP_UPDATE)
+
+//         if (!fs.existsSync(fileExe))
+//           fs.mkdirSync(fileExe)
+//         fs.writeFileSync(path.join(fileExe, `Setup-update-${ver}.exe`), view)
+
+//         // run update
+//         require('node:child_process').spawn(path.join(fileExe, `Setup-update-${ver}.exe`), {
+//           detached: true,
+//           stdio: 'ignore',
+//         })
+
+//         setTimeout(() => {
+//           // closeApp
+//           exitPyProc()
+//           try {
+//             serverWS.close()
+//             wss.close()
+//           }
+//           catch (error) {
+//             if (error)
+//               console.log(error.toString())
+//           }
+//           app.quit()
+//         }, 2000)
+
+//         return true
+//       }
+//       console.log(await response.text())
+//     }
+//   }
+//   catch (error) {
+//     console.log(error.toString())
+//   }
+
+//   return null
+// }
+
 app.whenReady().then(() => {
   ipcMain.handle('config:getBackendUrl', () => `http://127.0.0.1:${pyPort}`)
   ipcMain.handle('dialog:openFile', handleFileOpen)
@@ -1163,6 +1517,7 @@ app.whenReady().then(() => {
   ipcMain.handle('config:chkPIP', checkPIP)
   ipcMain.handle('config:instPIP', installPIP)
   ipcMain.handle('config:instVenv', installVirtualEnv)
+  ipcMain.handle('config:chkPyLib', chkPythonLibs)
 
   ipcMain.handle('config:makeEnv', createPyEnv)
   ipcMain.handle('config:instLib', installPyLib)
@@ -1172,6 +1527,10 @@ app.whenReady().then(() => {
   ipcMain.handle('app:openUrl', openAppUrl)
   ipcMain.handle('app:readPath', read_dirs)
   ipcMain.handle('module:monteCalc', calcMonteCarlo)
+
+  ipcMain.handle('app:checkUpdate', checkUpdate)
+  ipcMain.handle('app:updateApp', updateApp)
+  ipcMain.handle('app:reload', reloadApp)
 
   createWindow()
 })
@@ -1201,7 +1560,7 @@ app.on('activate', () => {
 })
 
 app.on('ready', () => {
-  // createPyProc()
+  isUpdated = (process.argv.length > 1 && /--relaunch/.test(process.argv[1]))
 })
 
 app.on('before-quit', e => {

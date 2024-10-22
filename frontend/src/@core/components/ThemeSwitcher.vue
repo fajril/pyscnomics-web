@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useConfigStore } from '@core/stores/config';
-import type { ThemeSwitcherTheme } from '@layouts/types';
+import { useConfigStore } from '@core/stores/config'
+import type { ThemeSwitcherTheme } from '@layouts/types'
 
 const props = defineProps<{
   themes: ThemeSwitcherTheme[]
@@ -55,17 +55,15 @@ watch(
         >
           {{ name }}
         </VListItem>
-        <VSpacer
-          :style="{ 'border-bottom': '1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important' }" />
+        <VDivider class="my-2" />
         <VListItem @click="() => { configStore.skin = (configStore.skin === 'bordered' ? 'default' : 'bordered') }">
           <template #prepend>
-            <VIcon :icon="configStore.skin === 'bordered'?'tabler-check':''" />
+            <VIcon :icon="configStore.skin === 'bordered' ? 'tabler-check' : ''" />
           </template>
           <VListItemTitle>
             {{ $t('Borderred') }}
           </VListItemTitle>
         </VListItem>
-
       </VList>
     </VMenu>
   </IconBtn>

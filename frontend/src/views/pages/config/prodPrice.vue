@@ -33,32 +33,33 @@ const ProdIndex = computed(() => {
 
 const columnTable = computed((): ExcelColumnType => {
   // console.log(props.prodType)
+  const isGS = [2, 4, 5, 6].includes(PyscConf.dataGConf.type_of_contract)
   if (props.prodType === 0) {
     return {
       colHeaders: ['Year',
-        `Prod. Rate baseline (${prodBase(props.prodType)})`,
+        ...(isGS ? [`Prod. baseline (${prodBase(props.prodType)})`] : []),
         `Sales (${prodUnit(props.prodType)})`,
         `Price (${prodPriceUnit(props.prodType)})`,
-        'Condensate Sales (MBOPY)',
+        'Condensate Sales (MSTB)',
         'Condensate Price (USD/BBL)'],
       columns: [
         { data: 'year', type: 'numeric', validator: 'numeric', allowInvalid: false },
-        { data: 'base', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
+        ...(isGS ? [{ data: 'base', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false }] : []),
         { data: 'sales', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
-        { data: 'price', type: 'numeric', validator: 'numeric', allowInvalid: false },
+        { data: 'price', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
         { data: 'condensate_sales', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
-        { data: 'condensate_price', type: 'numeric', validator: 'numeric', allowInvalid: false },
+        { data: 'condensate_price', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
       ],
     }
   }
   else if (props.prodType === 1) {
     const hGSA = ['Year',
-      `Prod. Rate baseline (${prodBase(props.prodType)})`,
+      ...(isGS ? [`Prod. baseline (${prodBase(props.prodType)})`] : []),
       `Production (${prodUnit(props.prodType)})`]
 
     const columns = [
       { data: 'year', type: 'numeric', validator: 'numeric', allowInvalid: false },
-      { data: 'base', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
+      ...(isGS ? [{ data: 'base', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false }] : []),
       { data: 'production', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
     ]
 
@@ -67,7 +68,7 @@ const columnTable = computed((): ExcelColumnType => {
 
       columns.push({ data: `gsa.vol${i}`, type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false })
       columns.push({ data: `gsa.ghv${i}`, type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false })
-      columns.push({ data: `gsa.price${i}`, type: 'numeric', validator: 'numeric', allowInvalid: false })
+      columns.push({ data: `gsa.price${i}`, type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false })
     }
 
     return {
@@ -80,12 +81,12 @@ const columnTable = computed((): ExcelColumnType => {
 
   return {
     colHeaders: ['Year',
-      `Prod. Rate baseline (${prodBase(props.prodType)})`,
+      ...(isGS ? [`Prod. baseline (${prodBase(props.prodType)})`] : []),
       `Sales (${prodUnit(props.prodType)})`,
       `Price (${prodPriceUnit(props.prodType)})`],
     columns: [
       { data: 'year', type: 'numeric', validator: 'numeric', allowInvalid: false },
-      { data: 'base', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
+      ...(isGS ? [{ data: 'base', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false }] : []),
       { data: 'sales', type: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, validator: 'numeric', allowInvalid: false },
       { data: 'price', type: 'numeric', validator: 'numeric', allowInvalid: false },
     ],
@@ -139,6 +140,16 @@ const contextMenus: contextMenuType[] = [...defContextMenus, { name: 'separator'
     })
   },
 }]
+
+const TableEditorRef = ref()
+
+const getTblProd = () => {
+  return TableEditorRef.value?.getTblData()
+}
+
+defineExpose({
+  getTblProd,
+})
 </script>
 
 <template>
@@ -171,10 +182,12 @@ const contextMenus: contextMenuType[] = [...defContextMenus, { name: 'separator'
     </VCol>
     <VCol cols="12">
       <TableEditor
+        ref="TableEditorRef"
         v-model:model-value="dataProd[ProdIndex].prod_price[selProdIndex]"
         :columns="columnTable"
         col-auto-width="none"
         :context-menus="contextMenus"
+        :hint-group="props.prodType === 1 ? 'gProdPrice' : 'oProdPrice'"
       />
     </VCol>
   </VRow>

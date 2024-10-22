@@ -23,9 +23,9 @@ export default defineConfig(({ command, mode }) => {
   const isServe = command === 'serve'
   const isBuild = command === 'build'
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
-  const appVersion = process.env.VITE_PSC_VERSION
+  const appVersion = process.env.VITE_PSC_VER122
 
-  console.log(chalk.blueBright('Build Ftontend'))
+  console.log(chalk.blueBright('Build Frontend'))
   console.log(`App version: ${appVersion}`)
   if (isBuild)
     fs.rmSync(path.join(__dirname, 'dist', 'frontend'), { recursive: true, force: true })

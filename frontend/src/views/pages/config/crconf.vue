@@ -3,15 +3,12 @@ import { useAppStore } from '@/stores/appStore';
 import { usePyscConfStore } from '@/stores/genfisStore';
 import {
   ExcelColumnType,
-  Field2Array,
-  TaxSplitType,
   costRec,
   numb2Percent,
   percent2Numb,
   useDayJs
 } from '@/utils/pysc/pyscType';
 import { useTooltip } from '@/utils/pysc/useTooltips';
-import TableEditor from '@/views/components/TableEditor.vue';
 import DmoUI from './dmoconf.vue';
 
 interface Props {
@@ -107,16 +104,16 @@ const CR_gas_cr_cap_rate = computed({
     </VCol>
     <VCol cols="12" class="ms-4 pe-4 mt-4">
       <span class="ml-n4 font-weight-bold text-primary">Pre Tax Split Configuration</span>
-      <AppSelect v-model="contractValue.TaxSplit.split_type" :items="Field2Array(TaxSplitType)" item-props
-        variant="outlined" label-placeholder="Split Type" class="mt-4" :tooltip-content="getToolTip('costrec.taxs')" />
+      <!-- <AppSelect v-model="contractValue.TaxSplit.split_type" :items="Field2Array(TaxSplitType).map((m,i) => ({...m, disabled:i>0}))" item-props
+        variant="outlined" label-placeholder="Split Type" class="mt-4" :tooltip-content="getToolTip('costrec.taxs')" /> -->
       <AppTextField label-placeholder="Oil Contractor Pre Tax, %" v-model.number="Tax_pre_tax_ctr_oil" class="mt-4"
-        :rules="[requiredValidator, numberValidator, betweenValidator(Tax_pre_tax_ctr_oil, 0, 100, appStore.showAlert)]"
+        :rules="[requiredValidator, numberValidator, decimalDigitValidator(Tax_pre_tax_ctr_oil, 4), betweenValidator(Tax_pre_tax_ctr_oil, 0, 100, appStore.showAlert)]"
         :tooltip-content="getToolTip('costrec.tax_ctro')" />
       <AppTextField label-placeholder="Gas Contractor Pre Tax, %" v-model.number="Tax_pre_tax_ctr_gas" class="mt-4"
-        :rules="[requiredValidator, numberValidator, betweenValidator(Tax_pre_tax_ctr_gas, 0, 100, appStore.showAlert)]"
+        :rules="[requiredValidator, numberValidator, decimalDigitValidator(Tax_pre_tax_ctr_gas, 4), betweenValidator(Tax_pre_tax_ctr_gas, 0, 100, appStore.showAlert)]"
         :tooltip-content="getToolTip('costrec.tax_ctrg')" />
     </VCol>
-    <VCol v-if="contractValue.TaxSplit.split_type === 1" cols="12" class="ms-4 pe-4 mt-2">
+    <!-- <VCol v-if="contractValue.TaxSplit.split_type === 1" cols="12" class="ms-4 pe-4 mt-2">
       <span class="font-weight-bold text-primary">RC Split</span>
       <TableEditor v-model:model-value="contractValue.RCSlidingScale" :columns="columnTable('RC')" colAutoWidth="all" />
     </VCol>
@@ -124,11 +121,11 @@ const CR_gas_cr_cap_rate = computed({
       <span class="font-weight-bold text-primary">ICP Split</span>
       <TableEditor v-model:model-value="contractValue.ICPSlidingScale" :columns="columnTable('ICP')"
         colAutoWidth="all" />
-    </VCol>
-    <VCol v-if="contractValue.TaxSplit.split_type != 0" cols="12" class="ms-8 pe-8 mt-2">
+    </VCol> -->
+    <!-- <VCol v-if="contractValue.TaxSplit.split_type != 0" cols="12" class="ms-8 pe-8 mt-2">
       <span class="font-weight-bold text-primary">Indicator</span>
       <TableEditor v-model:model-value="contractValue.Indicator" :columns="columnIndicatorTable" colAutoWidth="last" />
-    </VCol>
+    </VCol> -->
 
     <VCol cols="12" class="ms-4 pe-4 mt-4">
       <span class="ml-n4 font-weight-bold text-primary">Investment Credit (IC) Configuration</span>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { getHighlighter } from 'shikiji'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
+import { VProgressLinear } from 'vuetify/lib/components/index.mjs'
 import { useAppStore } from '@/stores/appStore'
 import { useWSStore } from '@/stores/wsStore'
-import gifConnected from '@images/pulse.gif'
 import { layoutConfig } from '@layouts'
 import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
 
@@ -25,12 +25,15 @@ const wsStore = useWSStore()
 const port = ref<number | null>(null)
 const linkApp = ref('')
 
+const builtInPy = ref(false)
 const isBrowsingPy = ref(false)
 const isInstallingPy = ref(false)
 const instPythonMode = ref(0)
 const pyhtonIntPath = ref('')
 const PyInsProcess = ref(false)
 const StoppingProcess = ref(false)
+const isBusy = ref(false)
+const FastAPIStarted = ref(false)
 
 const consoleSource = ref(`\x1B[94m[Setup]\x1B[0m PSCnomics API...\n`)
 const showConsole = ref(false)
@@ -51,6 +54,8 @@ const loaderText = computed(() => {
     return `installpython 3.12...${isFailed.value ? 'failed' : ''}`
   else if (step.value === 'inst-lib')
     return `install/update python library...${isFailed.value ? 'failed' : ''}`
+  else if (step.value === 'chk-pylib')
+    return `check for updates of python libraries...${isFailed.value ? 'failed' : ''}`
 })
 
 const openAppTab = () => {
@@ -75,6 +80,7 @@ const { pause: pauseTes, resume: resumeTes, isActive } = useIntervalFn(async () 
     })
 
     // has result then open browser
+    isBusy.value = true
     consoleSource.value = `\x1B[94m[Setup]\x1B[0m PSCnomics API...\n`
     console.log('FasiAPI Ready!')
     isLoading.value = false
@@ -95,7 +101,9 @@ const { pause: pauseTes, resume: resumeTes, isActive } = useIntervalFn(async () 
 
 const processTask = async (_step: string) => {
   step.value = _step
+  isFailed.value = false
   if (step.value === 'test-python') {
+    isBusy.value = true
     currentTab.value = 0
     showConsole.value = false
 
@@ -103,18 +111,36 @@ const processTask = async (_step: string) => {
     if (!pyEnv.env) {
       if (!pyEnv.pyExist) {
         isFailed.value = true
+
+        // if (appStore.osConf.os === 'win') {
+        //   builtInPy.value = true
+        //   processTask('inst-pip')
+
+        // // processTask('test-pip')
+        // }
+        // else {
         processTask('inst-py')
+
+        // }
       }
       else {
-        if (appStore.osConf.os === 'win')
-          processTask('test-pip')
-        else
-          processTask('make-env')
+        // if (appStore.osConf.os === 'win')
+
+        //   processTask('test-pip')
+        // else
+        builtInPy.value = false
+        processTask('make-env')
       }
+    }
+    else if (pyEnv.isUpdate) {
+      // chk python library
+      processTask('chk-pylib')
     }
     else {
       showConsole.value = false
       currentTab.value = 1
+      isBusy.value = false
+      resumeChkUpdate()
     }
   }
   else if (step.value === 'test-pip') {
@@ -144,7 +170,7 @@ const processTask = async (_step: string) => {
   else if (step.value === 'make-env') {
     showConsole.value = false
     currentTab.value = 0
-    window.ipcRenderer?.makeEnv(wsStore.clientID).then(res => {
+    window.ipcRenderer?.makeEnv(wsStore.clientID, builtInPy.value).then(res => {
       console.log(res)
     })
   }
@@ -161,13 +187,20 @@ const processTask = async (_step: string) => {
       console.log(res)
     })
   }
+  else if (step.value === 'chk-pylib') {
+    showConsole.value = false
+    currentTab.value = 0
+    window.ipcRenderer?.chkLib(wsStore.clientID, appStore.PYSCAPPVER).then(res => {
+      console.log(res)
+    })
+  }
   else if (step.value === 'runAPI') {
     isLoading.value = true
 
     const resSetPort = await window.ipcRenderer?.setPort(port.value, chkShowConsole.value)
 
     if (resSetPort === true) {
-      resumeTes()
+      // resumeTes()
     }
     else {
       isLoading.value = false
@@ -186,14 +219,14 @@ const browsePythonPath = async () => {
     pyhtonIntPath.value = pyInfo.path
     isFailed.value = false
     step.value = 'make-env'
-    window.ipcRenderer?.makeEnv(wsStore.clientID, pyhtonIntPath.value).then(res => {
+    window.ipcRenderer?.makeEnv(wsStore.clientID, false, pyhtonIntPath.value).then(res => {
       console.log(res)
     })
     showConsole.value = false
     currentTab.value = 0
   }
   else if (pyInfo.pyVer) {
-    appStore.showAlert({ text: `Python ver. ${pyInfo.pyVer}, we need 3.12`, isalert: true })
+    appStore.showAlert({ text: `Python ver. ${pyInfo.pyVer}, we need 3.12.7`, isalert: true })
   }
   isBrowsingPy.value = false
 }
@@ -203,10 +236,10 @@ const InstallPython = () => {
 
   // currentTab.value = 0
   // step.value = 'inst-py312'
-  PyInsProcess.value = true
   window.ipcRenderer.instPy().then(msg => {
     console.log('msg')
   })
+  nextTick(() => PyInsProcess.value = true)
 }
 
 const AfterInsPy = async () => {
@@ -221,7 +254,7 @@ const AfterInsPy = async () => {
     showConsole.value = false
     currentTab.value = 0
     step.value = 'make-env'
-    window.ipcRenderer?.makeEnv(wsStore.clientID, pyhtonIntPath.value).then(res => {
+    window.ipcRenderer?.makeEnv(wsStore.clientID, false, pyhtonIntPath.value).then(res => {
       console.log(res)
     })
   }
@@ -242,6 +275,8 @@ const stopServe = async () => {
   nextTick(() => nextTick(() => {
     showConsole.value = false
     currentTab.value = 1
+    isBusy.value = false
+    resumeChkUpdate()
   }))
 }
 
@@ -274,6 +309,113 @@ useResizeObserver(cardLogger, entries => {
   }
 })
 
+const isOnUpdate = ref(false)
+
+const progressUpdate = ref({
+  total: 0,
+  loaded: 0,
+  progress: 0,
+  stage: 0,
+})
+
+const updateApp = () => {
+  if (isBusy.value) {
+    appStore.showAlert({
+      text: 'App. still busy',
+      isalert: true,
+    })
+  }
+  if (isBusy.value || isOnUpdate.value)
+    return
+
+  progressUpdate.value.total = 0
+  progressUpdate.value.loaded = 0
+  progressUpdate.value.progress = 0
+  progressUpdate.value.stage = 0
+  isOnUpdate.value = true
+
+  currentTab.value = 5
+
+  window.ipcRenderer?.updateApp(wsStore.clientID, appStore.updVer).then(res => {
+    pauseChkUpdate()
+    if (res === true) {
+      appStore.$patch(state => {
+        state.updVer = null
+      })
+      appStore.showAlert({
+        text: 'PSCnomics has been successfully updated,<br>PSCnomics will be reopened shortly.',
+        isalert: false,
+      })
+      useTimeoutFn(() => {
+        window.ipcRenderer?.reloadPage()
+      }, 2000)
+    }
+    else {
+      appStore.showAlert({
+        text: `Error : ${typeof res === 'string' ? res : 'updateding failed'}`,
+        isalert: true,
+      })
+    }
+    isOnUpdate.value = false
+    currentTab.value = 1
+    resumeChkUpdate()
+  })
+}
+
+const intervalCheck = ref(2000)
+
+const chkUpdate = async () => {
+  try {
+    const response = await window.ipcRenderer?.checkUpdate(wsStore.clientID)
+
+    const chkver = response
+
+    appStore.$patch(state => {
+      state.updVer = Object.values(chkver).join(".")
+    })
+
+    intervalCheck.value = 15000
+  }
+  catch (error) {
+
+  }
+}
+
+const { pause: pauseChkUpdate, resume: resumeChkUpdate } = useIntervalFn(async () => {
+// check update
+  if (!isOnUpdate.value) {
+    pauseChkUpdate()
+
+    await chkUpdate()
+
+    nextTick(() => {
+      if (!appStore.isUpdateAvailable)
+        resumeChkUpdate()
+    })
+  }
+}, intervalCheck, { immediate: false })
+
+const isChkUpdate = ref(false)
+
+const DoChkUpdate = async () => {
+  isChkUpdate.value = true
+  try {
+    await chkUpdate()
+    appStore.showAlert({
+      text: appStore.isUpdateAvailable ? 'Update available' : 'The application is the latest',
+      isalert: false,
+    })
+  }
+  catch (error) {
+
+  }
+  isChkUpdate.value = false
+  nextTick(() => {
+    if (!appStore.isUpdateAvailable)
+      resumeChkUpdate()
+  })
+}
+
 onMounted(() => {
   wsStore.addBroadCast('setup', msg => {
     const { type, data } = msg.data
@@ -304,10 +446,12 @@ onMounted(() => {
         appStore.showAlert({ isalert: true, text: 'Create virtual environment Failed!' })
       }
     }
-    else if (type === "config:insLib") {
+    else if (type === "config:insLib" || type === "config:chkLib") {
       if (data === true) {
         showConsole.value = false
         currentTab.value = 1
+        isBusy.value = false
+        resumeChkUpdate()
       }
       else {
         isFailed.value = true
@@ -316,24 +460,49 @@ onMounted(() => {
     }
     console.log(msg)
   })
+  wsStore.addBroadCast('os:conf', msg => {
+    const { type, data } = msg.data
+    if (type === "os:failPort")
+      isLoading.value = false
+    else if (type === 'os:conf')
+      resumeTes()
+  })
+
+  const update_logger = (msg: string) => {
+    if (consoleSource.value.length + msg.length > 16000)
+      consoleSource.value = consoleSource.value.slice(-16000 + msg.length)
+
+    consoleSource.value += msg
+    codeSnippet.value = highlighter.codeToHtml(consoleSource.value, {
+      lang: 'ansi',
+      theme: 'dracula',
+    })
+    nextTick(() => {
+      if (loggerScrollbar.value && loggerScrollbar.value.$el.scrollHeight)
+        loggerScrollbar.value.$el.scrollTop = loggerScrollbar.value.$el.scrollHeight
+    })
+  }
+
   wsStore.addBroadCast('app:logger', msg => {
     const { type, data } = msg.data
 
     if (type === 'api:log' && showConsole.value) {
       const msg = atob(data)
 
-      if (consoleSource.value.length + msg.length > 16000)
-        consoleSource.value = consoleSource.value.slice(-16000 + msg.length)
+      update_logger(msg)
+    }
+  })
 
-      consoleSource.value += msg
-      codeSnippet.value = highlighter.codeToHtml(consoleSource.value, {
-        lang: 'ansi',
-        theme: 'dracula',
-      })
-      nextTick(() => {
-        if (loggerScrollbar.value && loggerScrollbar.value.$el.scrollHeight)
-          loggerScrollbar.value.$el.scrollTop = loggerScrollbar.value.$el.scrollHeight
-      })
+  wsStore.addBroadCast('app:update', msg => {
+    const { type, data } = msg.data
+
+    if (type === 'download:progress') {
+      progressUpdate.value.stage = data.stage
+      if (data.stage === 1) {
+        progressUpdate.value.total = data.totalSize
+        progressUpdate.value.loaded = data.loaded
+        progressUpdate.value.progress = data.loaded / data.totalSize * 100
+      }
     }
   })
 
@@ -342,11 +511,15 @@ onMounted(() => {
   // processTask('inst-py')
 
   // showConsole.value = true
-  // currentTab.value = 4
-  port.value = appStore.appPort ?? 8888
+
+  // currentTab.value = 5
+  port.value = appStore.appPort ?? 9999
+
+  // resumeChkUpdate()
 })
 onUnmounted(() => {
   wsStore.removeBroadCast('setup')
+  pauseChkUpdate()
 })
 </script>
 
@@ -364,9 +537,31 @@ onUnmounted(() => {
       :style="{ width: !showConsole ? '543px' : undefined, height: showConsole ? undefined : '344px' }"
       density="compact"
     >
+      <VCardText
+        v-if="!isOnUpdate && appStore.isUpdateAvailable && !isBusy"
+        class="py-0 px-1 my-1 my-0"
+        density="compact"
+      >
+        <VAlert
+          density="compact"
+          color="success"
+          variant="tonal"
+        >
+          New PSCnomics version {{ `${appStore.updVer}` }},  <VBtn
+            variant="plain"
+            color="warning"
+            class="ms-4"
+            :loading="isOnUpdate"
+            @click="updateApp"
+          >
+            update now
+          </VBtn>
+        </VAlert>
+      </VCardText>
+
       <template
         #title
-        class="pb-0"
+        v-bin="{ class: 'pb-0' }"
       >
         <div class="d-flex">
           <VNodeRenderer
@@ -379,12 +574,23 @@ onUnmounted(() => {
           <h6 :style="{ alignSelf: 'end', paddingBlockEnd: '0.2rem', paddingLeft: '0.3rem' }">
             ver. {{ appStore.PYSCAPPVER }}
           </h6>
+          <VSpacer />
+          <IconBtn
+            v-show="!appStore.isUpdateAvailable && !isOnUpdate && !isBusy"
+            :loading="isChkUpdate"
+            @click.stop="DoChkUpdate"
+          >
+            <VIcon icon="tabler-world-download" />
+            <VTooltip activator="parent">
+              Check for update
+            </VTooltip>
+          </IconBtn>
         </div>
       </template>
       <VWindow
         v-model="currentTab"
         class="window-elec-page"
-        :style="{ height: 'calc(100% - 70px)' }"
+        :style="{ height: `calc(100% - (70px${appStore.isUpdateAvailable && !isBusy ? ' + 120px' : ''}))` }"
       >
         <VWindowItem :value="0">
           <VCardText class="fill-height d-flex align-center justify-center">
@@ -486,7 +692,7 @@ onUnmounted(() => {
                     <div class="flex-grow-1">
                       <div class="d-flex align-center mb-1">
                         <span class="cr-title text-base">
-                          Install Fresh Python 3.12
+                          Install Fresh Python 3.12.7
                         </span>
                       </div>
                       <p class="text-body-2 mb-0">
@@ -507,19 +713,19 @@ onUnmounted(() => {
           </VCardText>
         </VWindowItem>
         <VWindowItem :value="3">
-          <VCardText class="fill-height">
-            <VImg
-              :src="gifConnected"
-              class="mx-auto"
-            />
+          <VCardText>
+            <div class="mx-auto circle-on color-1" />
             <div
-              class="position-absoulute d-flex flex-column align-center fill-width"
-              :style="{ marginTop: '-83px', justifyContent: 'center' }"
+              class="ms-auto d-flex align-center justify-center"
+              style="margin-block-start: 1.1875rem;"
             >
               <span v-if="StoppingProcess">
                 stopping server...
               </span>
-              <span v-else>
+              <span
+                v-else
+                style="z-index: 100;"
+              >
                 serve for
                 <span
                   class="ml-2 text-primary cursor-pointer"
@@ -530,8 +736,8 @@ onUnmounted(() => {
               </span>
             </div>
             <div
-              class="position-absoulute d-flex align-center"
-              :style="{ marginTop: '11px', justifyContent: 'center' }"
+              class="d-flex align-center justify-center"
+              style="margin-block-start: 1.1875rem;"
             >
               <VBtn
                 variant="outlined"
@@ -595,6 +801,26 @@ onUnmounted(() => {
             </VCardText>
           </VCard>
         </VWindowItem>
+        <VWindowItem :value="5">
+          <div
+            class="flex-grow-0 align-content-center justify-center h-100 w-100 gap-3"
+            style="padding: 3.125rem;"
+          >
+            <div>
+              <VProgressLinear
+                :indeterminate="progressUpdate.stage !== 1"
+                :model-value="progressUpdate.stage === 1 ? progressUpdate.progress : 0"
+                striped
+                :rounded="5"
+                :height="5"
+                :color="progressUpdate.stage === 1 ? 'success' : (progressUpdate.stage === 2 ? 'primary' : 'default')"
+              />
+            </div>
+            <h5 class="text-truncate text-center mt-2">
+              {{ progressUpdate.stage === 0 ? 'preparing...' : (progressUpdate.stage === 1 ? `Downloading : ${(progressUpdate.loaded / 1e6).toFixed(2)} Mb of ${(progressUpdate.total / 1e6).toFixed(2)} Mb` : 'updating...') }}
+            </h5>
+          </div>
+        </VWindowItem>
       </VWindow>
     </VCard>
     <VDialog
@@ -602,7 +828,7 @@ onUnmounted(() => {
       persistent
       :loading="PyInsProcess ? 'primary' : ''"
     >
-      <VCard title="Installing python 3.12">
+      <VCard title="Installing python 3.12.7">
         <VCardText>
           Click continue after installation finished
         </VCardText>
@@ -690,5 +916,24 @@ pre[class*="language-"] {
 .app-card-console-copy-icon {
   inset-block-start: 0.2em;
   inset-inline-end: 0.8em;
+}
+
+.circle-on {
+  width: 40px;
+  height: 40px;
+  border-radius:50%;
+  background-color:rgb(240, 240, 0);
+  margin-block-start: 61px;
+}
+.color-1{
+   animation: rombus 3s linear 0s infinite;
+}
+
+@keyframes rombus{
+   0%{background-color:rgba(240, 240, 0.832); transform: scale(1);}
+   25%{background-color:rgba(255, 213, 0.732); transform: scale(.8);}
+   50%{background-color:rgba(252, 8, 8, 0.632); transform: scale(.6);}
+   75%{background-color:rgba(255, 213, 0.732); transform: scale(.8);}
+   100%{background-color:rgba(240, 240, 0.832); transform: scale(1);}
 }
 </style>

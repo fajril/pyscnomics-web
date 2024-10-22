@@ -3,10 +3,11 @@ import { useAppStore } from '@/stores/appStore'
 import { useHTTP } from '@/utils/pysc/useHttp'
 import { breakpointsVuetifyV3 } from '@vueuse/core'
 import { add } from 'mathjs'
+import DotdotOpt from '../components/dotdotOpt.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import ColCollapsible from '@/views/components/colCollapsible.vue'
+import ColapsibleCols from "@/views/components/colapsibleCols.vue"
 import ChartCF from '@/views/pages/summary/cfChart.vue'
 import TableCF from '@/views/pages/summary/cfTable.vue'
 import 'handsontable/dist/handsontable.full.min.css'
@@ -159,6 +160,7 @@ const RefGChartCF1 = ref()
 const RefGChartCF2 = ref()
 const RefCChartCF1 = ref()
 const RefCChartCF2 = ref()
+const RefCChartCF = ref()
 
 const updateTable = () => {
   nextTick(() => {
@@ -173,6 +175,7 @@ const updateTable = () => {
 
 const updateChart = () => {
   nextTick(() => {
+    RefCChartCF.value?.updateChart()
     RefCChartCF1.value?.updateChart()
     RefCChartCF2.value?.updateChart()
     RefOChartCF1.value?.updateChart()
@@ -286,6 +289,20 @@ const loadCF = async () => {
   isLoading.value = false
 }
 
+const optOption = [
+  { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: 'text' },
+  { title: `Save to file (*.xlsx)`, value: 'save2File', icon: 'tabler-download', sourceType: 'table' },
+  { type: 'divider' },
+  { title: 'Reload', value: 'reload', icon: 'tabler-reload' },
+]
+
+const optChartOption = [
+  { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: 'image' },
+  { title: `Save to file (*.png)`, value: 'save2File', icon: 'tabler-download', sourceType: 'image' },
+  { type: 'divider' },
+  { title: 'Reload', value: 'reload', icon: 'tabler-reload' },
+]
+
 const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   console.log("cf trigger")
   nextTick(() => loadCF())
@@ -324,6 +341,18 @@ const dataCombineChart = computed(() => {
 
   return _out
 })
+
+const getDataSource = (refContent: any, value: string, sourceType: string) => {
+  if (refContent)
+    return refContent.getDataSource(value, sourceType)
+
+  return null
+}
+
+const actionOption = (refContent: any, type: string) => {
+  if (refContent)
+    refContent.actionOption()
+}
 </script>
 
 <template>
@@ -340,21 +369,50 @@ const dataCombineChart = computed(() => {
       <VCardText class="px-1">
         <VWindow v-model="currentTab">
           <VWindowItem value="0">
-            <ColCollapsible :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]">
-              <template #left="{ collapsible, collapsed }">
+            <ColapsibleCols
+              :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]"
+              :allow-right="PyscConf.dataGConf.type_of_contract >= 3"
+              :left-header="`Consolidated${PyscConf.dataGConf.type_of_contract >= 3 ? ' (1st Contract)' : ''}`"
+              :right-header="`Consolidated${PyscConf.dataGConf.type_of_contract >= 3 ? ' (2nd Contract)' : ''}`"
+              @update:container="(col) => col === 0 ? (tableCons1?.resizeContainer()) : (tableCons2?.resizeContainer())"
+            >
+              <template #after-left-header="{ isCollapsed }">
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(tableCons1, value, sourceType)"
+                  @click:item="(type: string) => actionOption(tableCons1, type)"
+                />
+              </template>
+              <template #left>
                 <TableCF
                   ref="tableCons1"
                   v-model="tableCollapsed[2][0]"
                   title="Consolidated"
                   :data-table="const_ctr1"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
               <template
                 v-if="PyscConf.dataGConf.type_of_contract >= 3"
-                #right="{ collapsible, collapsed }"
+                #after-right-header="{ isCollapsed }"
+              >
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(tableCons2, value, sourceType)"
+                  @click:item="(type: string) => actionOption(tableCons2, type)"
+                />
+              </template>
+              <template
+                v-if="PyscConf.dataGConf.type_of_contract >= 3"
+                #right
               >
                 <TableCF
                   ref="tableCons2"
@@ -363,26 +421,54 @@ const dataCombineChart = computed(() => {
                   :data-table="const_ctr2"
                   multi-contract
                   is-contract2
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
-            </ColCollapsible>
-            <ColCollapsible :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]">
-              <template #left="{ collapsible, collapsed }">
+            </ColapsibleCols>
+            <ColapsibleCols
+              :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]"
+              class="mt-2"
+              :allow-right="PyscConf.dataGConf.type_of_contract >= 3"
+              :left-header="`Oil/Condensate${PyscConf.dataGConf.type_of_contract >= 3 ? ' (1st Contract)' : ''}`"
+              :right-header="`Oil/Condensate${PyscConf.dataGConf.type_of_contract >= 3 ? ' (2nd Contract)' : ''}`"
+              @update:container="(col) => col === 0 ? (tableOil1?.resizeContainer()) : (tableOil2?.resizeContainer())"
+            >
+              <template #after-left-header="{ isCollapsed }">
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(tableOil1, value, sourceType)"
+                  @click:item="(type: string) => actionOption(tableOil1, type)"
+                />
+              </template>
+              <template #left>
                 <TableCF
                   ref="tableOil1"
                   v-model="tableCollapsed[0][0]"
                   title="Oil/Condensate"
                   :data-table="oil_ctr1"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
               <template
                 v-if="PyscConf.dataGConf.type_of_contract >= 3"
-                #right="{ collapsible, collapsed }"
+                #after-right-header="{ isCollapsed }"
+              >
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(tableOil2, value, sourceType)"
+                  @click:item="(type: string) => actionOption(tableOil2, type)"
+                />
+              </template>
+              <template
+                v-if="PyscConf.dataGConf.type_of_contract >= 3"
+                #right
               >
                 <TableCF
                   ref="tableOil2"
@@ -391,30 +477,53 @@ const dataCombineChart = computed(() => {
                   :data-table="oil_ctr2"
                   multi-contract
                   is-contract2
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
-            </ColCollapsible>
-            <ColCollapsible
+            </ColapsibleCols>
+            <ColapsibleCols
               v-if="PyscConf.prodHasGas()"
               :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]"
+              class="mt-2"
+              :allow-right="PyscConf.dataGConf.type_of_contract >= 3"
+              :left-header="`Gas${PyscConf.dataGConf.type_of_contract >= 3 ? ' (1st Contract)' : ''}`"
+              :right-header="`Gas${PyscConf.dataGConf.type_of_contract >= 3 ? ' (2nd Contract)' : ''}`"
+              @update:container="(col) => col === 0 ? (tableGas1?.resizeContainer()) : (tableGas2?.resizeContainer())"
             >
-              <template #left="{ collapsible, collapsed }">
+              <template #after-left-header="{ isCollapsed }">
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(tableGas1, value, sourceType)"
+                  @click:item="(type: string) => actionOption(tableGas1, type)"
+                />
+              </template>
+              <template #left>
                 <TableCF
                   ref="tableGas1"
                   v-model="tableCollapsed[1][0]"
                   title="Gas"
                   :data-table="gas_ctr1"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
               <template
                 v-if="PyscConf.dataGConf.type_of_contract >= 3"
-                #right="{ collapsible, collapsed }"
+                #after-right-header="{ isCollapsed }"
               >
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(tableGas2, value, sourceType)"
+                  @click:item="(type: string) => actionOption(tableGas2, type)"
+                />
+              </template>
+              <template #right>
                 <TableCF
                   ref="tableGas2"
                   v-model="tableCollapsed[1][1]"
@@ -422,31 +531,57 @@ const dataCombineChart = computed(() => {
                   :data-table="gas_ctr2"
                   multi-contract
                   is-contract2
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
-            </ColCollapsible>
+            </ColapsibleCols>
           </VWindowItem>
           <VWindowItem value="1">
-            <ColCollapsible
+            <ColapsibleCols
               v-if="PyscConf.dataGConf.type_of_contract >= 3"
               :col-ratio="[100, 0]"
+              :allow-right="false"
+              left-header="Consolidated CashFlow"
             >
-              <template #left="{ collapsible, collapsed }">
+              <template #after-left-header="{ isCollapsed }">
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optChartOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(RefCChartCF, value, sourceType)"
+                  @click:item="(type: string) => actionOption(RefCChartCF, type)"
+                />
+              </template>
+              <template #left>
                 <ChartCF
-                  ref="RefCChartCF1"
+                  ref="RefCChartCF"
                   title="Consolidated CashFlow"
                   :data-chart="dataCombineChart"
                   type="Cons"
                   contract-type="CR"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
-            </ColCollapsible>
-            <ColCollapsible :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]">
-              <template #left="{ collapsible, collapsed }">
+            </ColapsibleCols>
+            <ColapsibleCols
+              :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]"
+              :left-header="`Consolidated CashFlow${PyscConf.dataGConf.type_of_contract >= 3 ? ' (1st Contract)' : ''}`"
+              :right-header="`Consolidated CashFlow${PyscConf.dataGConf.type_of_contract >= 3 ? ' (2nd Contract)' : ''}`"
+              class="mt-2"
+              :allow-right="PyscConf.dataGConf.type_of_contract >= 3"
+            >
+              <template #after-left-header="{ isCollapsed }">
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optChartOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(RefCChartCF1, value, sourceType)"
+                  @click:item="(type: string) => actionOption(RefCChartCF1, type)"
+                />
+              </template>
+              <template #left>
                 <ChartCF
                   ref="RefCChartCF1"
                   title="Consolidated CashFlow"
@@ -454,13 +589,25 @@ const dataCombineChart = computed(() => {
                   type="Cons"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
                   :contract-type="PyscConf.dataGConf.type_of_contract === 0 ? 'BASE' : ([1, 3, 4].includes(PyscConf.dataGConf.type_of_contract) ? 'CR' : 'GS')"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
               <template
                 v-if="PyscConf.dataGConf.type_of_contract >= 3"
-                #right="{ collapsible, collapsed }"
+                #after-right-header="{ isCollapsed }"
+              >
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optChartOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(RefCChartCF2, value, sourceType)"
+                  @click:item="(type: string) => actionOption(RefCChartCF2, type)"
+                />
+              </template>
+              <template
+                v-if="PyscConf.dataGConf.type_of_contract >= 3"
+                #right
               >
                 <ChartCF
                   ref="RefCChartCF2"
@@ -470,13 +617,28 @@ const dataCombineChart = computed(() => {
                   multi-contract
                   is-contract2
                   :contract-type="[3, 6].includes(PyscConf.dataGConf.type_of_contract) ? 'CR' : 'GS'"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
-            </ColCollapsible>
-            <ColCollapsible :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]">
-              <template #left="{ collapsible, collapsed }">
+            </ColapsibleCols>
+            <ColapsibleCols
+              :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]"
+              :left-header="`Oil/Condensate CashFlow${PyscConf.dataGConf.type_of_contract >= 3 ? ' (1st Contract)' : ''}`"
+              :right-header="`Oil/Condensate CashFlow${PyscConf.dataGConf.type_of_contract >= 3 ? ' (2nd Contract)' : ''}`"
+              class="mt-2"
+              :allow-right="PyscConf.dataGConf.type_of_contract >= 3"
+            >
+              <template #after-left-header="{ isCollapsed }">
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optChartOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(RefOChartCF1, value, sourceType)"
+                  @click:item="(type: string) => actionOption(RefOChartCF1, type)"
+                />
+              </template>
+              <template #left>
                 <ChartCF
                   ref="RefOChartCF1"
                   title="Oil/Condensate CashFlow"
@@ -484,13 +646,25 @@ const dataCombineChart = computed(() => {
                   type="Oil"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
                   :contract-type="PyscConf.dataGConf.type_of_contract === 0 ? 'BASE' : ([1, 3, 4].includes(PyscConf.dataGConf.type_of_contract) ? 'CR' : 'GS')"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
               <template
                 v-if="PyscConf.dataGConf.type_of_contract >= 3"
-                #right="{ collapsible, collapsed }"
+                #after-right-header="{ isCollapsed }"
+              >
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optChartOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(RefOChartCF2, value, sourceType)"
+                  @click:item="(type: string) => actionOption(RefOChartCF2, type)"
+                />
+              </template>
+              <template
+                v-if="PyscConf.dataGConf.type_of_contract >= 3"
+                #right
               >
                 <ChartCF
                   ref="RefOChartCF2"
@@ -500,16 +674,29 @@ const dataCombineChart = computed(() => {
                   multi-contract
                   is-contract2
                   :contract-type="[3, 6].includes(PyscConf.dataGConf.type_of_contract) ? 'CR' : 'GS'"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
-            </ColCollapsible>
-            <ColCollapsible
+            </ColapsibleCols>
+            <ColapsibleCols
               v-if="PyscConf.prodHasGas()"
               :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]"
+              :left-header="`Gas CashFlow${PyscConf.dataGConf.type_of_contract >= 3 ? ' (1st Contract)' : ''}`"
+              :right-header="`Gas CashFlow${PyscConf.dataGConf.type_of_contract >= 3 ? ' (2nd Contract)' : ''}`"
+              class="mt-2"
+              :allow-right="PyscConf.dataGConf.type_of_contract >= 3"
             >
-              <template #left="{ collapsible, collapsed }">
+              <template #after-left-header="{ isCollapsed }">
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optChartOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(RefGChartCF1, value, sourceType)"
+                  @click:item="(type: string) => actionOption(RefGChartCF1, type)"
+                />
+              </template>
+              <template #left>
                 <ChartCF
                   ref="RefGChartCF1"
                   title="Gas CashFlow"
@@ -517,13 +704,25 @@ const dataCombineChart = computed(() => {
                   type="Gas"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
                   :contract-type="PyscConf.dataGConf.type_of_contract === 0 ? 'BASE' : ([1, 3, 4].includes(PyscConf.dataGConf.type_of_contract) ? 'CR' : 'GS')"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
               <template
                 v-if="PyscConf.dataGConf.type_of_contract >= 3"
-                #right="{ collapsible, collapsed }"
+                #after-right-header="{ isCollapsed }"
+              >
+                <DotdotOpt
+                  v-if="!isCollapsed"
+                  :menu-list="optChartOption"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(RefGChartCF2, value, sourceType)"
+                  @click:item="(type: string) => actionOption(RefGChartCF2, type)"
+                />
+              </template>
+              <template
+                v-if="PyscConf.dataGConf.type_of_contract >= 3"
+                #right
               >
                 <ChartCF
                   ref="RefGChartCF2"
@@ -533,11 +732,9 @@ const dataCombineChart = computed(() => {
                   multi-contract
                   is-contract2
                   :contract-type="[3, 6].includes(PyscConf.dataGConf.type_of_contract) ? 'CR' : 'GS'"
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
                 />
               </template>
-            </ColCollapsible>
+            </ColapsibleCols>
           </VWindowItem>
         </VWindow>
       </VCardText>

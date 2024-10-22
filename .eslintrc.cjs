@@ -132,6 +132,8 @@ module.exports = {
 
         // Ignore vite's ?raw imports
         '.*\?raw',
+
+        // 'stores/**',
       ],
     }],
 
@@ -173,7 +175,9 @@ module.exports = {
     'vue/prefer-separate-static-class': 'error',
     'vue/prefer-true-attribute-shorthand': 'error',
     'vue/v-on-function-call': 'error',
-    'vue/no-restricted-class': ['error', '/^(p|m)(l|r)-/'],
+
+    // 'vue/no-restricted-class': ['error', '/^(p|m)(l|r)-/'],
+    'vue/no-restricted-class': ['error'],
     'vue/valid-v-slot': ['error', {
       allowModifiers: true,
     }],

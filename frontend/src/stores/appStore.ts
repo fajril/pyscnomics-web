@@ -3,8 +3,8 @@ import { namespaceConfig } from '@layouts/stores/config'
 import { useStorage } from '@vueuse/core'
 
 // import { useToolBarCtrl } from '@/utils/pysc/useToolBarCtrl'
-import type { ProjectBase, TImportData, tCompareType } from '@/utils/pysc/pyscType'
-import { is_number, useDayJs } from '@/utils/pysc/pyscType'
+import type { ProjectBase, TImportData, tCompareType, tIncrType } from '@/utils/pysc/pyscType'
+import { ContractType, is_number, useDayJs } from '@/utils/pysc/pyscType'
 import * as lzs from 'lz-string'
 
 export interface tAlert {
@@ -18,9 +18,9 @@ export interface tAlert {
 
 export const useAppStore = defineStore('pyscConfig', () => {
   const dayjs = useDayJs()
-  const PYSCAPPVER = import.meta.env.VITE_PSC_VERSION
+  const PYSCAPPVER = import.meta.env.VITE_PSC_VER122
 
-  // const PYSC_APP_VERSION = import.meta.env.VITE_PSC_VERSION
+  // const PYSC_APP_VERSION = import.meta.env.VITE_PSC_VER122
 
   // const appPort = ref(null)
   const osConf = ref({ sep: '/', os: 'win', port: null })
@@ -44,6 +44,7 @@ export const useAppStore = defineStore('pyscConfig', () => {
 
   const caseCompare = useStorage<tCompareType[]>(namespaceConfig('case-compare'), [])
   const caseCombine = useStorage<tCompareType[]>(namespaceConfig('case-combine2'), [])
+  const caseIncr = useStorage<tIncrType[]>(namespaceConfig('case-incr'), [])
 
   const apiURL = computed(() => `http://127.0.0.1:${osConf.value.port}/api`)
 
@@ -80,6 +81,8 @@ export const useAppStore = defineStore('pyscConfig', () => {
       write: (v: any) => lzs.compressToUTF16(JSON.stringify(v)),
     },
   })
+
+  const NPVSelSett = useStorage<boolean>(namespaceConfig('pysc-sett-npv'), true)
 
   const alertFunc = ref<tAlert | null>(null)
 
@@ -160,7 +163,7 @@ export const useAppStore = defineStore('pyscConfig', () => {
   }
 
   const caseList = computed(() => {
-    return projects.value.map(v => ({ title: v.name, value: v.id }))
+    return projects.value.map(v => ({ title: v.name, value: v.id, subtitle: is_number(v.type) ? Object.values(ContractType)[+v.type] : '' }))
   })
 
   const caseByID = (caseID: number | null | undefined) => {
@@ -256,6 +259,25 @@ export const useAppStore = defineStore('pyscConfig', () => {
     return caseCombine.value[idx_case]
   }
 
+  const getIncr = (caseid: number): tIncrType => {
+    const idx_case = caseIncr.value.findIndex(v => v.source === caseid)
+    if (idx_case === -1) {
+      caseIncr.value.push({
+        source: caseid,
+        comp: null,
+        inflation_rate: 0.0,
+        discount_rate: 0.1,
+        reference_year: 0,
+        npv_mode: 3,
+        discounting_mode: 0,
+      })
+
+      return caseIncr.value[caseIncr.value.length - 1]
+    }
+
+    return caseIncr.value[idx_case]
+  }
+
   const appReady = computed(() => osConf.value.port)
 
   return {
@@ -289,6 +311,7 @@ export const useAppStore = defineStore('pyscConfig', () => {
 
     taxSett,
     gsSett,
+    NPVSelSett,
     settFunc,
     showSetting,
 
@@ -304,5 +327,7 @@ export const useAppStore = defineStore('pyscConfig', () => {
     getCompare,
     caseCombine,
     getCombine,
+    caseIncr,
+    getIncr,
   }
 })

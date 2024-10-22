@@ -38,7 +38,7 @@ import '@core/scss/template/index.scss'
 import '@styles/styles.scss'
 
 // Create vue app
-const app = createApp(App)
+export const app = createApp(App)
 
 registerCellType(NumericCellType)
 registerCellType(TextCellType)

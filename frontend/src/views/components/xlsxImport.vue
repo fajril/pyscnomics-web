@@ -10,7 +10,7 @@ const appStore = useAppStore()
 
 const IsLoading = ref(false)
 
-const selectXlsx = ref<File[] | null>(null)
+const selectXlsx = ref<File | null>(null)
 const selectedSheet = ref<string | null>(null)
 const defSheetName = ref<string | null>(null)
 const ValidatorFmt = ref<string[]>([])
@@ -152,8 +152,10 @@ watch(selectXlsx, val => {
       IsLoading.value = false
       if (defSheetName.value && sheetNames.value.findIndex(s => s === defSheetName.value) !== -1)
         nextTick(() => selectedSheet.value = defSheetName.value)
+      else if (sheetNames.value.length > 0)
+        nextTick(() => selectedSheet.value = sheetNames.value[0])
     }
-    reader.readAsArrayBuffer(selectXlsx.value[0])
+    reader.readAsArrayBuffer(selectXlsx.value)
   }
 })
 
@@ -202,10 +204,11 @@ defineExpose({
         <VRow>
           <VCol cols="12">
             <VFileInput
-              v-model="selectXlsx"
+              v-model:model-value="selectXlsx"
               accept=".xlsx;*.xlsm;*.xlsb"
               label="File input(xlsx)"
               outlined
+              :multiple="false"
               show-size
             />
           </VCol>

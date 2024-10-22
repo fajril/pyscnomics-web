@@ -1,43 +1,47 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/appStore';
-import * as Pysc from '@/utils/pysc/pyscType';
-import { hexToRgb } from '@layouts/utils';
-import { BarChart, LineChart } from "echarts/charts";
+import { useAppStore } from '@/stores/appStore'
+import { hexToRgb } from '@layouts/utils'
+import { BarChart, LineChart } from "echarts/charts"
 import {
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
   TitleComponent,
   TooltipComponent,
-} from "echarts/components";
-import { use } from "echarts/core";
-import { CanvasRenderer } from "echarts/renderers";
-import * as math from 'mathjs';
-import VChart from "vue-echarts";
-import type { ThemeInstance } from 'vuetify';
-import { useTheme } from 'vuetify';
+} from "echarts/components"
+import { use } from "echarts/core"
+import { CanvasRenderer } from "echarts/renderers"
+import * as math from 'mathjs'
+import VChart from "vue-echarts"
+import type { ThemeInstance } from 'vuetify'
+import { useTheme } from 'vuetify'
+import * as Pysc from '@/utils/pysc/pyscType'
+import DotdotOpt from '@/pages/components/dotdotOpt.vue'
 
+const props = withDefaults(defineProps<Props>(), {
+  title: 'Tangible',
+})
 
 use([
+  DataZoomComponent,
   CanvasRenderer,
-  BarChart, LineChart,
+  BarChart,
+  LineChart,
   TitleComponent,
   GridComponent,
   TooltipComponent,
-  LegendComponent
-]);
+  LegendComponent,
+])
 
 interface Props {
   dataChart: Array<any>[]
   title?: string
 }
-const props = withDefaults(defineProps<Props>(), {
-  title: 'Tangible'
-})
-
 const appStore = useAppStore()
 const numbro = Pysc.useNumbro()
 
 const vuetifyTheme = useTheme()
+
 // 👉 Colors variables
 const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] = vuetifyTheme.current.value) => {
   const themeSecondaryTextColor = `rgba(${hexToRgb(themeColors.colors['on-surface'])},${themeColors.variables['medium-emphasis-opacity']})`
@@ -48,26 +52,27 @@ const colorVariables = (themeColors: ThemeInstance['themes']['value']['colors'] 
   return { themeSecondaryTextColor, themeDisabledTextColor, themeBorderColor, themePrimaryTextColor }
 }
 
-
 const chartDataConfig = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
-  //grp Years
+  // grp Years
   const Years = props.dataChart.map(v => v[0]).sort((a, b) => a - b).filter((v, i, arr) => arr.indexOf(v) === i)
 
-
   const Opt = {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     title: {
       text: props.title,
       left: "center",
-      textStyle: { color: themePrimaryTextColor }
+      textStyle: { color: themePrimaryTextColor },
     },
+    dataZoom: { type: 'inside' },
     tooltip: {
       trigger: 'axis',
-      valueFormatter: (value) => value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value,
+      valueFormatter: value => value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value,
     },
     legend: {
-      left: "center", top: 'bottom',
+      left: "center",
+      top: 'bottom',
       textStyle: { width: 80, color: themePrimaryTextColor, overflow: 'truncate' },
       tooltip: { show: true },
     },
@@ -79,16 +84,17 @@ const chartDataConfig = computed(() => {
       name: 'Year',
       data: Years,
       axisTick: {
-        alignWithLabel: true
+        alignWithLabel: true,
       },
       nameTextStyle: {
         color: themeDisabledTextColor,
         verticalAlign: "top",
         align: "center",
-        padding: 10
+        padding: 10,
       },
       nameLocation: "middle",
-      axisLabel: { color: themePrimaryTextColor },
+      scale: true,
+      axisLabel: { color: themePrimaryTextColor, align: 'center' },
       splitLine: { show: true, lineStyle: { color: themeBorderColor } },
 
     },
@@ -102,7 +108,7 @@ const chartDataConfig = computed(() => {
           color: themePrimaryTextColor,
           formatter: (value, index) => {
             return value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value
-          }
+          },
         },
         nameTextStyle: {
           color: themeDisabledTextColor,
@@ -121,7 +127,7 @@ const chartDataConfig = computed(() => {
           color: themePrimaryTextColor,
           formatter: (value, index) => {
             return value !== undefined ? numbro(value).format({ optionalMantissa: true }) : value
-          }
+          },
         },
         nameTextStyle: {
           color: themeDisabledTextColor,
@@ -132,28 +138,35 @@ const chartDataConfig = computed(() => {
         nameLocation: "middle",
       }],
     series: props.dataChart.map(v => v[1]).filter((value, index, array) => array.indexOf(value) === index).map(v => {
-      const grpD = props.dataChart.filter((row) => row[1] === v).sort((r1, r2) => r1[0] - r2[0])
+      const grpD = props.dataChart.filter(row => row[1] === v).sort((r1, r2) => r1[0] - r2[0])
         .reduce((year, row) => {
           year[row[0]] = year[row[0]] ?? 0
           year[row[0]] += row[2]
+
           return year
         }, {})
+
       return {
         name: `${props.title} (${v})`,
+        itemStyle: {
+          color: v?.toLowerCase() === 'oil' ? 'rgba(100,220,100, 0.7)' : (v?.toLowerCase() === 'gas' ? 'rgba(220,50,50, 0.7)' : undefined),
+        },
         type: "bar",
         yAxisIndex: 0,
-        data: Years.map(y => grpD[y] ?? 0)
+        data: Years.map(y => grpD[y] ?? 0),
       }
-    })
+    }),
   }
+
   const cummSer = Opt.series.map(ser => {
     return {
       name: `Cum. ${ser.name}`,
       type: "line",
       yAxisIndex: 1,
-      data: math.cumsum(ser.data)
+      data: math.cumsum(ser.data),
     }
   })
+
   Opt.series.push(...cummSer)
 
   return Opt
@@ -169,18 +182,65 @@ function updateChart() {
   })
 }
 
-useResizeObserver(refContainer, (entries) => {
+const optOption = [
+  { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: 'image' },
+  { title: `Save to file (*.png)`, value: 'save2File', icon: 'tabler-download', sourceType: 'image' },
+  { type: 'divider' },
+  { title: 'Reload', value: 'reload', icon: 'tabler-reload' },
+]
+
+const getDataSource = (value: string, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+
+  return {
+    url: chartCost.value?.getDataURL({
+      type: 'png',
+      excludeComponents: ['toolbox'],
+    }),
+    filename: `cost_${props.title}_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+  }
+}
+
+const actionOption = (type: string) => {
+  if (type === 'reload')
+    updateChart()
+}
+
+useResizeObserver(refContainer, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
+
   updateChart()
 })
 </script>
 
 <template>
-  <AppCardActions action-collapsed :title="$t('Chart View')" compact-header>
+  <AppCardActions
+    action-collapsed
+    :title="$t('Chart View')"
+    compact-header
+  >
+    <template #before-actions="{ isContentCollapsed }">
+      <DotdotOpt
+        v-if="!isContentCollapsed"
+        :menu-list="optOption"
+        title="Options"
+        item-props
+        dot-only
+        :get-source="getDataSource"
+        @click:item="actionOption"
+      />
+    </template>
     <VRow no-gutter>
-      <VCol ref="refContainer" cols="12">
-        <v-chart ref="chartCost" class="cost-chart" :option="chartDataConfig" />
+      <VCol
+        ref="refContainer"
+        cols="12"
+      >
+        <VChart
+          ref="chartCost"
+          class="cost-chart"
+          :option="chartDataConfig"
+        />
       </VCol>
     </VRow>
   </AppCardActions>

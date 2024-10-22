@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { useAppStore } from "@/stores/appStore"
 import { useHTTP } from "@/utils/pysc/useHttp"
+import { isNaN } from "mathjs"
+import { useDraggable } from 'vue-draggable-plus'
 import ProjectEditor from "./AddNewProject.vue"
+
+// import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
+import CardCombine from './caseCombine.vue'
+import CardCompare from './caseCompare.vue'
+import CardIncremental from "./caseIncremental.vue"
 import ConfirmDialogs from "@/layouts/components/pysc/ConfirmDialogs.vue"
 import { usePyscConfStore } from '@/stores/genfisStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDayJs } from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-
-// import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
 import SelCases from "@/views/components/selCases.vue"
-import CardCombine from '@/views/pages/dashboard/caseCombine.vue'
-import CardCompare from '@/views/pages/dashboard/caseCompare.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -21,25 +24,40 @@ const dayjs = useDayJs()
 
 const isLoading = ref(false)
 
-const { curSelCase } = storeToRefs(appStore)
-
-const selectRow = (e, item) => {
-  if (curSelCase.value !== item.id)
-    curSelCase.value = item.id
-}
+const { projects: listProject, curSelCase } = storeToRefs(appStore)
 
 const isEditorDrawerVisible = ref(false)
 const RefProjEditor = ref<any>(null)
 
-const { t, locale } = useI18n({ useScope: 'global' })
-const TableProjects = ref()
+const isEditTitleShow = ref(false)
+const isEdittingId = ref()
+const editValue = ref()
 
-const headers = computed(() => [
-  { title: "", key: "ctrldata", align: 'start', width: 48 },
-  { title: t("Name"), key: "name", align: 'start' },
-  { title: t("Type"), key: "type", align: 'start', value: item => Object.values(Pysc.ContractType)[Number.parseInt(item.type)] },
-  { title: t("Updated at"), key: "updated_at", align: 'center', value: item => dayjs.utc(item.updated_at).local().format("lll") },
-])
+interface TsortList {
+  key: string | null
+  order?: 'asc' | 'desc' | undefined
+}
+
+const updateEditValue = (item, newValue) => {
+  if (!isEmpty(newValue)) {
+    appStore.$patch(state => {
+      const _index = state.projects.findIndex(v => v.id === item.id)
+      if (_index !== -1)
+        state.projects[_index].name = newValue
+    })
+  }
+  isEditTitleShow.value = false
+  isEdittingId.value = undefined
+}
+
+const { t, locale } = useI18n({ useScope: 'global' })
+
+// const headers = computed(() => [
+//   { title: "", key: "ctrldata", align: 'start', width: 48 },
+//   { title: t("Name"), key: "name", align: 'start' },
+//   { title: t("Type"), key: "type", align: 'start', value: item => Object.values(Pysc.ContractType)[Number.parseInt(item.type)] },
+//   { title: t("Updated at"), key: "updated_at", align: 'center', value: item => dayjs.utc(item.updated_at).local().format("lll") },
+// ])
 
 const updateProject = async (param: Pysc.ProjectBase) => {
   isLoading.value = true
@@ -69,6 +87,7 @@ const updateProject = async (param: Pysc.ProjectBase) => {
 const selCasesDialogs = ref()
 const cardCompare = ref()
 const cardCombine = ref()
+const cardIncr = ref()
 
 const updateSelImportPath = async (value: string) => {
   // console.log(value)
@@ -114,10 +133,12 @@ const moreprojList = [
   },
   { title: "Case comparison", value: "compare" },
   { title: "Case combine", value: "combine" },
+  { title: "Case incremental", value: "incremental" },
 ]
 
 const isCompareDlgVisible = ref(false)
 const isCombineDlgVisible = ref(false)
+const isIncrDlgVisible = ref(false)
 
 const showCompare = (id: number) => {
   if (appStore.projects.length === 1)
@@ -133,6 +154,14 @@ const showCombine = (id: number) => {
   nextTick(() => cardCombine.value?.showCaseCombine(id))
 }
 
+const showIncr = (id: number) => {
+  if (appStore.projects.length === 1)
+    return
+  isIncrDlgVisible.value = true
+
+  nextTick(() => cardIncr.value?.showCaseIncr(id))
+}
+
 const projectMenuClick = key => {
   if (key === "newproj")
     RefProjEditor.value.OpenEditor()
@@ -140,24 +169,25 @@ const projectMenuClick = key => {
   else if (key === "imppysc")
     appStore.showFileDialog(updateSelImportPath, 'open', !isEmpty(appStore.curProjectPath) ? appStore.curProjectPath?.split(/\/|\\/).slice(0, -1).join(appStore.osConf.sep) : null)
 
-  // if (!isEmpty(appStore.curProjectPath))
-  // SelLocImportRef.value?.loadMyDris("open", appStore.curProjectPath?.split(/\/|\\/).slice(0, -1).join(appStore.osConf.sep))
-  // else
-  //   SelLocImportRef.value?.loadMyDris("open", null)
-
   else if (key === "compare")
     showCompare(appStore.curSelCase)
 
   else if (key === "combine")
     showCombine(appStore.curSelCase)
+
+  else if (key === "incremental")
+    showIncr(appStore.curSelCase)
 }
 
 const moreTabData = [
   { title: "New Case", value: "new" },
   { title: "Duplicate", value: "clone" },
   { title: "Remove", value: "delete" },
+  { type: 'divider' },
   { title: "Case comparison", value: "compare" },
   { title: "Case combine", value: "combine" },
+  { title: "Case incremental", value: "incremental" },
+  { type: 'divider' },
   { title: "Properties", value: "edit" },
 ]
 
@@ -197,15 +227,109 @@ const TabMenuDataClicked = async (key: string, item: any) => {
   else if (key === 'combine') {
     showCombine(+item.id)
   }
+
+  else if (key === 'incremental') {
+    showIncr(+item.id)
+  }
+}
+
+const ListProjDrag = ref()
+
+const projSort = ref<TsortList>({
+  key: null,
+  order: undefined,
+})
+
+const changeActiveCase = item => {
+  if (curSelCase.value !== item.id)
+    curSelCase.value = item.id
+}
+
+const updateDragAble = () => {
+  if (ListProjDrag.value) {
+    const draggable = useDraggable(ListProjDrag, listProject, {
+      animation: 500,
+      handle: ".list-drag-handle",
+      direction: 'vertical',
+      onStart() {
+      },
+      onUpdate() {
+        projSort.value = { key: null, order: undefined }
+      },
+    })
+  }
+}
+
+const updateSorted = () => {
+  appStore.$patch(state => {
+    const keyContracts = Object.values(Pysc.ContractType)
+
+    state.projects.sort((a, b) => {
+      if (projSort.value.key === 'name') {
+        if (projSort.value.order === 'desc')
+          return b.name.toLowerCase().localeCompare(a.name.toLowerCase())
+        else
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      }
+      else if (projSort.value.key === 'type') {
+        if (projSort.value.order === 'desc') {
+          return keyContracts[isNaN(+b.type) ? 0 : (+b.type)].toLowerCase()
+            .localeCompare(keyContracts[isNaN(+a.type) ? 0 : (+a.type)].toLowerCase())
+        }
+        else {
+          return keyContracts[isNaN(+a.type) ? 0 : (+a.type)].toLowerCase()
+            .localeCompare(keyContracts[isNaN(+b.type) ? 0 : (+b.type)].toLowerCase())
+        }
+      }
+      else if (projSort.value.key === 'updated_at') {
+        if (projSort.value.order === 'desc')
+          return b.updated_at - a.updated_at
+        else
+          return a.updated_at - b.updated_at
+      }
+    })
+  })
+}
+
+const handleHeaderLeave = ev => {
+  const el_ = ev.target.querySelector('.icon-sort')
+  if (!ev.target.classList.contains('column-sorted')) {
+    if (el_.classList.contains('tabler-arrow-down'))
+      el_.classList.remove('tabler-arrow-down')
+    if (el_.classList.contains('tabler-arrow-up'))
+      el_.classList.remove('tabler-arrow-up')
+  }
+}
+
+const handleHeaderHover = ev => {
+  const el_ = ev.target.querySelector('.icon-sort')
+  if (!el_.classList.contains('tabler-arrow-down') && !el_.classList.contains('tabler-arrow-up'))
+    el_.classList.add('tabler-arrow-down')
+}
+
+const handleClickSort = (ev, key) => {
+  ev.stopImmediatePropagation()
+  ev.preventDefault()
+
+  const el_ = (ev.target.classList.contains('v-icon') ? ev.target : (ev.target.classList.contains('h-title') ? ev.target.nextSibling : ev.target.querySelector('.icon-sort')))
+  const order = projSort.value.key !== key ? 'asc' : (projSort.value.order === 'desc' ? 'asc' : 'desc')
+
+  projSort.value = { key, order }
+
+  nextTick(() => updateSorted())
 }
 
 watch(locale, val => {
+})
+
+onMounted(() => {
+  nextTick(() => updateDragAble())
 })
 </script>
 
 <template>
   <VCard
-    :title="$t('My Cases')"
+    :title="$t('My Project')"
     :subtitle="$t('List of ', [$t('case')])"
     :loading="isLoading ? 'primary' : false"
   >
@@ -248,82 +372,116 @@ watch(locale, val => {
       </div>
     </template>
     <!-- 👉 Data Table  -->
-    <VDataTableVirtual
-      ref="TableProjects"
-      :headers="headers"
-      :items="appStore.projects"
-      item-value="id"
-      :sort-by="[{ key: 'updated_at', order: 'desc' }]"
-      density="compact"
-      class="mb-6"
+    <VTable
+      class="projlists"
+      hover
+      fixed-header
+      style="max-block-size: 23.75rem;"
     >
-      <template #item="{ index, item, isSelected, toggleSelect }">
-        <tr
-          class="v-data-table__tr v-data-table__tr--clickable"
-          :class="{ 'v-data-table__selected': curSelCase === +item.id }"
-          @click.prevent="e => selectRow(e, item)"
-        >
+      <thead>
+        <tr>
+          <td style="inline-size: 80px;" />
           <td
-            class="v-data-table__td v-data-table-column--align-start"
-            style="inline-size: 48px;"
+            v-for="(item, index) in [{ title: 'name', value: 'name' }, { title: 'Contract Type', value: 'type' }, { title: 'Updated at', value: 'updated_at' }]"
+            :key="`head-${item.value}`"
           >
-            <div class="d-flex justify-center">
-              <IconBtn
-                density="compact"
-                color="disabled"
-              >
-                <VIcon icon="tabler-dots-vertical" />
-                <VMenu activator="parent">
-                  <VList>
-                    <template
-                      v-for="mnu in moreTabData"
-                      :key="mnu.value"
-                    >
-                      <VListItem @click="() => TabMenuDataClicked(mnu.value, item)">
-                        <VListItemTitle>{{ mnu.title }}</VListItemTitle>
-                      </VListItem>
-                    </template>
-                  </VList>
-                </VMenu>
-              </IconBtn>
+            <div
+              class="d-flex align-center"
+              :class="{ 'column-sorted': projSort.key === item.value }"
+              style="cursor: pointer;"
+              @mouseenter="handleHeaderHover"
+              @mouseleave="handleHeaderLeave"
+              @click="(ev) => handleClickSort(ev, item.value)"
+            >
+              <span class="h-title">{{ item.title }}</span>
+              <VIcon
+                class="icon-sort ms-2"
+                color="primary"
+                size="small"
+                :icon="projSort.key === item.value ? (projSort.order === 'desc' ? 'tabler-arrow-up' : 'tabler-arrow-down') : undefined"
+              />
             </div>
-          </td>
-          <td
-            class="v-data-table__td v-data-table-column--align-start"
-            style="inset-inline-start: 48px;"
-          >
-            <div class="max-w-10">
-              <p class="my-0">
-                {{ item.name }}
-              </p>
-              <h5 class="my-0 text-xs text-truncate">
-                {{ item.description?.replace("/\n|\r/g", " ").replace("<br>", "").replace("</br>", "") }}
-                <VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ item.name }}<br>
-                  <span v-html="item.description" />
-                </VTooltip>
-              </h5>
-            </div>
-          </td>
-          <td
-            class="v-data-table__td v-data-table-column--align-start"
-            style="inset-inline-start: 48px;"
-          >
-            {{
-              item.type === -1 ? 'Multiple Project' : Object.values(Pysc.ContractType)[parseInt(item.type)] }}
-          </td>
-          <td
-            class="v-data-table__td v-data-table-column--align-center"
-            style="inset-inline-start: 48px;"
-          >
-            {{ dayjs.utc(item.updated_at).local().locale(locale).format("lll") }}
           </td>
         </tr>
-      </template>
-    </VDataTableVirtual>
+      </thead>
+      <tbody ref="ListProjDrag">
+        <tr
+          v-for="(item, index) in appStore.projects"
+          :key="`tr-case-${item.id}`"
+          :class="{ 'case-active': item.id === appStore.curSelCase }"
+          :style="{ backgroundColor: item.id === appStore.curSelCase ? 'rgba(var(--v-theme-on-surface), 0.25)' : undefined }"
+        >
+          <td
+            class="d-flex align-center"
+            style="inline-size: 80px;"
+          >
+            <VIcon
+              class="list-drag-handle"
+              :style="{ cursor: 'ns-resize' }"
+              icon="tabler-arrows-move-vertical"
+            />
+            <MoreBtn
+              :menu-list="moreTabData"
+              item-props
+              @click:item="(val) => TabMenuDataClicked(val, item)"
+            />
+          </td>
+          <td
+            class="text-truncate cursor-pointer flex-grow-0"
+            @click="() => changeActiveCase(item)"
+          >
+            <VTextField
+              v-if="isEditTitleShow && isEdittingId === item.id"
+              v-model="editValue"
+              density="compact"
+              variant="underlined"
+              class="me-5"
+              autofocus
+              @blur="isEditTitleShow = false"
+              @keyup.esc="isEditTitleShow = false"
+              @keyup.enter="() => updateEditValue(item, editValue)"
+            />
+            <span
+              v-else
+              @dblclick="() => { editValue = item.name; isEdittingId = item.id; isEditTitleShow = true; }"
+            >
+
+              {{ item.name }}
+              <VTooltip
+                activator="parent"
+                location="top"
+              >
+                {{ item.name }}<br>
+                <span v-html="item.description" /><br>
+                <span class="text-warning">Double click to edit text</span>
+              </VTooltip>
+            </span>
+            <div class="text-truncate text-body-2">
+              {{ item.description?.replace("/\n|\r/g", " ").replace("<br>", "").replace("</br>", "") }}
+            </div>
+          </td>
+          <td
+            class="text-h6 text-truncate"
+            style="inline-size: 210px;"
+          >
+            <h5>
+              {{ Object.values(Pysc.ContractType)[isNaN(+item.type) ? 0 : (+item.type)] }}
+            </h5>
+          </td>
+          <td
+            class="text-h6 text-truncate"
+            style="inline-size: 180px;"
+          >
+            <h5>
+              {{ dayjs.utc(item.updated_at).local().locale(locale).format("lll") }}
+            </h5>
+            <h6 class="text-body-3">
+              @{{ typeof item.evaluator === 'string' && item.evaluator.length ? item.evaluator : 'unknown' }}
+            </h6>
+          </td>
+        </tr>
+      </tbody>
+    </VTable>
   </VCard>
   <ProjectEditor
     ref="RefProjEditor"
@@ -350,6 +508,11 @@ watch(locale, val => {
     ref="cardCombine"
     @combine-dlg-done="() => nextTick(() => isCombineDlgVisible = false)"
   />
+  <CardIncremental
+    v-if="isIncrDlgVisible"
+    ref="cardIncr"
+    @incr-dlg-done="() => nextTick(() => isIncrDlgVisible = false)"
+  />
 </template>
 
 <style lang="scss" scoped>
@@ -368,4 +531,25 @@ tbody tr.v-data-table__selected {
 tbody tr.v-data-table__selected:hover {
   background: #42769170 !important;
 }
+</style>
+
+<style lang="scss" scoped>
+.projlists {
+  thead {
+    tr {
+      td {
+        background: rgb(var(--v-theme-surface));
+        border-block-end: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+      }
+    }
+  }
+  td {
+      .list-drag-handle {
+        color: rgba(var(--v-theme-on-surface), 0.3);
+        &:hover {
+          color: rgba(var(--v-theme-warning), 0.7)
+        }
+      }
+    }
+  }
 </style>

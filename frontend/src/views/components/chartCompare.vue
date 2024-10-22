@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hexToRgb } from '@layouts/utils'
 import { RadarChart } from "echarts/charts"
 import {
   GridComponent,
@@ -12,7 +13,6 @@ import * as math from 'mathjs'
 import VChart from "vue-echarts"
 import type { ThemeInstance } from 'vuetify'
 import { useTheme } from 'vuetify'
-import { hexToRgb } from '@layouts/utils'
 import * as Pysc from "@/utils/pysc/pyscType"
 
 const props = defineProps<Props>()
@@ -105,6 +105,7 @@ const chtOption = computed(() => {
   //   return (v < 0 && ratio ? (1 - ratio) : ratio) * 100
   // }))
   return {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     title: { show: false },
     legend: {
       show: true,
@@ -194,18 +195,30 @@ const chtOption = computed(() => {
             lineStyle: {
               type: idx === 0 ? 'solid' : 'dashed',
             },
+            itemStyle: {
+              color: Pysc.bg_color_table[idx],
+            },
             scale: true,
             areaStyle: idx === 0
               ? {
                   color: new graphic.RadialGradient(0.5, 0.5, 1, [
                     {
-                      color: 'rgba(255, 145, 124, 0.1)',
+                      color: `rgba(${hexToRgb(Pysc.bg_color_table[idx])}, 0.1)`,
                       offset: 0,
                     },
                     {
-                      color: 'rgba(255, 145, 124, 0.7)',
+                      color: `rgba(${hexToRgb(Pysc.bg_color_table[idx])}, 0.7)`,
                       offset: 1,
                     }
+
+                  // {
+                  //   color: `rgba(255, 145, 124, 0.1)`,
+                  //   offset: 0,
+                  // },
+                  // {
+                  //   color: 'rgba(255, 145, 124, 0.7)',
+                  //   offset: 1,
+                  // }
                   ]),
                 }
               : undefined,
@@ -224,6 +237,13 @@ function updateCompareChart() {
   })
 }
 
+const getImageSourceUrl = () => {
+  return refCompChart.value?.getDataURL({
+    type: 'png',
+    excludeComponents: ['toolbox'],
+  })
+}
+
 useResizeObserver(refCompContainer, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
@@ -235,6 +255,7 @@ onMounted(() => updateCompareChart())
 
 defineExpose({
   updateCompareChart,
+  getImageSourceUrl,
 })
 </script>
 

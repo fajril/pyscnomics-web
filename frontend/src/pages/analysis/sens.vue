@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
 import { useHTTP } from '@/utils/pysc/useHttp'
+import { useTooltip } from '@/utils/pysc/useTooltips'
 import * as math from 'mathjs'
+import DotdotOpt from '../components/dotdotOpt.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import SplitCollapsible from '@/views/components/splitCollapsible.vue'
-import SensResBarChart from '@/views/pages/analysis/sensResBarChart.vue'
-import SensResChart from '@/views/pages/analysis/sensResChart.vue'
-import SensResTable from '@/views/pages/analysis/sensResTable.vue'
+import SensItemRes from '@/views/pages/analysis/sensItemRes.vue'
 import 'handsontable/dist/handsontable.full.min.css'
 
 definePage({
@@ -24,6 +23,7 @@ const appStore = useAppStore()
 const PyscConf = usePyscConfStore()
 const SensStore = usePyscSensStore()
 const isLoading = ref(false)
+const { getToolTip } = useTooltip()
 
 const { sensConfig } = storeToRefs(SensStore)
 
@@ -288,6 +288,7 @@ const tableSensSummary = computed(() => {
       { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
       { type: 'numeric', numericFormat: { pattern: { output: 'percent', thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
     ],
+    contextMenu: Pysc.TableContextMenus([{ name: 'copy' }, { name: 'copy_with_column_headers' }]),
     readOnly: true,
     rowHeaders: false,
     height: 'auto',
@@ -329,7 +330,6 @@ const tableSensSummary = computed(() => {
   return Opt
 })
 
-const currentTab = ref(0)
 const expanseData = ref(Object.keys(DataTable.value).map((v, i) => ({ name: v, value: i, chartIndex: 0 })))
 
 const selectItemParams = (parent, item) => {
@@ -354,6 +354,43 @@ const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   refTableSensCfg.value?.hotInstance.updateSettings(tableSensConfig.value)
   nextTick(() => calcSens())
 })
+
+const optOption = [
+  { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: 'text' },
+  { title: `Save to file (*.xlsx)`, value: 'save2File', icon: 'tabler-download', sourceType: 'table' },
+  { type: 'divider' },
+  { title: 'Reload', value: 'reload', icon: 'tabler-reload' },
+]
+
+const getDataSource = (value: string, sourceType: string) => {
+  const tblDataScr = [tableSensSummary.value.colHeaders.map(v => v.replace(/<\/?("[^"]*"|'[^']*'|[^>])*(>|$)/g, " ")), ...refTableSensSummary.value?.hotInstance.getData()]
+  if (tblDataScr && tblDataScr.length) {
+    if (sourceType === 'text') {
+      return tblDataScr.reduce((rowTxt, rowVal) => {
+        return `${rowTxt + rowVal.join('\t')}\n`
+      }, '')
+    }
+    else if (sourceType === 'table') {
+      const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+
+      return {
+        data: [{
+          name: `sens summary`,
+          header: [],
+          data: tblDataScr,
+        }],
+        filename: `sens_summary_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+      }
+    }
+  }
+
+  return null
+}
+
+const actionOption = (type: string) => {
+  if (type === 'reload')
+    CallableFunc()
+}
 
 watch(locale, val => refTableSensCfg.value?.hotInstance.updateSettings(tableSensConfig.value))
 onMounted(() => {
@@ -506,8 +543,21 @@ onUnmounted(() => {
           <AppCardActions
             action-collapsed
             title="Summary"
+            sub-title="Parameters effect to Economic Indicator"
             compact-header
           >
+            <template #before-actions="{ isContentCollapsed }">
+              <DotdotOpt
+                v-if="!isContentCollapsed"
+                :menu-list="optOption"
+                title="Options"
+                item-props
+                dot-only
+                :get-source="getDataSource"
+                @click:item="actionOption"
+              />
+            </template>
+
             <VCardText>
               <HotTable
                 ref="refTableSensSummary"
@@ -539,62 +589,13 @@ onUnmounted(() => {
                   <span>{{ item.name === 'P/I' ? 'PI' : item.name }}</span>
                 </template>
               </VExpansionPanelTitle>
-              <VExpansionPanelText>
-                <SplitCollapsible>
-                  <template #left="{ collapsible }">
-                    <SensResTable
-                      :has-gas="PyscConf.prodHasGas()"
-                      :data-table="DataTable[item.name]"
-                    />
-                  </template>
-                  <template #right="{ collapsible }">
-                    <VTabs v-model="item.chartIndex">
-                      <VTab value="0">
-                        {{ $t('Spider') }}
-                      </VTab>
-                      <VTab value="1">
-                        {{ $t('Tornado') }}
-                      </VTab>
-                      <VTab value="2">
-                        {{ $t('Contribution') }}
-                      </VTab>
-                    </VTabs>
-                    <VWindow v-model="item.chartIndex">
-                      <VWindowItem value="0">
-                        <SensResChart
-                          class="mt-1"
-                          :has-gas="PyscConf.prodHasGas()"
-                          :data-chart="DataTable[item.name]"
-                          :title="item.name"
-                          :unit="item.value === 1 ? '%' : (item.value === 3 ? 'Year' : (item.value != 2 ? 'MUSD' : ''))"
-                        />
-                      </VWindowItem>
-                      <VWindowItem
-                        value="1"
-                        style="overflow: visible !important;"
-                      >
-                        <SensResBarChart
-                          :data-chart="DataTable[item.name]"
-                          :title="item.name"
-                          :category="['Oil Price', ...(PyscConf.prodHasGas() ? ['Gas Price'] : []), 'Opex', 'Capex', 'Lifting']"
-                          mode="Tornado"
-                        />
-                      </VWindowItem>
-                      <VWindowItem
-                        value="2"
-                        style="overflow: visible !important;"
-                      >
-                        <SensResBarChart
-                          :data-chart="DataTable[item.name]"
-                          :title="item.name"
-                          :category="['Oil Price', ...(PyscConf.prodHasGas() ? ['Gas Price'] : []), 'Opex', 'Capex', 'Lifting']"
-                          mode="Contrib"
-                        />
-                      </VWindowItem>
-                    </VWindow>
-                  </template>
-                </SplitCollapsible>
-              </VExpansionPanelText>
+              <SensItemRes
+                :data-table="DataTable[item.name]"
+                :has-gas="PyscConf.prodHasGas()"
+                :item-value="item.value"
+                :table-title="item.name === 'P/I' ? 'PI' : item.name"
+                :chart-title="item.name === 'P/I' ? 'PI' : item.name"
+              />
             </VExpansionPanel>
           </VExpansionPanels>
         </VCardText>

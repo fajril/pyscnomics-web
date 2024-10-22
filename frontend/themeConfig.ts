@@ -1,5 +1,5 @@
 import { defineThemeConfig } from '@core'
-import { Skins } from '@core/enums'
+import { Skins, Theme } from '@core/enums'
 import { breakpointsVuetify } from '@vueuse/core'
 import { VIcon } from 'vuetify/components/VIcon'
 
@@ -30,7 +30,7 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
         },
       ],
     },
-    theme: 'system',
+    theme: Theme.Dark,
     skin: Skins.Default,
     iconRenderer: VIcon,
   },

@@ -1,28 +1,31 @@
 <script lang="ts" setup>
-import ProjInfo from './pysc/projInfo.vue'
-
 // Components
-import ExportProj from './pysc/ExportProj.vue'
-import NewProj from './pysc/NewProj.vue'
-import OpenProj from './pysc/OpenProj.vue'
-import SaveProj from './pysc/SaveProj.vue'
-import SaveAsProj from './pysc/SaveasProj.vue'
-import { themeConfig } from '@themeConfig'
 import navItems from '@/navigation/vertical'
+import { themeConfig } from '@themeConfig'
 
 import Footer from '@/layouts/components/Footer.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import { useAppStore } from "@/stores/appStore"
-import QuickShoot from '@/views/components/quickShoot.vue'
 import NavBarI18n from '@core/components/I18n.vue'
 import { useConfigStore } from '@core/stores/config'
 
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
+import ExportProj from './pysc/ExportProj.vue'
+
+import HelpManual from './pysc/helpFile.vue'
+import NewProj from './pysc/NewProj.vue'
+import OpenProj from './pysc/OpenProj.vue'
+import ProjInfo from './pysc/projInfo.vue'
+import SaveAsProj from './pysc/SaveasProj.vue'
+import SaveProj from './pysc/SaveProj.vue'
+import QuickShoot from '@/views/components/quickShoot.vue'
 
 const { locale } = useI18n({ useScope: 'global' })
 
 const configStore = useConfigStore()
+const appStore = useAppStore()
+const { curSelCase } = storeToRefs(appStore)
 
 const router = useRouter()
 
@@ -40,9 +43,6 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
   if (!isFallbackStateActive.value && refLoadingIndicator.value)
     refLoadingIndicator.value.resolveHandle()
 }, { immediate: true })
-
-const appStore = useAppStore()
-const { curSelCase } = storeToRefs(appStore)
 
 const filesGRP = [
   { name: 'New', title: 'New Project', icon: 'tabler-file', i18n: "New" },
@@ -180,6 +180,8 @@ const filesGRP = [
         <VSpacer />
 
         <QuickShoot />
+
+        <HelpManual />
 
         <ProjInfo />
         <NavBarI18n

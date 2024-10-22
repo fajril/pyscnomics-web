@@ -2,9 +2,11 @@
 import { BarChart, LineChart, ScatterChart } from "echarts/charts"
 import { CanvasRenderer } from 'echarts/renderers'
 
+import { useAppStore } from "@/stores/appStore"
 import { hexToRgb } from '@layouts/utils'
 import {
   AxisPointerComponent,
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
   MarkPointComponent,
@@ -17,6 +19,15 @@ import type { ThemeInstance } from 'vuetify'
 import { useTheme } from 'vuetify'
 import * as Pysc from "@/utils/pysc/pyscType"
 
+interface Props {
+
+  // dataTable: Pysc.TableCFOption
+  hasGas?: boolean
+  dataChart: Array<any>
+  title?: string
+  unit?: string
+}
+
 const props = withDefaults(defineProps<Props>(), {
   title: '',
   unit: '',
@@ -25,6 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
 const numbro = Pysc.useNumbro()
 
 use([
+  DataZoomComponent,
   CanvasRenderer,
   ScatterChart,
   LineChart,
@@ -37,16 +49,8 @@ use([
   AxisPointerComponent,
 ])
 
-interface Props {
-
-  // dataTable: Pysc.TableCFOption
-  hasGas?: boolean
-  dataChart: Array<any>
-  title?: string
-  unit?: string
-}
-
 // provide(THEME_KEY, "dark")
+const appStore = useAppStore()
 
 const vuetifyTheme = useTheme()
 
@@ -65,11 +69,16 @@ const chtOption = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
   const Opt = {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     title: {
       text: props.title,
       left: "center",
       textStyle: { color: themePrimaryTextColor },
     },
+    dataZoom: {
+      type: 'inside',
+    },
+
     tooltip: {
       trigger: 'item',
 
@@ -203,35 +212,38 @@ const chtOption = computed(() => {
   return Opt
 })
 
-const refContainer = ref()
+const getDataSource = (value: string, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
 
-useResizeObserver(refContainer, entries => {
-  const entry = entries[0]
-  const { width, height } = entry.contentRect
-  if (refContainer.value)
-    nextTick(() => chartMonte.value?.resize())
-}, { box: 'device-pixel-content-box' })
+  return {
+    url: chartMonte.value?.getDataURL({
+      type: 'png',
+      excludeComponents: ['toolbox'],
+    }),
+    filename: `montecarlo_${props.title}_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+  }
+}
 
-const dataChart = computed(() => props.dataChart)
-
-watch(dataChart, val => {
+watch(() => props.dataChart, val => {
   nextTick(() => chartMonte.value?.resize())
 }, { immediate: true, deep: true })
+
+const resizeContainer = () => {
+  nextTick(() => chartMonte.value?.resize())
+}
+
+defineExpose({
+  getDataSource,
+  resizeContainer,
+})
 </script>
 
 <template>
-  <VRow>
-    <VCol
-      ref="refContainer"
-      cols="12"
-    >
-      <VChart
-        ref="chartMonte"
-        class="monte-chart"
-        :option="chtOption"
-      />
-    </VCol>
-  </VRow>
+  <VChart
+    ref="chartMonte"
+    class="monte-chart"
+    :option="chtOption"
+  />
 </template>
 
 <style scoped>

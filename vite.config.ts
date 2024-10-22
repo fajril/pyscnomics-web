@@ -1,6 +1,7 @@
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import chalk from 'chalk'
+import dotenv from 'dotenv'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,6 +22,12 @@ export default defineConfig(({ command, mode }) => {
   const isServe = command === 'serve'
   const isBuild = command === 'build'
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
+
+  dotenv.config({ path: path.normalize(path.join(__dirname, '.env')) })
+
+  // pkg.version = process.env.VITE_PSC_VER122
+
+  console.log(`APP version: ${process.env.VITE_PSC_VER122}`)
 
   console.log(chalk.blueBright('Build Launcher'))
 
@@ -155,7 +162,10 @@ export default defineConfig(({ command, mode }) => {
       // }),
 
     ],
-    define: { 'process.env': {} },
+    define: {
+      PYSC_APP_VERSION: `"${process.env.VITE_PSC_VER122}"`,
+      'process.env': {},
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

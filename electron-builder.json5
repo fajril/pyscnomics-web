@@ -1,9 +1,9 @@
 // @see https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "PySCnomicsApp",
-  "asar": true,
-  "productName": "PySCnomics-App",
+  "appId": "PSCnomicsApp",
+  "asar": false,
+  "productName": "PSCnomics",
   "directories": {
     "output": "release2/${version}"
   },
@@ -20,8 +20,8 @@
       ]
     },
     {
-      "from": "python-3.12.4 - Master",
-      "to": "python-3.12.4",
+      "from": "python-win-3.12",
+      "to": "python-win-3.12",
       "filter": [
         "**/*"
       ]
@@ -29,6 +29,13 @@
     {
       "from": "dist/frontend",
       "to": "frontend",
+      "filter": [
+        "**/*"
+      ]
+    },
+    {
+      "from": "docs",
+      "to": "docs",
       "filter": [
         "**/*"
       ]
@@ -64,8 +71,8 @@
     "oneClick": false,
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": true,
-    "shortcutName": "PySCnomics App"
+    "deleteAppDataOnUninstall": false,
+    "shortcutName": "${productName}"
   },
   "linux": {
     "target": [

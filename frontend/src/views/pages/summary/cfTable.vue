@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAppStore } from "@/stores/appStore"
 import * as Pysc from "@/utils/pysc/pyscType"
 import 'handsontable/dist/handsontable.full.min.css'
 import { isNull } from "mathjs"
@@ -15,8 +16,9 @@ const props = withDefaults(defineProps<Props>(), {
   isContract2: false,
 })
 
-const collapsed = defineModel<boolean>({ required: false, default: false })
+// const collapsed = defineModel<boolean>({ required: false, default: false })
 
+const appStore = useAppStore()
 const refTableCF = ref()
 
 const dataTable = computed(() => props.dataTable)
@@ -90,28 +92,58 @@ function updateTable() {
   tableCFConfig.value.cell.splice(0, tableCFConfig.value.cell.length, ...dataTable.value.cells)
   nextTick(() => nextTick(() => refTableCF.value?.hotInstance.updateSettings(tableCFConfig.value)))
 }
+
+const getDataSource = (value: string, sourceType: string) => {
+  const tblDataScr = [tableCFConfig.value.colHeaders, ...refTableCF.value?.hotInstance.getData()]
+  if (refTableCF) {
+    if (sourceType === 'text') {
+      return tblDataScr.reduce((rowTxt, rowVal) => {
+        return `${rowTxt + rowVal.join('\t')}\n`
+      }, '')
+    }
+    else if (sourceType === 'table') {
+      const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+
+      return {
+        data: [{
+          name: 'cashflow',
+          header: [],
+          data: tblDataScr,
+        }],
+        filename: `${props.title + (props.multiContract ? (props.isContract2 ? ' 2nd Contract' : ' 1st Contract') : '')}_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+      }
+    }
+  }
+
+  return null
+}
+
+const actionOption = (type: string) => {
+  if (type === 'reload')
+    updateTable()
+}
+
+const resizeContainer = () => {
+  nextTick(() => refTableCF.value?.hotInstance.updateSettings(tableCFConfig.value))
+}
+
 defineExpose({
   updateTable,
+  getDataSource,
+  actionOption,
+  resizeContainer,
 })
 </script>
 
 <template>
-  <AppCardActions
-    :title="$props.title + ($props.multiContract ? ($props.isContract2 ? ' 2nd Contract' : ' 1st Contract') : '')"
-    action-collapsed
-    compact-header
-    :collapsed="collapsed"
-    @collapsed="val => collapsed = val"
-  >
-    <VCardText>
-      <HotTable
-        ref="refTableCF"
-        :settings="tableCFConfig"
-        class="not_to_dimmed"
-        license-key="non-commercial-and-evaluation"
-      />
-    </VCardText>
-  </AppCardActions>
+  <VCardText>
+    <HotTable
+      ref="refTableCF"
+      :settings="tableCFConfig"
+      class="not_to_dimmed"
+      license-key="non-commercial-and-evaluation"
+    />
+  </VCardText>
 </template>
 
 <style lang="scss">

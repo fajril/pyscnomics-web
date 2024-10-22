@@ -10,3 +10,5 @@ declare module 'vue-router' {
     public?: boolean
   }
 }
+
+declare const PYSC_APP_VERSION: string;

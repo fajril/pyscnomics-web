@@ -21,7 +21,7 @@ import numpy as np
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, status
 
 # from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pyapp.modules.filebrowser import list_drives, list_files
 
 # from pyapp.modules.monte import ProcessMonte
@@ -35,7 +35,11 @@ from pyscnomics.api.adapter import (
     get_contract_table,
     get_costrecovery,
     get_grosssplit,
+    get_grosssplit_split,
+    get_ltp_dict,
+    get_rpd_dict,
     get_transition,
+    get_transition_split,
 )
 from pyscnomics.tools import summary
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +51,7 @@ from ..models.project import Project
 from ..modules import basePath
 from ..modules.basePath import baseAppPath
 from ..modules.casecombine import CaseCombine
+from ..modules.caseIncremental import CaseIncremental
 from ..modules.lzstring import LZString
 from ..modules.pyscpack import pyscPacker
 from ..modules.summaries import Summaries
@@ -584,6 +589,10 @@ async def wrt_cost(dataDict: dict):
                 filePath = Path(tmpPath, f"opex_{caseid}.bin")
             case 3:
                 filePath = Path(tmpPath, f"asr_{caseid}.bin")
+            case 4:
+                filePath = Path(tmpPath, f"cos_{caseid}.bin")
+            case 5:
+                filePath = Path(tmpPath, f"lbt_{caseid}.bin")
             case _:
                 filePath = Path(tmpPath, f"tangible_{caseid}.bin")
         with open(filePath, "wb") as out1:
@@ -771,6 +780,38 @@ async def rdCombine(wspath: str):
     return {"state": False}
 
 
+@routerapi.put("/wrtincr", response_class=JSONResponse)
+async def wrt_incr(dataDict: dict):
+    try:
+        wspath = dataDict["wspath"]
+        gc = dataDict["gc"]
+        data = json.loads(base64.b64decode(gc).decode("utf-8"))
+        tmpPath = Path(basePyPath, "~tmp", f"{wspath}")
+        if not tmpPath.exists():
+            os.makedirs(str(tmpPath))
+        filePath = Path(tmpPath, "incr.bin")
+        with open(filePath, "wb") as fs:
+            pickle.dump(data, fs)
+            fs.close()
+        return {"state": True}
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/rdincr", response_class=JSONResponse)
+async def rdincr(wspath: str):
+    pathFile = Path(basePyPath, "~tmp", f"{wspath}")
+    if pathFile.exists():
+        packer = pyscPacker()
+        return {"state": True, "data": packer.loadIncr(pathFile)}
+    return {"state": False}
+
+
 @routerapi.get("/closeddata", response_class=JSONResponse)
 async def closeddata(tmppath: str):
     pathFile = Path(base64.b64decode(tmppath).decode("utf-8"))
@@ -794,6 +835,51 @@ async def calc_ext_quick_summ(data: dict):
             "PI": sumCalc.summary["ctr_pi"],
         }
 
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/calc_ext_summ_npv")
+async def calc_ext_summ_npv(data: dict):
+    try:
+        type = data["type"]
+        dataJson = base64.b64decode(data["json"]).decode("utf-8")
+        json_dict: dict = json.loads(dataJson)
+        try:
+            SensTask = ProcessSens(
+                type,
+                json_dict["contract"],
+                json_dict["parameter"],
+                json_dict["config"]["min"],
+                json_dict["config"]["max"],
+            )
+            output = SensTask.Run()
+            sensNPV = (
+                {
+                    par: [
+                        [-(1 - row[0]) * 100, row[1]]
+                        for r, row in enumerate(output[par])
+                    ]
+                    for i, par in enumerate(json_dict["parameter"])
+                }
+                if output is not None
+                else None
+            )
+        except Exception as errirr:
+            print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+            print(f"{bcolors.FAIL}ERROR: {errirr}{bcolors.ENDC}")
+            sensNPV = None
+
+        return {
+            "card": {
+                "NPV": sensNPV,
+            },
+        }
     except Exception as err:
         print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
         print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
@@ -881,6 +967,12 @@ async def calc_ext_summ(data: dict):
         #     sensIRR = None
         sensIRR = None
 
+        splitInfo = (
+            get_grosssplit_split(data=json_dict["contract"])
+            if type == 2
+            else get_transition_split(data=json_dict["contract"]) if type >= 3 else None
+        )
+
         cardResult = {
             "card": {
                 "year": sumCalc.Year,
@@ -894,8 +986,10 @@ async def calc_ext_summ(data: dict):
                 "GoI": sumCalc.getGoI(),
                 "pie": sumCalc.getPie(),
                 "IRR": sensIRR,
+                "NPV": None,
             },
             "summary": sumCalc.summary,
+            "splitInfo": splitInfo,
         }
         return cardResult
 
@@ -948,6 +1042,7 @@ async def get_case_summaries(dataEnt: dict):
         "gov_take",
         "gov_take_over_gross_rev",
         "gov_take_npv",
+        "indirect_taxes",
     ]
     try:
         type = dataEnt["type"]
@@ -1275,6 +1370,7 @@ async def calc_optim(dataDict: dict):
                 "gov_take",
                 "gov_take_over_gross_rev",
                 "gov_take_npv",
+                "indirect_taxes",
             ]
 
             return {
@@ -1336,6 +1432,89 @@ async def calc_combine(dataDict: dict):
         )
         return combine.concatenate()
 
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/incrementalcase")
+async def calc_incremental(dataDict: dict):
+    try:
+        ctrtype = list(dataDict["CtrType"])
+        data = base64.b64decode(dataDict["data"]).decode("utf-8")
+        json_dict: dict = json.loads(data)
+        incr_ = CaseIncremental(
+            ctrType=ctrtype,
+            dataJson=json_dict["data"],
+            inflation_rate=json_dict["argument"]["inflation_rate"],
+            discount_rate=json_dict["argument"]["discount_rate"],
+            reference_year=json_dict["argument"]["reference_year"],
+            npv_mode=json_dict["argument"]["npv_mode"],
+            discounting_mode=json_dict["argument"]["discounting_mode"],
+        )
+        return incr_.redux()
+
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/calc_ltp", response_class=JSONResponse)
+async def calc_ltp(dataDict: dict):
+    try:
+        return get_ltp_dict(data=dataDict)
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/calc_rpd", response_class=JSONResponse)
+async def calc_rpd(dataDict: dict):
+    try:
+        return get_rpd_dict(data=dataDict)
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/psc_version", response_class=JSONResponse)
+async def psc_version():
+    import requests
+
+    try:
+        req = requests.get(
+            "https://raw.githubusercontent.com/edealam/pscnomics-packages/main/version.json"
+        )
+        return req.json()
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.get("/getmanualbook", response_class=JSONResponse)
+async def getManualBook():
+    try:
+        return FileResponse(path=Path(basePyPath, "docs", "manualbook.pdf"))
     except Exception as err:
         print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
         print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")

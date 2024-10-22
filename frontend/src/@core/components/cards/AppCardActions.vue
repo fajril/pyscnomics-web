@@ -7,6 +7,7 @@ interface Props {
   actionRemove?: boolean
   loading?: boolean | undefined
   title?: string
+  subTitle?: string
   compactHeader?: boolean
 }
 
@@ -30,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
   actionRemove: false,
   loading: undefined,
   title: undefined,
+  subTitle: undefined,
 })
 
 const emit = defineEmits<Emit>()
@@ -94,11 +96,23 @@ const triggeredRemove = () => {
               {{ props.title }}
             </slot>
           </VCardTitle>
+          <VCardSubtitle
+            v-if="props.subTitle || $slots.subTitle"
+            :class="{ 'cursor-pointer': actionCollapsed }"
+            @click.stop="clickedHeader"
+          >
+            <slot name="subTitle">
+              {{ props.subTitle }}
+            </slot>
+          </VCardSubtitle>
 
           <template #append>
             <!-- 👉 Before actions slot -->
             <div>
-              <slot name="before-actions" />
+              <slot
+                name="before-actions"
+                :is-content-collapsed="isContentCollapsed"
+              />
 
               <!-- SECTION Actions buttons -->
 

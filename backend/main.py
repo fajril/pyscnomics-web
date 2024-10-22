@@ -65,11 +65,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
 
 
 def setPort():
-    p = 8888
+    p = 9999
     try:
         p = sys.argv[1]
     except Exception:
-        print("error with sys.argv, assigned default port: 4242")
+        print(f"error with sys.argv, assigned default port: {p}")
     return p
 
 

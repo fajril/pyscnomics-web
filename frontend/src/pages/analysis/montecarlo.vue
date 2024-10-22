@@ -3,12 +3,12 @@ import { useAppStore } from '@/stores/appStore'
 import { useWSStore } from '@/stores/wsStore'
 import * as math from 'mathjs'
 import HyperFormula from 'hyperformula'
+import DotdotOpt from '../components/dotdotOpt.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { MonteDistType, usePyscMonteStore } from '@/stores/monteStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
-import MonteResChart from '@/views/pages/analysis/monteResChart.vue'
-import MonteResTable from '@/views/pages/analysis/monteResTable.vue'
+import MonteItemRes from '@/views/pages/analysis/monteItemRes.vue'
 import 'handsontable/dist/handsontable.full.min.css'
 
 definePage({
@@ -161,9 +161,9 @@ const refTableMonteRes = ref()
 
 const headerMonteRes = [
   { title: "Target", key: "target", align: 'start' },
-  { title: 'P10', key: "p10", align: 'end', value: item => item.p10 ? (numbro(item.p10 * (item.key === 'IRR' ? 100 : 1)).format()) : item.p10 },
-  { title: 'P50', key: "p50", align: 'end', value: item => item.p50 ? (numbro(item.p50 * (item.key === 'IRR' ? 100 : 1)).format()) : item.p50 },
   { title: 'P90', key: "p90", align: 'end', value: item => item.p90 ? (numbro(item.p90 * (item.key === 'IRR' ? 100 : 1)).format()) : item.p90 },
+  { title: 'P50', key: "p50", align: 'end', value: item => item.p50 ? (numbro(item.p50 * (item.key === 'IRR' ? 100 : 1)).format()) : item.p50 },
+  { title: 'P10', key: "p10", align: 'end', value: item => item.p10 ? (numbro(item.p10 * (item.key === 'IRR' ? 100 : 1)).format()) : item.p10 },
 ]
 
 const { height } = useElementSize(refTableMonteCfg)
@@ -189,7 +189,8 @@ const tableMonteConfig = computed(() => {
     colHeaders: ['Parameter', 'Distribution', 'Min', 'Base', 'Max', 'Std.Dev'],
     columns: [
       { data: 'name', renderer: 'html', readOnly: true },
-      { data: 'dist', type: 'dropdown', source: Object.values(MonteDistType), visibleRows: 15, strict: true, trimDropdown: true },
+
+      { data: 'dist', type: 'select', selectOptions: Object.values(MonteDistType), strict: true },
       { data: 'min', type: 'numeric', validator: 'numeric', allowInvalid: false, numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
       { data: 'base', type: 'numeric', readOnly: true, numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
       { data: 'max', type: 'numeric', validator: 'numeric', allowInvalid: false, numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, trimMantissa: true, optionalMantissa: true, negative: "parenthesis" } } },
@@ -214,10 +215,15 @@ const tableMonteConfig = computed(() => {
         const ctype = refTableMonteCfg.value.hotInstance.getDataType(row, iCol, row, iCol)
 
         nextTick(() => {
-          if (ctype === 'numeric' && (typeof dataTable.value[row][prop] === 'string')
-            && dataTable.value[row][prop].includes('=')) {
-            dataTable.value[row][prop] = +(+value).toPrecision(15)
-            refTableMonteCfg.value.hotInstance.updateData(dataTable.value)
+          try {
+            if (ctype === 'numeric' && (typeof dataTable.value[row][prop] === 'string')
+              && dataTable.value[row][prop].includes('=')) {
+              dataTable.value[row][prop] = +(+value).toPrecision(15)
+              refTableMonteCfg.value.hotInstance.updateData(dataTable.value)
+            }
+          }
+          catch (error) {
+
           }
         })
       }
@@ -271,44 +277,6 @@ const MonteResSumm = ref([])
 const curCaseID = ref()
 const progress = ref(0)
 
-// const fetchProgress = async () => {
-//   const { status, result } = await useHTTP().get({
-//     path: 'get_monte_state',
-//     params: {
-//       id: curCaseID.value,
-//     },
-//     onError: (error: any) => { throw error },
-//   })
-
-//   console.log(result)
-
-//   if (status !== 200)
-//     throw [status, result]
-
-//   return result
-// }
-
-// const { pause: stopProgress, resume: startProgress, isActive: isOnProgress } = useIntervalFn(async () => {
-//   try {
-//     const result = await fetchProgress()
-//     if (result.progress >= 0) {
-//       progress.value = result.progress
-//       if (!MonteStore.IsOnCalc)
-//         MonteStore.$patch({ IsOnCalc: true })
-//     }
-//     else {
-//       if (isOnProgress.value)
-//         stopProgress()
-//       MonteStore.$patch({ IsOnCalc: false })
-//     }
-//   }
-//   catch (error) {
-//     progress.value = 0
-//     if (MonteStore.IsOnCalc)
-//       MonteStore.$patch({ IsOnCalc: false })
-//   }
-// }, 1000, { immediate: false })
-
 const addBroadCast = async () => {
   if (appStore.curSelCase) {
     wsStore.addBroadCast('module:monteCalc', appStore.curSelCase, msg => {
@@ -341,23 +309,6 @@ const addBroadCast = async () => {
       }
     })
 
-    // wsStore.addBroadCast('monte', appStore.curSelCase, (msg: any) => {
-    //   if (msg.id === curCaseID.value) {
-    //     if (msg.data.progress === -1) {
-    //       // done
-    //       MonteStore.$patch({ IsOnCalc: false })
-    //       nextTick(() => {
-    //         appStore.$patch(state => state.projects[appStore.IndexCase].state = 1)
-    //         LoadResult(msg.data.output, true)
-    //       })
-    //     }
-    //     else {
-    //       progress.value = msg.data.progress
-    //       if (!MonteStore.IsOnCalc)
-    //         MonteStore.$patch({ IsOnCalc: true })
-    //     }
-    //   }
-    // })
     curCaseID.value = appStore.curSelCase
   }
 }
@@ -403,9 +354,9 @@ const LoadResult = async (hashID: string | null = null, _showAlert: boolean = fa
       return {
         target: key + (key === 'IRR' ? ", %" : (key === 'P/I' ? "" : (key === "POT" ? ", Year" : ", MUSD"))),
         key,
-        p10: resMonte.res.P90[index + 1],
-        p50: resMonte.res.P50[index + 1],
         p90: resMonte.res.P10[index + 1],
+        p50: resMonte.res.P50[index + 1],
+        p10: resMonte.res.P90[index + 1],
       }
     }),
     )
@@ -450,6 +401,46 @@ const { stopCaseID, CallableFunc } = useDataStore().useWatchCaseID(() => {
   })
 })
 
+const optOption = [
+  { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: 'text' },
+  { title: `Save to file (*.xlsx)`, value: 'save2File', icon: 'tabler-download', sourceType: 'table' },
+  { type: 'divider' },
+  { title: 'Reload', value: 'reload', icon: 'tabler-reload' },
+]
+
+const getDataSource = (value: string, sourceType: string) => {
+  const tblDataScr = [['Target', 'P90', 'P50', 'P10'], ...MonteResSumm.value.map(o => {
+    return [o.target, o.p90, o.p50, o.p10]
+  })]
+
+  if (tblDataScr && tblDataScr.length) {
+    if (sourceType === 'text') {
+      return tblDataScr.reduce((rowTxt, rowVal) => {
+        return `${rowTxt + rowVal.join('\t')}\n`
+      }, '')
+    }
+    else if (sourceType === 'table') {
+      const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+
+      return {
+        data: [{
+          name: `montecarlo summary`,
+          header: [],
+          data: tblDataScr,
+        }],
+        filename: `monte_summary_${appStore.selectedCase.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+      }
+    }
+  }
+
+  return null
+}
+
+const actionOption = (type: string) => {
+  if (type === 'reload')
+    CallableFunc()
+}
+
 onMounted(() => {
   watcherMonteCfg.pause()
   CallableFunc()
@@ -492,7 +483,7 @@ onUnmounted(() => {
         :disabled="MonteStore.IsOnCalc || isStartCalc"
         style="z-index: 100; overflow: visible !important;"
       >
-        <VCardText>
+        <VCardText class="mt-5">
           <VRow>
             <VCol
               cols="12"
@@ -528,12 +519,23 @@ onUnmounted(() => {
     <VCardText>
       <AppCardActions
         ref="cardResult"
-        action-collapsed
         :title="$t('Result')"
-        compact-header
         :loading="isLoadingRes"
+        action-collapsed
+        :style="{ zIndex: 100 }"
       >
-        <VCardText>
+        <template #before-actions="{ isContentCollapsed }">
+          <DotdotOpt
+            v-if="!isContentCollapsed"
+            :menu-list="optOption"
+            title="Options"
+            item-props
+            dot-only
+            :get-source="getDataSource"
+            @click:item="actionOption"
+          />
+        </template>
+        <VCardText class="mt-5">
           <VDataTableVirtual
             ref="refTableMonteRes"
             :headers="headerMonteRes"
@@ -564,32 +566,41 @@ onUnmounted(() => {
                   <span>{{ item.name === 'P/I' ? 'PI' : item.name }}</span>
                 </template>
               </VExpansionPanelTitle>
-              <VExpansionPanelText>
+              <MonteItemRes
+                :data-table="ResultTable[item.name]"
+                :has-gas="PyscConf.prodHasGas()"
+                :title="item.name"
+                :result-param="ResultParams"
+                :item-value="item.value"
+              />
+              <!--
+                <VExpansionPanelText>
                 <VRow>
-                  <VCol
-                    cols="12"
-                    md="5"
-                  >
-                    <MonteResTable
-                      :has-gas="PyscConf.prodHasGas()"
-                      :data-table="ResultTable[item.name]"
-                      :header="item.name"
-                      :parameter="ResultParams"
-                    />
-                  </VCol>
-                  <VCol
-                    cols="12"
-                    md="7"
-                  >
-                    <MonteResChart
-                      :has-gas="PyscConf.prodHasGas()"
-                      :data-chart="ResultTable[item.name]"
-                      :title="item.name"
-                      :unit="item.value === 1 ? '%' : (item.value === 3 ? 'Year' : (item.value != 2 ? 'MUSD' : ''))"
-                    />
-                  </VCol>
+                <VCol
+                cols="12"
+                md="5"
+                >
+                <MonteResTable
+                :has-gas="PyscConf.prodHasGas()"
+                :data-table="ResultTable[item.name]"
+                :header="item.name"
+                :parameter="ResultParams"
+                />
+                </VCol>
+                <VCol
+                cols="12"
+                md="7"
+                >
+                <MonteResChart
+                :has-gas="PyscConf.prodHasGas()"
+                :data-chart="ResultTable[item.name]"
+                :title="item.name"
+                :unit="item.value === 1 ? '%' : (item.value === 3 ? 'Year' : (item.value != 2 ? 'MUSD' : ''))"
+                />
+                </VCol>
                 </VRow>
-              </VExpansionPanelText>
+                </VExpansionPanelText>
+              -->
             </VExpansionPanel>
           </VExpansionPanels>
         </VCardText>

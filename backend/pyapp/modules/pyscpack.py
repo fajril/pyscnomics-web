@@ -22,7 +22,7 @@ log = logging.getLogger("uvicorn")
 class pyscPacker:
     typeContract: int = 1
     __hfl: str = "pySCapp"
-    __vfl: int = 13
+    __vfl: int = 18
     root_path = baseAppPath
     """
     ver.3: var (+) sign (1 byte) for Null int
@@ -40,6 +40,13 @@ class pyscPacker:
     ver.13: (+) field: profitability_discounted (Fiscal)
             (+) field: regime (Fiscal) GS Only  
             (+) field: prod_rate_baseline (lifting)
+    ver.14: (+) field: oil_cost_of_sales_applied,gas_cost_of_sales_applied (CR)
+            (+) table: COS
+    ver.15: (+) field: useCOS (genConf)
+            (?) fix COS table writing error
+    ver.16: (+) table LBT
+    ver.17: (+) data Incremental
+    ver.18: (+) sum_undepreciated_cost
     """
 
     def __init__(self, path: Path | None = None):
@@ -155,6 +162,8 @@ class pyscPacker:
                     # start ver. 12
                     "delayAccMode": self.readPack("h", fs, 0) if vfl >= 12 else 0,
                     "delayAccYear": self.readPack("h", fs, 0) if vfl >= 12 else 0,
+                    # start ver. 15
+                    "useCOS": self.readPack("?", fs, 0) if vfl >= 15 else False,
                 }
                 fiscal = {
                     "Fiskal": self.readFiscalBase(fs, vfl),
@@ -166,6 +175,13 @@ class pyscPacker:
                 intangible = self.readCosts(1, fs)
                 opex = self.readCosts(2, fs)
                 asr = self.readCosts(3, fs)
+                # error! miss write in ver.14, fix in ver.15
+                cos = self.readCosts(4, fs) if vfl >= 15 else [[None, None, None]]
+                lbt = (
+                    self.readCosts(5, fs)
+                    if vfl >= 16
+                    else [[None, None, None, None, None]]
+                )
                 if writeData:
                     with open(Path(wsPath, f"genconf_{caseid}.bin"), "wb") as out1:
                         pickle.dump(genConf, out1)
@@ -183,6 +199,10 @@ class pyscPacker:
                         pickle.dump(opex, out7)
                     with open(Path(wsPath, f"asr_{caseid}.bin"), "wb") as out8:
                         pickle.dump(asr, out8)
+                    with open(Path(wsPath, f"cos_{caseid}.bin"), "wb") as out11:
+                        pickle.dump(cos, out11)
+                    with open(Path(wsPath, f"lbt_{caseid}.bin"), "wb") as out12:
+                        pickle.dump(lbt, out12)
             if vfl >= 5:
                 # extract sens
                 for idx, icase in enumerate(fullcases):
@@ -238,6 +258,11 @@ class pyscPacker:
                 self.writeCosts(Path(), 2, self.loadCosts(2, wsPath, id), fs)
                 # ars
                 self.writeCosts(Path(), 3, self.loadCosts(3, wsPath, id), fs)
+                # cos
+                # miss write in ver.14, fix in ver.15
+                self.writeCosts(Path(), 4, self.loadCosts(4, wsPath, id), fs)
+                # LBT
+                self.writeCosts(Path(), 5, self.loadCosts(5, wsPath, id), fs)
 
             # write sens
             for idx, icase in enumerate(cases):
@@ -260,6 +285,9 @@ class pyscPacker:
             # write combine
             comb_ = self.loadCombine(wsPath)
             self.writeCombineConf(None, comb_, fs)
+            # write incremental
+            incr_ = self.loadIncr(wsPath)
+            self.writeIncrConf(None, incr_, fs)
 
         return True
 
@@ -282,6 +310,8 @@ class pyscPacker:
         self.writePack(
             value["delayAccYear"] if "delayAccYear" in value.keys() else 0, "h", fs
         )
+        # start ver 15
+        self.writePack(value["useCOS"] if "useCOS" in value.keys() else False, "?", fs)
 
     def getFormatIndex(self, fmtType: List | str, index: int) -> str:
         if isinstance(fmtType, List):
@@ -470,6 +500,16 @@ class pyscPacker:
             fs,
         )
         self.writePack(value["regime"] if "regime" in value.keys() else 3, "h", fs)
+        # versi 18
+        self.writePack(
+            (
+                value["sum_undepreciated_cost"]
+                if "sum_undepreciated_cost" in value.keys()
+                else True
+            ),
+            "?",
+            fs,
+        )
 
     def readFiscalBase(self, fs: BufferedReader, vfl: int) -> dict:
         return {
@@ -494,6 +534,10 @@ class pyscPacker:
                 self.readPack("?", fs, False) if vfl >= 13 else False
             ),
             "regime": self.readPack("h", fs, 3) if vfl >= 13 else 3,
+            # versi 18
+            "sum_undepreciated_cost": (
+                self.readPack("?", fs, True) if vfl >= 18 else True
+            ),
         }
 
     def writeDMO(self, value: dict, fs: BufferedWriter):
@@ -548,6 +592,11 @@ class pyscPacker:
 
         # (+) field post_uu_22_year2001:bool/def.=True/ (PSC)
         self.writePack(bool(cr["post_uu_22_year2001"]), "?", fs)
+
+        # (+) field oil_cost_of_sales_applied:bool/def.=False/ (PSC)
+        # (+) field gas_cost_of_sales_applied:bool/def.=False/ (PSC)
+        self.writePack(bool(cr["oil_cost_of_sales_applied"]), "?", fs)
+        self.writePack(bool(cr["gas_cost_of_sales_applied"]), "?", fs)
 
     def readcostRecConfig(self, fs: BufferedReader, vfl: int):
         def readFTP():
@@ -610,6 +659,16 @@ class pyscPacker:
             costrec_.update({"post_uu_22_year2001": self.readPack("?", fs, True)})
         else:
             costrec_.update({"post_uu_22_year2001": True})
+        if vfl >= 14:
+            costrec_.update(
+                {"oil_cost_of_sales_applied": self.readPack("?", fs, False)}
+            )
+            costrec_.update(
+                {"gas_cost_of_sales_applied": self.readPack("?", fs, False)}
+            )
+        else:
+            costrec_.update({"oil_cost_of_sales_applied": False})
+            costrec_.update({"gas_cost_of_sales_applied": False})
         return costrec_
 
     def writegsConfig(self, gs: dict, fs: BufferedWriter):
@@ -903,7 +962,15 @@ class pyscPacker:
                         )
                     )
                 )
-                for icol, col in enumerate(row)
+                for icol, col in enumerate(
+                    row
+                    if len(row) == len(fmt)
+                    else (
+                        row[: len(fmt) - 1]
+                        if len(row) > len(fmt)
+                        else row + [None] * (len(fmt) - len(row))
+                    )
+                )
             ]
             for irow, row in enumerate(value)
         ]
@@ -915,6 +982,10 @@ class pyscPacker:
             fmt = ["i", "h", "d", "d", "d", "d", "d", "s"]
         elif mode == 3:  # asr
             fmt = ["i", "h", "d", "s"]
+        elif mode == 4:  # COS
+            fmt = ["i", "h", "d"]
+        elif mode == 5:  # LBT
+            fmt = ["i", "h", "d", "d", "s"]
         self.writeTable(cvvalue, fmt, fs)
 
     def readCosts(self, mode: int, fs: BufferedReader):
@@ -930,10 +1001,12 @@ class pyscPacker:
             lenTable = int(self.readPack("i", fs, 0))
             if lenTable > 0:
                 cols = self.readPack("i", fs, 0)
-                return [
-                    [extractRows(ii, ifmt) for ii, ifmt in enumerate(fmt)]
+                cfmt = fmt if cols == len(fmt) else fmt + ["s"] * (cols - len(fmt))
+                resRow = [
+                    [extractRows(ii, ifmt) for ii, ifmt in enumerate(cfmt)]
                     for i in range(lenTable)
                 ]
+                return resRow[: len(fmt)]
             else:
                 return [[None] * len(fmt)]
 
@@ -946,6 +1019,10 @@ class pyscPacker:
             fmt = ["i", "h", "d", "d", "d", "d", "d", "s"]
         elif mode == 3:  # asr
             fmt = ["i", "h", "d", "s"]
+        elif mode == 4:  # COS
+            fmt = ["i", "h", "d"]
+        elif mode == 5:  # LBT
+            fmt = ["i", "h", "d", "d", "s"]
         return readTableList(fmt)
 
     def ExtractFile(self, source: Path, target: Path, useID: bool = False):
@@ -975,6 +1052,8 @@ class pyscPacker:
                     # start ver. 12
                     "delayAccMode": self.readPack("h", fs, 0) if vfl >= 12 else 0,
                     "delayAccYear": self.readPack("h", fs, 0) if vfl >= 12 else 0,
+                    # start ver. 15
+                    "useCOS": self.readPack("?", fs, 0) if vfl >= 15 else False,
                 }
                 fiscal = {
                     "Fiskal": self.readFiscalBase(fs, vfl),
@@ -986,6 +1065,15 @@ class pyscPacker:
                 intangible = self.readCosts(1, fs)
                 opex = self.readCosts(2, fs)
                 asr = self.readCosts(3, fs)
+
+                # error! miss write in ver.14, fix on ver.15
+                cos = self.readCosts(4, fs) if vfl >= 15 else [[None, None, None]]
+
+                lbt = (
+                    self.readCosts(5, fs)
+                    if vfl >= 16
+                    else [[None, None, None, None, None]]
+                )
 
                 sensCfg = [80, 80]
                 monteCfg = self.defMonteCfg()
@@ -1008,6 +1096,10 @@ class pyscPacker:
                     pickle.dump(opex, out7)
                 with open(Path(target, f"asr_{id}.bin"), "wb") as out8:
                     pickle.dump(asr, out8)
+                with open(Path(target, f"cos_{id}.bin"), "wb") as out11:
+                    pickle.dump(cos, out11)
+                with open(Path(target, f"lbt_{id}.bin"), "wb") as out12:
+                    pickle.dump(lbt, out12)
 
             if vfl >= 5:
                 # extract sens
@@ -1033,6 +1125,11 @@ class pyscPacker:
                     comb_ = self.readCombineConfig(fs, vfl)
                     with open(Path(target, "combine2.bin"), "wb") as out10:
                         pickle.dump(comb_, out10)
+                if vfl >= 17:
+                    # extract incremental
+                    incr_ = self.readIncrConfig(fs, vfl)
+                    with open(Path(target, "incr.bin"), "wb") as out11:
+                        pickle.dump(incr_, out11)
 
             return True
 
@@ -1093,6 +1190,18 @@ class pyscPacker:
                 raise Exception(f"asr file for id={index} not found")
             with open(filePath, "rb") as fl:
                 return pickle.load(fl)
+        elif mode == 4:
+            filePath = Path(sourcePath, f"cos_{index}.bin")
+            if not filePath.exists():
+                raise Exception(f"cos file for id={index} not found")
+            with open(filePath, "rb") as fl:
+                return pickle.load(fl)
+        elif mode == 5:
+            filePath = Path(sourcePath, f"lbt_{index}.bin")
+            if not filePath.exists():
+                raise Exception(f"lbt file for id={index} not found")
+            with open(filePath, "rb") as fl:
+                return pickle.load(fl)
         else:
             return []
 
@@ -1113,6 +1222,13 @@ class pyscPacker:
     def loadCombine(self, sourcePath: Path):
         if Path(sourcePath, "combine2.bin").exists():
             with open(Path(sourcePath, "combine2.bin"), "rb") as fl:
+                return pickle.load(fl)
+        else:
+            return []
+
+    def loadIncr(self, sourcePath: Path):
+        if Path(sourcePath, "incr.bin").exists():
+            with open(Path(sourcePath, "incr.bin"), "rb") as fl:
                 return pickle.load(fl)
         else:
             return []
@@ -1474,6 +1590,8 @@ class pyscPacker:
         clonefile(tmpPath, "intangible")
         clonefile(tmpPath, "opex")
         clonefile(tmpPath, "asr")
+        clonefile(tmpPath, "cos")
+        clonefile(tmpPath, "lbt")
         if not typechg:
             clonefile(tmpPath, "senscfg")
             clonefile(tmpPath, "montecfg")
@@ -1548,6 +1666,21 @@ class pyscPacker:
             for i in range(lencomb)
         ]
 
+    def readIncrConfig(self, fs: BufferedReader, vfl: int):
+        lenincr = int(self.readPack("i", fs, 0))
+        return [
+            {
+                "source": self.readPack("i", fs, 0),
+                "comp": self.readPack("i", fs, 0),
+                "inflation_rate": self.readPack("d", fs, 0.0) if vfl >= 9 else 0.0,
+                "discount_rate": self.readPack("d", fs, 0.1) if vfl >= 9 else 0.1,
+                "reference_year": self.readPack("i", fs, 0) if vfl >= 9 else 0,
+                "npv_mode": self.readPack("h", fs, 3) if vfl >= 9 else 3,
+                "discounting_mode": self.readPack("h", fs, 0) if vfl >= 9 else 0,
+            }
+            for i in range(lenincr)
+        ]
+
     def writeCompareConf(
         self, path: Path | None, value: List, fs: BufferedWriter | None = None
     ):
@@ -1581,6 +1714,23 @@ class pyscPacker:
                 self.writePack(lcomb, "i", fs)
                 for ii, icomb in enumerate(ilist["comp"]):
                     self.writePack(icomb, "i", fs)
+                self.writePack(ilist["inflation_rate"], "d", fs)
+                self.writePack(ilist["discount_rate"], "d", fs)
+                self.writePack(ilist["reference_year"], "i", fs)
+                self.writePack(ilist["npv_mode"], "h", fs)
+                self.writePack(ilist["discounting_mode"], "h", fs)
+
+    def writeIncrConf(self, path: Path | None, value: List, fs: BufferedWriter | None):
+        if path is not None:
+            filePath = Path(path, "incr.bin")
+            out0 = open(filePath, "wb")
+            pickle.dump(value, out0)
+        elif fs is not None:
+            llist: int = len(value)
+            self.writePack(llist, "i", fs)
+            for i, ilist in enumerate(value):
+                self.writePack(ilist["source"], "i", fs)
+                self.writePack(ilist["comp"], "i", fs)
                 self.writePack(ilist["inflation_rate"], "d", fs)
                 self.writePack(ilist["discount_rate"], "d", fs)
                 self.writePack(ilist["reference_year"], "i", fs)

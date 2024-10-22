@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hexToRgb } from '@layouts/utils'
 import { BarChart, LineChart, PieChart } from "echarts/charts"
 import {
   GridComponent,
@@ -8,10 +9,10 @@ import {
 } from "echarts/components"
 import { use } from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
+import * as math from 'mathjs'
 import { randomInt } from "mathjs"
 import VChart from "vue-echarts"
 import { useTheme } from 'vuetify'
-import { hexToRgb } from '@layouts/utils'
 import * as Pysc from "@/utils/pysc/pyscType"
 
 interface Props {
@@ -251,6 +252,38 @@ const cardChartOpt = computed(() => {
         Opt.series[1].data.splice(0, Opt.series[1].data.length, ...props.table.d[1])
       }
       else { Opt.series[0].data.splice(0, Opt.series[0].data.length, ...[]) }
+      if (props.chart === 6 && props.table.y.length) {
+        // arrange scale y axis
+        const lenData = props.table.y.length
+        const contCF_col = props.table.d[1].map(v => Pysc.toNumnber(v))
+        const contcumCF_col = props.table.d[0].map(v => Pysc.toNumnber(v))
+        let minCFValue = +math.min(contCF_col)
+        let maxCFValue = +math.max(contCF_col)
+        const lenCFValue = math.abs(maxCFValue - minCFValue)
+        const prcLowCFValue = math.abs(minCFValue) / lenCFValue
+        const prcHiCFValue = math.abs(maxCFValue) / lenCFValue
+
+        let minCCFValue = +math.min(contcumCF_col)
+        let maxCCFValue = +math.max(contcumCF_col)
+        const lenCCFValue = math.abs(maxCCFValue - minCCFValue)
+        const prcLowCCFValue = math.abs(minCCFValue) / lenCCFValue
+        const prcHiCCFValue = math.abs(maxCCFValue) / lenCCFValue
+
+        if (prcLowCCFValue < prcLowCFValue)
+          minCCFValue = prcLowCFValue * lenCCFValue * (minCCFValue < 0 ? -1 : 1)
+        else if (prcLowCFValue < prcLowCCFValue)
+          minCFValue = prcLowCCFValue * lenCFValue * (minCFValue < 0 ? -1 : 1)
+
+        if (prcHiCCFValue < prcHiCFValue)
+          maxCCFValue = prcHiCFValue * lenCCFValue * (maxCCFValue < 0 ? -1 : 1)
+        else if (prcHiCFValue < prcHiCCFValue)
+          maxCFValue = prcHiCCFValue * lenCFValue * (maxCFValue < 0 ? -1 : 1)
+
+        Opt.yAxis[0].min = minCCFValue
+        Opt.yAxis[0].max = maxCCFValue
+        Opt.yAxis[1].min = minCFValue
+        Opt.yAxis[1].max = maxCFValue
+      }
     }
   }
   catch (error) {

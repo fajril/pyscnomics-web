@@ -68,6 +68,7 @@ const chtOption = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
   return {
+    backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
     legend: {
       left: "center",
       top: 'bottom',
@@ -113,7 +114,6 @@ const chtOption = computed(() => {
       return {
         type: "bar",
         name: idx < props.series.length ? props.series[idx].title : '',
-
         barCategoryGap: 15,
         data: serData.map(v => {
           if (typeof v.percent === 'number')
@@ -153,6 +153,13 @@ function updateCompareBarChart() {
   })
 }
 
+const getImageSourceUrl = () => {
+  return refCompBarChart.value?.getDataURL({
+    type: 'png',
+    excludeComponents: ['toolbox'],
+  })
+}
+
 useResizeObserver(refCompBarContainer, entries => {
   const entry = entries[0]
   const { width, height } = entry.contentRect
@@ -164,6 +171,7 @@ onMounted(() => updateCompareBarChart())
 
 defineExpose({
   updateCompareBarChart,
+  getImageSourceUrl,
 })
 </script>
 

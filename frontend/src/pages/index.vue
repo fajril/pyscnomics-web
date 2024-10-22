@@ -109,9 +109,12 @@ const templatedata = [
       { param: "GoI NPV", unit: "MUS$ ", ctrl: null },
     ],
   },
+  { param: "Indirect Taxes", unit: "MUS$", ctrl: null },
 ]
 
 const dataSumm = ref(JSON.parse(JSON.stringify(templatedata)))
+
+const contractSplitInfo = ref()
 
 const dataCard = ref({
   "year": [],
@@ -126,6 +129,7 @@ const dataCard = ref({
   "GoI": { "table": [], "sum": 0 },
   "pie": { "data": { "GoS": { table: [], value: 0.0 }, "NCS": { table: [], value: 0.0 }, "CR": { table: [], value: 0.0 }, "DMO": { table: [], value: 0.0 }, "Tax": { table: [], value: 0.0 } }, "sum": 0 },
   'IRR': {},
+  'NPV': {},
 })
 
 const prettyFmt = (val: number | null | undefined, type: 'currency' | 'unit' | 'percent' = 'currency') => {
@@ -139,6 +143,7 @@ const prettyFmt = (val: number | null | undefined, type: 'currency' | 'unit' | '
 
 const loadSummary = async () => {
   isLoading.value = true
+  contractSplitInfo.value = null
   dataSumm.value = JSON.parse(JSON.stringify(templatedata))
   dataCard.value = {
     "year": [],
@@ -154,6 +159,7 @@ const loadSummary = async () => {
     "GoI": { "table": [], "sum": 0 },
     "pie": { "data": { "GoS": { table: [], value: 0.0 }, "NCS": { table: [], value: 0.0 }, "CR": { table: [], value: 0.0 }, "DMO": { table: [], value: 0.0 }, "TAX": { table: [], value: 0.0 } }, "sum": 0 },
     'IRR': {},
+    'NPV': {},
   }
 
   try {
@@ -185,26 +191,77 @@ const loadSummary = async () => {
 
     dataCard.value = JSON.parse(JSON.stringify(result.card))
 
+    if (!isNullOrUndefined(result.splitInfo)) {
+      const object2Arr = (obj: any, valueOnly: boolean = true) => {
+        if (isNullOrUndefined(obj))
+          return [null]
+        const _valArr = valueOnly ? Object.values(obj) : Object.keys(obj).map(k => +k)
+
+        return _valArr.length ? _valArr : [null]
+      }
+
+      const _makeJsonSplitInfo = (value: any) => {
+        if (isNullOrUndefined(value.contractor_split))
+          return null
+
+        const _res = {
+          oil_base_split: object2Arr(value.contractor_split.oil_base_split),
+          gas_base_split: object2Arr(value.contractor_split.gas_base_split),
+          oil_ctr_split: object2Arr(value.contractor_split.oil_ctr_split),
+          gas_ctr_split: object2Arr(value.contractor_split.gas_ctr_split),
+          oil_prog_split: object2Arr(value.contractor_split.oil_prog_split),
+          gas_prog_split: object2Arr(value.contractor_split.gas_prog_split),
+          var_split_array: object2Arr(value.contractor_split.var_split_array),
+          years: object2Arr(value.contractor_split.var_split_array, false),
+          oil_max_split: [null],
+          gas_max_split: [null],
+        }
+
+        _res.oil_max_split = _res.years.map(y => {
+          const _maxOil = object2Arr(value.years_of_maximum_split.oil)
+
+          return _maxOil.findIndex(ys => ys !== null && y !== null && ys === y) !== -1 ? 1 : null
+        })
+        _res.gas_max_split = _res.years.map(y => {
+          const _maxOil = object2Arr(value.years_of_maximum_split.oil)
+
+          return _maxOil.findIndex(ys => ys !== null && y !== null && ys === y) !== -1 ? 1 : null
+        })
+
+        return _res
+      }
+
+      if (PyscConf.dataGConf.type_of_contract === 2) {
+        contractSplitInfo.value = _makeJsonSplitInfo(result.splitInfo)
+      }
+      else if (PyscConf.dataGConf.type_of_contract > 3) {
+        contractSplitInfo.value = {
+          contract_1: [5, 6].includes(PyscConf.dataGConf.type_of_contract) ? _makeJsonSplitInfo(result.splitInfo?.contract_1) : null,
+          contract_2: [4, 5].includes(PyscConf.dataGConf.type_of_contract) ? _makeJsonSplitInfo(result.splitInfo?.contract_2) : null,
+        }
+      }
+    }
+
     // console.log(dataCard.value["IRR"])
     // calc IRR Sens using async
     nextTick(() => {
       try {
         isSensLoading.value = true
         useHTTP().put({
-          path: 'calc_ext_summ_irr',
+          path: 'calc_ext_summ_npv',
           body: {
             type: PyscConf.dataGConf.type_of_contract,
             json: btoa(JSON.stringify(DataJson)),
           },
           onSuccess: (response: any) => {
             if (typeof response === 'object')
-              dataCard.value.IRR = response.card.IRR
+              dataCard.value.NPV = response.card.NPV
           },
           onError: (error: any) => { throw error },
         }).finally(() => isSensLoading.value = false)
       }
       catch (error) {
-        console.log(['error irr', error])
+        console.log(['error npv', error])
       }
     })
 
@@ -252,6 +309,8 @@ const loadSummary = async () => {
     dataSumm.value[12].child[4].ctrl = result.summary.gov_take
     dataSumm.value[12].child[5].ctrl = result.summary.gov_take_over_gross_rev
     dataSumm.value[12].child[6].ctrl = result.summary.gov_take_npv
+
+    dataSumm.value[13].ctrl = result.summary.indirect_taxes
   }
   catch (error) {
     console.log(['error', error])
@@ -281,7 +340,7 @@ const showFull = (chart: number, mode: number | undefined = undefined) => {
               ? dataCard.value.Tax
                   : chart === 6
                 ? dataCard.value.CashFlow
-                    : chart === 7 ? dataCard.value.GoI : dataCard.value.IRR
+                    : chart === 7 ? dataCard.value.GoI : dataCard.value.NPV
         )),
   })
 }
@@ -415,9 +474,9 @@ onUnmounted(() => stopCaseID())
             <VCol cols="4">
               <CardSumm
                 title="Sensitivity"
-                subtitle="%"
+                subtitle="NPV, MUSD"
                 :chart="8"
-                :table="dataCard.IRR"
+                :table="dataCard.NPV"
                 :is-loading="isSensLoading"
                 color-card="warning"
                 :value="`-${SensStore.sensConfig[0]}% - ${SensStore.sensConfig[1]}%`"
@@ -442,8 +501,10 @@ onUnmounted(() => stopCaseID())
     </VCol>
     <VCol cols="12">
       <Projectsumm
+        :ctr-type="PyscConf.dataGConf.type_of_contract"
         :is-loading="isLoading"
         :data="dataSumm"
+        :data-split="contractSplitInfo"
       />
     </VCol>
     <VCol cols="12">

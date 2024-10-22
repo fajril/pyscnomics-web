@@ -35,8 +35,9 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   chkPIP: () => ipcRenderer.invoke('config:chkPIP'),
   instPIP: (id: string) => ipcRenderer.invoke('config:instPIP', id),
   instVenv: (id: string) => ipcRenderer.invoke('config:instVenv', id),
+  chkLib: (id: string, appVer: string) => ipcRenderer.invoke('config:chkPyLib', id, appVer),
 
-  makeEnv: (id: string, pyPath?: string) => ipcRenderer.invoke('config:makeEnv', id, pyPath),
+  makeEnv: (id: string, builtIn: boolean, pyPath?: string) => ipcRenderer.invoke('config:makeEnv', id, builtIn, pyPath),
   instLib: (id: string) => ipcRenderer.invoke('config:instLib', id),
   stopPy: () => ipcRenderer.invoke('config:stopPy'),
   openPy: (noBrowseFile?: boolean) => ipcRenderer.invoke('dialog:testFilePython', noBrowseFile),
@@ -45,6 +46,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   winReload: () => ipcRenderer.invoke('window:reload'),
 
   calcmonte: (id: string, caseID: number, dataPath: string, numsim: number) => ipcRenderer.invoke('module:monteCalc', id, caseID, dataPath, numsim),
+
+  checkUpdate: (id: string) => ipcRenderer.invoke('app:checkUpdate', id),
+  updateApp: (id: string, ver: string) => ipcRenderer.invoke('app:updateApp', id, ver),
+  reloadPage: (ver: string) => ipcRenderer.invoke('app:reload', ver),
 })
 
 // --------- Preload scripts loading ---------

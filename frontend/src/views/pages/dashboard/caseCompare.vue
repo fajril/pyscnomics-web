@@ -3,6 +3,10 @@ import { useAppStore } from "@/stores/appStore"
 import { useHTTP } from "@/utils/pysc/useHttp"
 import { breakpointsVuetifyV3 } from '@vueuse/core'
 import * as math from 'mathjs'
+import { PerfectScrollbar } from "vue3-perfect-scrollbar"
+import { VAvatar, VChip, VListItem, VMenu, VTooltip } from "vuetify/lib/components/index.mjs"
+import { useTheme } from "vuetify/lib/framework.mjs"
+import DotdotOpt from "@/pages/components/dotdotOpt.vue"
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
@@ -12,7 +16,7 @@ import { useDataStore } from '@/utils/pysc/useDataStore'
 import BarChartCompare from '@/views/components/chartBarCompare.vue'
 import CFChartCompare from '@/views/components/chartCFCompare.vue'
 import ChartCompare from '@/views/components/chartCompare.vue'
-import ColCollapsible from '@/views/components/colCollapsible.vue'
+import ColapsibleCols from "@/views/components/colapsibleCols.vue"
 import TableCompare from '@/views/components/tableCompare.vue'
 import 'handsontable/dist/handsontable.full.css'
 
@@ -21,6 +25,8 @@ interface Emit {
 }
 
 const emit = defineEmits<Emit>()
+
+const vuetifyTheme = useTheme()
 
 const isLessThanCardBreaklg = computed(() => useMediaQuery(`(max-width: ${breakpointsVuetifyV3.lg}px)`).value)
 const isLessThanCardBreakxl = computed(() => useMediaQuery(`(max-width: ${breakpointsVuetifyV3.xl}px)`).value)
@@ -32,6 +38,10 @@ const PyscMonte = usePyscMonteStore()
 const PyscOptim = usePyscOptimStore()
 const numbro = Pysc.useNumbro()
 const tableCollapsed = ref(false)
+
+const ChartCompareRef = ref()
+const BarChartCompareRef = ref()
+const CFChartCompareRef = ref()
 
 const CompareConf = ref<Pysc.tCompareType>({ source: appStore.curSelCase, comp: [] })
 
@@ -51,7 +61,7 @@ const isCalcData = ref(false)
 
 const targetCases = computed(() => {
   if (!isEmpty(CompareConf.value.source))
-    return appStore.projects.filter(f => f.type > 0 && f.id !== CompareConf.value.source).map(v => ({ name: v.name, value: v.id, desc: v.description, tipe: v.type }))
+    return appStore.projects.filter(f => f.type > 0 && f.id !== CompareConf.value.source).map(v => ({ name: v.name, value: v.id, desc: v.description, tipe: v.type, subtitle: Pysc.is_number(v.type) ? Object.values(Pysc.ContractType)[+v.type] : '' }))
 
   return []
 })
@@ -61,12 +71,6 @@ const closeChips = (caseID: number) => {
 
   CompareConf.value.comp.splice(index, 1)
 }
-
-// const loadData = async (urlpath: string, id: number, costmode: number | undefined = undefined) => {
-//   let resInit = await execPartData(urlpath, 'GET', costmode != undefined ? { wspath: appStore.curWS, mode: costmode, caseid: id } : { wspath: appStore.curWS, caseid: id })
-//   if (resInit.state !== true) throw `error ${urlpath}`
-//   return JSON.parse(JSON.stringify(resInit.data))
-// }
 
 const calcData = async () => {
   const CompCF: { y: number[]; d: number[] }[] = []
@@ -90,7 +94,7 @@ const calcData = async () => {
       await useDataStore().saveCaseData(appStore.curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr,
+        PyscConf.opex, PyscConf.asr, PyscConf.cos, PyscConf.lbt,
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)
@@ -107,9 +111,11 @@ const calcData = async () => {
       const dIntan = _caseid === appStore.curSelCase ? PyscConf.intangible : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 1))
       const dOpex = _caseid === appStore.curSelCase ? PyscConf.opex : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 2))
       const dASR = _caseid === appStore.curSelCase ? PyscConf.asr : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 3))
+      const dCOS = _caseid === appStore.curSelCase ? PyscConf.cos : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 4))
+      const dLBT = _caseid === appStore.curSelCase ? PyscConf.lbt : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 5))
 
       const dataJson = useDataStore().makeJSONofCase(_caseid,
-        dGConf, dProd, dContr, dFisc, dTan, dIntan, dOpex, dASR, true)
+        dGConf, dProd, dContr, dFisc, dTan, dIntan, dOpex, dASR, dCOS, dLBT, true)
 
       const { status, result } = await useHTTP().put({
         path: 'get_case_summaries',
@@ -223,6 +229,52 @@ watchDebounced(() => CompareConf.value.comp, val => {
   }
 }, { deep: true, debounce: 500, maxWait: 1000 })
 
+const showListComp = ref(false)
+
+const comparelist = computed(() => {
+  const _lst = appStore.caseCompare
+  if (_lst.length === 0)
+    return _lst
+  if (_lst[0].source !== CompareConf.value.source) {
+    const idx_ = _lst.findIndex(l => l.source === CompareConf.value.source)
+    if (idx_ !== -1) {
+      _lst.splice(0, 0, _lst[idx_])
+      _lst.splice(idx_ + 1, 1)
+    }
+  }
+
+  return _lst
+})
+
+const getTargetLst = (comp: any[]) => {
+  return comp.map(c => {
+    const case_ = appStore.caseByID(c)
+
+    return {
+      id: c,
+      name: case_?.name,
+      type: case_?.type,
+    }
+  })
+}
+
+const chgActiveSource = (source: number) => {
+  if (CompareConf.value.source !== source) {
+    CompareConf.value = appStore.getCompare(source)
+    nextTick(() => {
+      calcData()
+    })
+  }
+}
+
+const delSource = (source: number) => {
+  if (CompareConf.value.source !== source) {
+    const idx_ = appStore.caseCompare.findIndex(l => l.source === source)
+    if (idx_ !== -1)
+      appStore.$patch(state => state.caseCompare.splice(idx_, 1))
+  }
+}
+
 const showCaseCompare = (caseID: number) => {
   if (!(appStore.caseByID(caseID)?.type > 0))
     return appStore.showAlert({ text: "Only PSC Cost Recovery (CR), PSC Gross Split (GS), and Transition can be compared", isalert: false })
@@ -235,6 +287,42 @@ const showCaseCompare = (caseID: number) => {
   nextTick(() => {
     calcData()
   })
+}
+
+const optOption = computed(() => {
+  return (source: string) => [
+    { title: 'Copy to clipboard', value: 'copy2clbrd', icon: 'tabler-clipboard', sourceType: source === 'table' ? 'text' : source },
+    { title: `Save to file (*.${source === 'table' ? 'xlsx' : 'png'})`, value: 'save2File', icon: 'tabler-download', sourceType: source },
+  ]
+})
+
+const getDataSource = (refName: any, setName: any, sourceType: string) => {
+  const rndid = Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+
+  if (sourceType === 'text' || sourceType === 'table') {
+    const tblDataScr = refName?.getDataSource()
+    if (sourceType === 'text') {
+      return tblDataScr.reduce((rowTxt, rowVal) => {
+        return `${rowTxt + rowVal.join('\t')}\n`
+      }, '')
+    }
+    else if (sourceType === 'table') {
+      return {
+        data: [{
+          name: 'compare summary',
+          header: [],
+          data: tblDataScr,
+        }],
+        filename: `compareSumm_${appStore.caseByID(CompareConf.value.source)?.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+      }
+    }
+  }
+  else {
+    return {
+      url: refName.getImageSourceUrl(),
+      filename: `compare_chart_${rndid}_${appStore.caseByID(CompareConf.value.source)?.name}_${rndid}`.replace(/[/\\ #$~&.]/g, ''),
+    }
+  }
 }
 
 defineExpose({
@@ -254,21 +342,119 @@ defineExpose({
   >
     <VCard>
       <div>
-        <VToolbar color="primary">
+        <VToolbar :color="`rgba(var(--v-theme-primary), ${vuetifyTheme.global.name.value === 'dark' ? 0.2 : 0.8})`">
           <VBtn
             icon
             variant="plain"
+            color="white"
             @click="isCompareVisible = false"
           >
-            <VIcon
-              color="white"
-              icon="tabler-x"
-            />
+            <VIcon icon="tabler-x" />
           </VBtn>
 
           <VToolbarTitle>
-            <div class="d-flex h-100 align-center">
+            <div class="d-flex h-100 gap-2 align-center">
               <div>Case comparison</div>
+              <IconBtn color="white">
+                <VIcon icon="tabler-fold-down" />
+                <VMenu
+                  v-model="showListComp"
+                  activator="parent"
+                  persistent
+                  offset="15"
+                >
+                  <VCard
+                    class="d-flex flex-column"
+                    title="List of comparison"
+                    border
+                  >
+                    <template #append>
+                      <IconBtn @click.prevent="showListComp = !showListComp">
+                        <VIcon icon="tabler-x" />
+                      </IconBtn>
+                    </template>
+                    <VCardText class="px-2 py-1">
+                      <PerfectScrollbar
+                        tag="div"
+                        :options="{ wheelPropagation: false, suppressScrollX: true }"
+                        style="max-block-size: calc(100vh - 13.125rem);"
+                      >
+                        <VList>
+                          <VListItem
+                            v-for="item in comparelist"
+                            :key="`comp-${item.source}`"
+                            :active="item.source === CompareConf.source"
+                            lines="two"
+                            :title="appStore.caseByID(item.source)?.name"
+                            @click.prevent="() => chgActiveSource(item.source)"
+                          >
+                            <template #append>
+                              <IconBtn
+                                v-show="CompareConf.source !== item.source"
+                                class="ms-10"
+                                @click.stop.prevent="() => delSource(item.source)"
+                              >
+                                <VIcon icon="tabler-trash-filled" />
+                              </IconBtn>
+                            </template>
+                            <template #subtitle>
+                              <div
+                                class="d-flex gap-1 text-truncate"
+                                style="max-inline-size: 900px;"
+                              >
+                                <VChip
+                                  v-for="tgt in getTargetLst(item.comp)"
+                                  :key="`comp-tgt-${item.source}-${tgt.id}`"
+                                  variant="elevated"
+                                  color="default"
+                                  density="compact"
+                                >
+                                  <template #prepend>
+                                    <VAvatar
+                                      start
+                                      size="x-small"
+                                      color="primary"
+                                      class="text-xsmall"
+                                    >
+                                      <h6>{{ tgt.type === 1 ? 'CR' : (tgt.type === 2 ? 'GS' : 'T') }}</h6>
+                                    </VAvatar>
+                                  </template>
+                                  <h5
+                                    class="text-truncate text-small"
+                                    :style="{ maxInlineSize: '80px', overflow: 'hidden', textOverflow: 'ellipsis' }"
+                                  >
+                                    {{ tgt.name }}
+                                  </h5>
+                                </VChip>
+                              </div>
+                            </template>
+                            <VTooltip activator="parent">
+                              <div class="flex-grow-1">
+                                <h4 class="text-secondary text-subtitle-2">
+                                  Source:
+                                </h4>
+                                <h4 class="text-secondary">
+                                  {{ appStore.caseByID(item.source)?.name }}
+                                </h4>
+                                <h4 class="text-secondary text-subtitle-2">
+                                  Target:
+                                </h4>
+                                <h5
+                                  v-for="tgt in getTargetLst(item.comp)"
+                                  :key="tgt.name"
+                                  class="text-secondary"
+                                >
+                                  {{ tgt.name }}
+                                </h5>
+                              </div>
+                            </VTooltip>
+                          </VListItem>
+                        </VList>
+                      </PerfectScrollbar>
+                    </VCardText>
+                  </VCard>
+                </VMenu>
+              </IconBtn>
               <div
                 class="mx-4 my-2"
                 :style="{ maxInlineSize: '170px' }"
@@ -296,8 +482,9 @@ defineExpose({
                 class="mx-2"
                 item-value="value"
                 item-title="name"
-                item-sub-title="desc"
+                item-subtitle="subtitle"
                 :items="targetCases"
+                item-props
                 multiple
                 clearable
                 clear-icon="tabler-x"
@@ -341,78 +528,103 @@ defineExpose({
         </VToolbar>
       </div>
       <VCardText>
-        <VRow>
-          <VCol cols="12">
-            <ColCollapsible :col-ratio="[isLessThanCardBreaklg ? 70 : 60, isLessThanCardBreaklg ? 30 : 40]">
-              <template #left="{ collapsible, collapsed }">
-                <AppCardActions
-                  action-collapsed
-                  title="Summary"
-                  compact-header
-                  :collapsed="collapsible"
-                  @collapsed="val => collapsed(val)"
-                >
-                  <VCardText>
-                    <TableCompare
-                      ref="TableCompareRef"
-                      :columns="tableColumnHeader"
-                      :data="dataTableCompare"
-                    />
-                  </VCardText>
-                </AppCardActions>
+        <ColapsibleCols class="mt-5">
+          <template #left-header="{ isCollapsed }">
+            Summary
+          </template>
+          <template #after-left-header="{ isCollapsed }">
+            <DotdotOpt
+              v-if="!isCollapsed"
+              :menu-list="optOption('table')"
+              title="Options"
+              item-props
+              dot-only
+              :get-source="(value: string, sourceType: string) => getDataSource(TableCompareRef, null, sourceType)"
+            />
+          </template>
+          <template #left>
+            <TableCompare
+              ref="TableCompareRef"
+              :columns="tableColumnHeader"
+              :data="dataTableCompare"
+            />
+          </template>
+          <template #right-header="{ isCollapsed }">
+            <span v-if="isCollapsed">Chart</span>
+          </template>
+          <template #right>
+            <AppCardActions
+              title="Radar Chart"
+              action-collapsed
+              compact-header
+              style="overflow:visible !important"
+            >
+              <template #before-actions="{ isContentCollapsed }">
+                <DotdotOpt
+                  v-if="!isContentCollapsed"
+                  :menu-list="optOption('image')"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(ChartCompareRef, null, sourceType)"
+                />
               </template>
-              <template #right="{ collapsible, collapsed }">
-                <AppCardActions
-                  action-collapsed
-                  title="Chart"
-                  :collapsed="collapsible"
-                  compact-header
-                  style="overflow:visible !important"
-                  @collapsed="val => collapsed(val)"
-                >
-                  <VCardText class="px-0 py-0">
-                    <AppCardActions
-                      title="Radar Chart"
-                      action-collapsed
-                      compact-header
-                      style="overflow:visible !important"
-                    >
-                      <ChartCompare
-                        :series="dataChartSeries"
-                        :data-chart="dataChartCompare"
-                      />
-                    </AppCardActions>
-                    <AppCardActions
-                      title="Bar Chart"
-                      action-collapsed
-                      compact-header
-                      class="mt-2"
-                      style="overflow:visible !important"
-                    >
-                      <BarChartCompare
-                        :base-data="dataBarChartBase"
-                        :series="getSeriesBarChart"
-                        :data-chart="getResultBarChart"
-                      />
-                    </AppCardActions>
-                    <AppCardActions
-                      title="Cashflow Chart"
-                      action-collapsed
-                      compact-header
-                      class="mt-2"
-                      style="overflow:visible !important"
-                    >
-                      <CFChartCompare
-                        :series="dataChartSeries"
-                        :data-chart="getResultCFChart"
-                      />
-                    </AppCardActions>
-                  </VCardText>
-                </AppCardActions>
+
+              <ChartCompare
+                ref="ChartCompareRef"
+                :series="dataChartSeries"
+                :data-chart="dataChartCompare"
+              />
+            </AppCardActions>
+            <AppCardActions
+              title="Relative Comparison Chart"
+              action-collapsed
+              compact-header
+              class="mt-2"
+              style="overflow:visible !important"
+            >
+              <template #before-actions="{ isContentCollapsed }">
+                <DotdotOpt
+                  v-if="!isContentCollapsed"
+                  :menu-list="optOption('image')"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(BarChartCompareRef, null, sourceType)"
+                />
               </template>
-            </ColCollapsible>
-          </VCol>
-        </VRow>
+              <BarChartCompare
+                ref="BarChartCompareRef"
+                :base-data="dataBarChartBase"
+                :series="getSeriesBarChart"
+                :data-chart="getResultBarChart"
+              />
+            </AppCardActions>
+            <AppCardActions
+              title="Cashflow Chart"
+              action-collapsed
+              compact-header
+              class="mt-2"
+              style="overflow:visible !important"
+            >
+              <template #before-actions="{ isContentCollapsed }">
+                <DotdotOpt
+                  v-if="!isContentCollapsed"
+                  :menu-list="optOption('image')"
+                  title="Options"
+                  item-props
+                  dot-only
+                  :get-source="(value: string, sourceType: string) => getDataSource(CFChartCompareRef, null, sourceType)"
+                />
+              </template>
+              <CFChartCompare
+                ref="CFChartCompareRef"
+                :series="dataChartSeries"
+                :data-chart="getResultCFChart"
+              />
+            </AppCardActions>
+          </template>
+        </ColapsibleCols>
       </VCardText>
     </VCard>
   </VDialog>

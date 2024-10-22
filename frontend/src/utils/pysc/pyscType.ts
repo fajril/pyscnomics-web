@@ -27,6 +27,23 @@ numbro.setDefaults({
 
 })
 
+export const bg_color_table = [
+  '#01c014',
+  '#00948d',
+  '#0011ab',
+  '#a900af',
+  '#b4b700',
+  '#c68400',
+  '#b20059',
+  '#6f0101',
+  '#730177',
+  '#0d0071',
+  '#00655ed4',
+  '#00651493',
+  '#445000',
+  '#c62100',
+]
+
 export const useNumbro = () => {
   return numbro
 }
@@ -308,6 +325,7 @@ export const templateSummary = [
   { param: "GoI Take", unit: "MUS$", grp: -5 },
   { param: "(% Gross Rev)", unit: "%", grp: -7 },
   { param: "GoI NPV", unit: "MUS$", grp: -8 },
+  { param: "Indirect Taxes", unit: "MMSTB" },
 ]
 
 export interface OptTable {
@@ -417,7 +435,7 @@ export const prodBase = (prodType: number): string => {
 export const prodUnit = (prodType: number): string => {
   switch (prodType) {
     case 0:
-      return "MBOPY"
+      return "MSTB"
     case 1:
       return "BSCF"
     case 3:
@@ -518,6 +536,7 @@ export interface genConfig {
   end_date_project_second: number // Project End Date (timestamp), Transition Contract Only
   delayAccMode?: number
   delayAccYear?: number
+  useCOS?: boolean
 }
 
 export const defGenConfig = (): genConfig => ({
@@ -531,6 +550,7 @@ export const defGenConfig = (): genConfig => ({
   end_date_project_second: dayjs.utc().add(70, "year").valueOf(),
   delayAccMode: 0,
   delayAccYear: 0,
+  useCOS: false,
 })
 
 export const defProdPriceBase = (index, gsaNumb: number = 1): prodPriceBase[] => {
@@ -641,6 +661,10 @@ export interface costRec {
 
   // (+) field post_uu_22_year2001:bool/def.=True/ (PSC)
   post_uu_22_year2001: boolean
+
+  // (+) field oil_cost_of_sales_applied, gas_cost_of_sales_applied
+  oil_cost_of_sales_applied?: boolean
+  gas_cost_of_sales_applied?: boolean
 }
 
 export const defCostRec = (): costRec => ({
@@ -684,6 +708,8 @@ export const defCostRec = (): costRec => ({
     fee: 0.25,
   },
   post_uu_22_year2001: true,
+  oil_cost_of_sales_applied: false,
+  gas_cost_of_sales_applied: false,
 })
 
 export const FieldStat = {
@@ -964,6 +990,7 @@ export interface FiskalBase {
 
   regime?: number // add field (7/12/24) for grosssplit
   profitability_discounted?: boolean // add field (7/12/24)
+  sum_undepreciated_cost?: boolean // add field (10/14/24)
 }
 
 export interface Fiskal {
@@ -978,7 +1005,7 @@ export const defFiskalBase = (): FiskalBase => ({
   asr_future_rate: 0.00,
   Depreciation: { depreciation_method: 1, decline_factor: 2 },
   Inflation: { inflation_rate_mode: 0, inflation_rate_init: 0.0, multi_inflation_init: [{ year: null, rate: null }] },
-  VAT: { vat_mode: 0, vat_rate_init: 0.0, multi_vat_init: [{ year: null, rate: null }] },
+  VAT: { vat_mode: 0, vat_rate_init: 0.12, multi_vat_init: [{ year: null, rate: null }] },
   LBT: { lbt_mode: 0, lbt_rate_init: 0.0, multi_lbt_init: [{ year: null, rate: null }] },
   vat_discount: 0.0,
   lbt_discount: 0.0,
@@ -992,7 +1019,12 @@ export const defFiskalBase = (): FiskalBase => ({
   sunk_cost_reference_year: dayjs.utc().year(),
 
   regime: 3, // add field (7/12/24) for grosssplit
-  profitability_discounted: false, // add field (7/12/24)
+  // add field (7/12/24)
+  // chg def. = true (08/05/24)
+  profitability_discounted: true,
+
+  // add field (10/14/24)
+  sum_undepreciated_cost: true,
 })
 
 export const defFiskal = (): Fiskal => ({
@@ -1011,6 +1043,16 @@ export interface ExcelColumnType {
 export interface tCompareType {
   source: number
   comp: number[]
+  inflation_rate: number
+  discount_rate: number
+  reference_year: number
+  npv_mode: number
+  discounting_mode: number
+}
+
+export interface tIncrType {
+  source: number
+  comp: number | null | undefined
   inflation_rate: number
   discount_rate: number
   reference_year: number

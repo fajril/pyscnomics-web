@@ -2,19 +2,24 @@
 import { VuePDF, usePDF } from '@tato30/vue-pdf'
 import '@tato30/vue-pdf/style.css'
 
+// import PdfApp from "vue3-pdf-app"
+// import "vue3-pdf-app/dist/icons/main.css"
+
 // import html2canvas from 'html2canvas';
 import { useAppStore } from "@/stores/appStore"
-import { useHTTP } from '@/utils/pysc/useHttp'
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import printJS from 'print-js'
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import printJS from 'print-js'
+import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
+
+// import { jsPDF } from 'jspdf'
 
 definePage({
   name: 'pysc-ecosum',
@@ -83,11 +88,20 @@ const tableHeaderType = {
 
 const refHtml = ref()
 const currentPdf = ref()
+
 const { pdf, pages, info } = usePDF(currentPdf)
 const finalY = ref(1)
 const spaceV = 0.2
 const showlink = ref(false)
 const dwnldlink = ref(null)
+
+const pfdConfig = ref({
+  sidebar: false,
+  toolbar: {
+    toolbarViewerRight: false,
+  },
+
+})
 
 const buildPDF = async () => {
   const pyKeyOfTable = [
@@ -164,7 +178,11 @@ const buildPDF = async () => {
   doc.setTextColor('black')
   finalY.value = 1
 
+  console.log(doc.getFontList())
+
   const current_Font = JSON.parse(JSON.stringify(doc.getFont()))
+
+  // current_Font.fontName = 'helvetica'
 
   const KeyofHeadTable = Object.keys(tableHeaderType)
   const ValueofHeadTable = Object.values(tableHeaderType)
@@ -177,11 +195,13 @@ const buildPDF = async () => {
   const dIntan = PyscConf.intangible
   const dOpex = PyscConf.opex
   const dASR = PyscConf.asr
+  const dCOS = PyscConf.cos
+  const dLBT = PyscConf.lbt
 
   await useDataStore().saveCaseData(appStore.curWS, appStore.curSelCase,
     dGConf, dProd, dContr, dFisc,
     dTan, dIntan,
-    dOpex, dASR,
+    dOpex, dASR, dCOS, dLBT,
     PyscSens.sensConfig,
     PyscMonte.monteConfig,
     PyscOptim.optimConfig)
@@ -189,11 +209,12 @@ const buildPDF = async () => {
   const dataJson = useDataStore().curCase2Json()
 
   const buildExtSumm = async () => {
-    doc.setFont(current_Font.fontName, 'normal', 200)
+    doc.setFont(current_Font.fontName, undefined, undefined)
     doc.setTextColor('blue')
     doc.text('Executive Summary', 0.5, finalY.value, { align: 'left' })
     doc.setTextColor('black')
-    doc.setFont(current_Font.fontName, undefined, 'normal')
+
+    // doc.setFont(current_Font.fontName, undefined, undefined)
     finalY.value += spaceV
     try {
       const { status, result } = await useHTTP().put({
@@ -262,7 +283,8 @@ const buildPDF = async () => {
           doc.addPage('letter', 'landscape')
           finalY.value = 1
         }
-        doc.setFont(current_Font.fontName, 'normal', 200)
+
+        // doc.setFont(current_Font.fontName, '', 'bold')
         doc.setTextColor('blue')
         if (PyscConf.dataGConf.type_of_contract < 3)
           doc.text('Consolidated CashFlow', 0.3, finalY.value, { align: 'left' })
@@ -346,9 +368,14 @@ const buildPDF = async () => {
   //   console.log('0')
   // })
   // console.log('1')
-  const blobPDF = new Blob([doc.output('blob')], { type: 'application/pdf' })
+  nextTick(() => {
+    const blobPDF = new Blob([doc.output('blob')], { type: 'application/pdf' })
 
-  currentPdf.value = URL.createObjectURL(blobPDF)
+    console.log(blobPDF)
+    nextTick(() => {
+      currentPdf.value = URL.createObjectURL(blobPDF)
+    })
+  })
 }
 
 const PrintPDF = () => {
@@ -445,6 +472,14 @@ onUnmounted(() => {
           class="d-inline-block"
         >
           <VCardText>
+            <!--
+              <PdfApp
+              :pdf="currentPdf"
+              style="height: 100%;"
+              :config="pfdConfig"
+              />
+            -->
+
             <VuePDF
               v-for="pg in pages"
               :pdf="pdf"

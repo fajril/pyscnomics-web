@@ -65,6 +65,8 @@ export const useDataStore = () => {
         genConf_["delayAccMode"] = 0
         genConf_["delayAccYear"] = 0
       }
+      if (!Object.keys(genConf_).includes("useCOS"))
+        genConf_["useCOS"] = false
     }
     else if (urlpath === 'rdfiscalconf') {
       const fiscal_ = respData as Pysc.Fiskal
@@ -74,10 +76,14 @@ export const useDataStore = () => {
         fiscal_.Fiskal["regime"] = 3
       if (!fiscKey.includes("profitability_discounted"))
         fiscal_.Fiskal["profitability_discounted"] = false
+      if (!fiscKey.includes("sum_undepreciated_cost"))
+        fiscal_.Fiskal["sum_undepreciated_cost"] = true
       if (!fiscKey2.includes("regime"))
         fiscal_.Fiskal2["regime"] = 3
       if (!fiscKey2.includes("profitability_discounted"))
         fiscal_.Fiskal2["profitability_discounted"] = false
+      if (!fiscKey2.includes("sum_undepreciated_cost"))
+        fiscal_.Fiskal2["sum_undepreciated_cost"] = true
     }
     else if (urlpath === 'rdproducer') {
       respData.forEach(_liftings => {
@@ -96,6 +102,12 @@ export const useDataStore = () => {
         contract_.gs["cum_production_split_offset"] = { mode: 0, offset: 0, split: [{ year: null, split: 0 }] }
       if (!_keysCtr.includes("amortization"))
         contract_.gs["amortization"] = false
+      const _keysCRCtr = Object.keys(contract_.cr)
+      if (!_keysCRCtr.includes("oil_cost_of_sales_applied"))
+        contract_.cr["oil_cost_of_sales_applied"] = false
+      if (!_keysCRCtr.includes("gas_cost_of_sales_applied"))
+        contract_.cr["gas_cost_of_sales_applied"] = false
+
       if (contract_.second) {
         const _keysec = Object.keys(contract_.second)
         if (_keysec.includes("field_status")) {
@@ -104,18 +116,25 @@ export const useDataStore = () => {
           if (!_keysec.includes("amortization"))
             (contract_.second as Pysc.GS)["amortization"] = false
         }
+        if (_keysec.includes("oil_ftp")) {
+          if (!_keysec.includes("oil_cost_of_sales_applied"))
+            (contract_.second as Pysc.costRec)["oil_cost_of_sales_applied"] = false
+          if (!_keysec.includes("gas_cost_of_sales_applied"))
+            (contract_.second as Pysc.costRec)["gas_cost_of_sales_applied"] = false
+        }
       }
     }
     else if (urlpath === 'rdoptim') {
       const optim_ = respData as optimCfg
-      if (optim_.optimization.length === 11) {
-        optim_.optimization.push({
-          parameter: 11,
+      const lres = optim_.optimization.length
+      if (lres < 14) {
+        optim_.optimization.push(...Array(14 - lres).fill(undefined).map((v, i) => ({
+          parameter: lres + i,
           min: 0.2,
           max: 0.4,
-          pos: 11,
+          pos: lres + i,
           checked: false,
-        })
+        })))
       }
     }
 
@@ -173,6 +192,8 @@ export const useDataStore = () => {
         state.intangible.splice(0, state.intangible.length, ...[Array(5).fill(null)])
         state.opex.splice(0, state.opex.length, ...[Array(8).fill(null)])
         state.asr.splice(0, state.asr.length, ...[Array(4).fill(null)])
+        state.cos.splice(0, state.cos.length, ...[Array(3).fill(null)])
+        state.lbt.splice(0, state.lbt.length, ...[Array(5).fill(null)])
 
         state.generalConfig = JSON.parse(JSON.stringify(Pysc.defGenConfig()))
         state.producer = JSON.parse(JSON.stringify(Pysc.defProdConfig()))
@@ -207,6 +228,7 @@ export const useDataStore = () => {
       state.curSelCase = _id
       state.caseCompare.splice(0, state.caseCompare.length, ...[])
       state.caseCombine.splice(0, state.caseCombine.length, ...[])
+      state.caseIncr.splice(0, state.caseIncr.length, ...[])
     })
   }
 
@@ -217,6 +239,8 @@ export const useDataStore = () => {
       intangible: Array<number | string | null>[]
       opex: Array<number | string | null>[]
       asr: Array<number | string | null>[]
+      lbt: Array<number | string | null>[]
+      cos: Array<number | string | null>[]
 
       genConf: Pysc.genConfig
       producer: Pysc.producerConfig[]
@@ -229,6 +253,8 @@ export const useDataStore = () => {
       intangible: [Array(5).fill(null)],
       opex: [Array(8).fill(null)],
       asr: [Array(4).fill(null)],
+      lbt: [Array(5).fill(null)],
+      cos: [Array(3).fill(null)],
       genConf: Pysc.defGenConfig(),
       producer: Pysc.defProdConfig(),
       fiscal: Pysc.defFiskal(),
@@ -241,6 +267,7 @@ export const useDataStore = () => {
 
     const DataCompare = { params: [] }
     const DataCombine = { params: [] }
+    const DataIncr = { params: [] }
 
     let DataLoaded = false
     const cases = dataOnly ? appStore.projects : _caselists
@@ -257,6 +284,8 @@ export const useDataStore = () => {
       DataEco.intangible = await loadDataModule('rdcosts', wsPath, curSelCase, 1)
       DataEco.opex = await loadDataModule('rdcosts', wsPath, curSelCase, 2)
       DataEco.asr = await loadDataModule('rdcosts', wsPath, curSelCase, 3)
+      DataEco.cos = await loadDataModule('rdcosts', wsPath, curSelCase, 4)
+      DataEco.lbt = await loadDataModule('rdcosts', wsPath, curSelCase, 5)
 
       // sensitivity
       DataSens.params = await loadDataModule('rdsens', wsPath, curSelCase)
@@ -272,6 +301,9 @@ export const useDataStore = () => {
 
       // combine
       DataCombine.params = await loadDataModule('rdcombine', wsPath, curSelCase)
+
+      // incr
+      DataCombine.params = await loadDataModule('rdincr', wsPath, curSelCase)
 
       DataLoaded = true
     }
@@ -296,6 +328,8 @@ export const useDataStore = () => {
           state.intangible.splice(0, state.intangible.length, ...JSON.parse(JSON.stringify(DataEco.intangible)))
           state.opex.splice(0, state.opex.length, ...JSON.parse(JSON.stringify(DataEco.opex)))
           state.asr.splice(0, state.asr.length, ...JSON.parse(JSON.stringify(DataEco.asr)))
+          state.lbt.splice(0, state.lbt.length, ...JSON.parse(JSON.stringify(DataEco.lbt)))
+          state.cos.splice(0, state.cos.length, ...JSON.parse(JSON.stringify(DataEco.cos)))
 
           state.generalConfig = JSON.parse(JSON.stringify(DataEco.genConf))
           state.producer.splice(0, state.producer.length, ...JSON.parse(JSON.stringify(DataEco.producer)))
@@ -327,6 +361,7 @@ export const useDataStore = () => {
 
         state.caseCompare.splice(0, state.caseCompare.length, ...DataCompare.params)
         state.caseCombine.splice(0, state.caseCombine.length, ...DataCombine.params)
+        state.caseIncr.splice(0, state.caseIncr.length, ...DataIncr.params)
         applyData()
       })
     }
@@ -335,7 +370,8 @@ export const useDataStore = () => {
   const saveCaseData = async (curWS: string, caseID: number,
     gConf: Pysc.genConfig, producer: Pysc.producerConfig[], contracts: Pysc.Contracts, fiscal: Pysc.Fiskal,
     tangible: Array<number | string | null>[], intangible: Array<number | string | null>[],
-    opex: Array<number | string | null>[], asr: Array<number | string | null>[],
+    opex: Array<number | string | null>[], asr: Array<number | string | null>[], cos: Array<number | string | null>[],
+    lbt: Array<number | string | null>[],
     sensConfig: number[],
     monteConfig: tmonteConfig,
     optimComfig: optimCfg) => {
@@ -404,6 +440,24 @@ export const useDataStore = () => {
         caseid: caseID,
         mode: 3,
         gc: btoa(JSON.stringify(asr)),
+      })
+    }
+    catch (err) { }
+    try {
+      await execPartData('wrtcost', 'PUT', {
+        wspath: curWS,
+        caseid: caseID,
+        mode: 4,
+        gc: btoa(JSON.stringify(cos)),
+      })
+    }
+    catch (err) { }
+    try {
+      await execPartData('wrtcost', 'PUT', {
+        wspath: curWS,
+        caseid: caseID,
+        mode: 5,
+        gc: btoa(JSON.stringify(lbt)),
       })
     }
     catch (err) { }
@@ -550,7 +604,7 @@ export const useDataStore = () => {
       await saveCaseData(curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr,
+        PyscConf.opex, PyscConf.asr, PyscConf.cos, PyscConf.lbt,
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)
@@ -590,6 +644,27 @@ export const useDataStore = () => {
         const wrtcombine = await execPartData('wrtcombine', 'PUT', {
           wspath: curWS,
           gc: btoa(JSON.stringify(caseCombine)),
+        })
+      }
+      catch (error) { }
+
+      try {
+        const caseIncr = appStore.caseIncr.filter(v => appStore.projects.findIndex(p => p.id === v.source) !== -1)
+          .map(c => {
+            return {
+              source: c.source,
+              comp: appStore.projects.findIndex(p => p.id === c.comp) !== -1 ? c.comp : null,
+              inflation_rate: c.inflation_rate,
+              discount_rate: c.discount_rate,
+              reference_year: c.reference_year,
+              npv_mode: c.npv_mode,
+              discounting_mode: c.discounting_mode,
+            }
+          })
+
+        const wrtincr = await execPartData('wrtincr', 'PUT', {
+          wspath: curWS,
+          gc: btoa(JSON.stringify(caseIncr)),
         })
       }
       catch (error) { }
@@ -719,7 +794,7 @@ export const useDataStore = () => {
       }
       await saveCaseData(appStore.curWS, param.id,
         ngc, Pysc.defProdConfig(), ctr, _fiscal,
-        [Array(9).fill(null)], [Array(5).fill(null)], [Array(8).fill(null)], [Array(4).fill(null)],
+        [Array(9).fill(null)], [Array(5).fill(null)], [Array(8).fill(null)], [Array(4).fill(null)], [Array(3).fill(null)],
         [80, 80], JSON.parse(JSON.stringify(PyscMonte.defParam)), JSON.parse(JSON.stringify(PyscOptim.defOptimCfg())))
     }
     catch (err) {
@@ -739,7 +814,8 @@ export const useDataStore = () => {
   const addOptimCase = async (param: Pysc.ProjectBase,
     dGConf: Pysc.genConfig, dProd: Pysc.producerConfig[], dContr: Pysc.Contracts, dFisc: Pysc.Fiskal,
     dTan: Array<number | string | null>[], dIntan: Array<number | string | null>[],
-    dOpex: Array<number | string | null>[], dASR: Array<number | string | null>[]) => {
+    dOpex: Array<number | string | null>[], dASR: Array<number | string | null>[], dCOS: Array<number | string | null>[],
+    dLBT: Array<number | string | null>[]) => {
     appStore.watcherSelCase.pause()
     PyscConf.watcherAllData.pause()
 
@@ -756,7 +832,7 @@ export const useDataStore = () => {
 
       await saveCaseData(appStore.curWS, param.id,
         dGConf, dProd, dContr, dFisc,
-        dTan, dIntan, dOpex, dASR, [80, 80],
+        dTan, dIntan, dOpex, dASR, dCOS, dLBT, [80, 80],
         JSON.parse(JSON.stringify(PyscMonte.defParam)), JSON.parse(JSON.stringify(PyscOptim.defOptimCfg())))
     }
     catch (err) {
@@ -930,7 +1006,8 @@ export const useDataStore = () => {
   const makeJSONofCase = (id: number,
     dGConf: Pysc.genConfig, dProd: Pysc.producerConfig[], dContr: Pysc.Contracts, dFisc: Pysc.Fiskal,
     dTan: Array<number | string | null>[], dIntan: Array<number | string | null>[],
-    dOpex: Array<number | string | null>[], dASR: Array<number | string | null>[],
+    dOpex: Array<number | string | null>[], dASR: Array<number | string | null>[], dCOS: Array<number | string | null>[],
+    dLBT: Array<number | string | null>[],
     useDate: boolean = true) => {
     const caseIndex = appStore.projects.findIndex(e => e.id === id)
     let jsonres = {}
@@ -956,6 +1033,7 @@ export const useDataStore = () => {
 
     const start2Y = Pysc.useDayJs().utc(dGConf.start_date_project_second).local().year()
     const end2Y = Pysc.useDayJs().utc(dGConf.end_date_project_second).local().year()
+    const useCOS = [1, 3, 4, 6].includes(type_of_contract) && (dGConf.useCOS ?? false)
 
     const getTaxRegime = (istartY: number) => {
       return istartY < 2016 ? 0.44 : (istartY < 2020 ? 0.42 : 0.4)
@@ -1061,6 +1139,13 @@ export const useDataStore = () => {
 
         // add field (7/12/24) GS Only
         regime: type_of_contract === 0 ? undefined : (!isCR ? Object.keys(Pysc.GSRegimeType)[fiscal.regime ?? 3] : undefined),
+
+        // add field ??
+        sum_undepreciated_cost: type_of_contract === 0 ? undefined : (fiscal.sum_undepreciated_cost),
+
+        // add field (8/05/24) CR Only
+        oil_cost_of_sales_applied: type_of_contract === 0 ? undefined : (isCR ? (icontract === 0 ? (useCOS && (dContr.cr.oil_cost_of_sales_applied ?? false)) : (useCOS && ((dContr.second as Pysc.costRec).oil_cost_of_sales_applied ?? false))) : undefined),
+        gas_cost_of_sales_applied: type_of_contract === 0 ? undefined : (isCR ? (icontract === 0 ? (Gas ? (useCOS && (dContr.cr.gas_cost_of_sales_applied ?? false)) : false) : (Gas ? (useCOS && ((dContr.second as Pysc.costRec).gas_cost_of_sales_applied ?? false)) : false)) : undefined),
       }
     }
 
@@ -1293,6 +1378,9 @@ export const useDataStore = () => {
         }
       }
 
+      if (!useCOS && tcost === 4)
+        cost_data.splice(0)
+
       return {
         [`${name}`]: {
           "start_year": isTransistion && icontract === 1 ? start2Y : startY,
@@ -1300,18 +1388,22 @@ export const useDataStore = () => {
           [`${tcost === 2 ? 'fixed_cost' : 'cost'}`]: cost_data.length ? cost_data.map(e => toValue(e[2])) : [0.0],
           "expense_year": cost_data.length ? cost_data.map(e => toValue(e[0], null)) : (isTransistion && icontract === 1 ? [start2Y] : [startY]),
           "cost_allocation": cost_data.length ? cost_data.map(e => e[1] ?? 'Oil') : ['Oil'],
-          "description": cost_data.length ? cost_data.map(e => e.slice(-1)[0] ?? '-') : ['-'],
-          "vat_portion": tcost !== 3 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(tcost === 2 ? -3 : -2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
-          "vat_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],
-          "lbt_portion": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(-2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
-          "lbt_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],
-          "pis_year": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[3], null)) : [0.0]) : undefined,
-          "salvage_value": tcost === 0 ? (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]) : undefined,
-          "useful_life": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[4], 0)) : [0.0]) : undefined,
-          "depreciation_factor": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[5])) : [0.0]) : undefined,
-          "is_ic_applied": tcost === 0 ? (cost_data.length ? cost_data.map(e => e[6] === 'Yes') : [false]) : undefined,
-          "prod_rate": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[3])) : [0.0]) : undefined,
-          "cost_per_volume": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[4])) : [0.0]) : undefined,
+          ...(tcost === 4
+            ? {}
+            : {
+              "description": cost_data.length ? cost_data.map(e => e.slice(-1)[0] ?? '-') : ['-'],
+              "vat_portion": tcost !== 3 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(tcost === 2 ? -3 : -2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
+              "vat_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],
+              "lbt_portion": tcost === 2 || tcost === 5 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(-2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
+              "lbt_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],
+              "pis_year": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[3], null)) : [0.0]) : undefined,
+              "salvage_value": tcost === 0 ? (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]) : undefined,
+              "useful_life": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[4], 0)) : [0.0]) : undefined,
+              "depreciation_factor": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[5])) : [0.0]) : undefined,
+              "is_ic_applied": tcost === 0 ? (cost_data.length ? cost_data.map(e => e[6] === 'Yes') : [false]) : undefined,
+              "prod_rate": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[3])) : [0.0]) : undefined,
+              "cost_per_volume": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[4])) : [0.0]) : undefined,
+            }),
         },
       }
     }
@@ -1351,6 +1443,20 @@ export const useDataStore = () => {
         second: cost2Json(appStore.projects[caseIndex].name, 3, dASR, true, 1),
       })
 
+    const vcos = (type_of_contract < 3
+      ? cost2Json(appStore.projects[caseIndex].name, 4, dCOS)
+      : {
+        first: cost2Json(appStore.projects[caseIndex].name, 4, dCOS, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 4, dCOS, true, 1),
+      })
+
+    const vlbt = (type_of_contract < 3
+      ? cost2Json(appStore.projects[caseIndex].name, 5, dLBT)
+      : {
+        first: cost2Json(appStore.projects[caseIndex].name, 5, dLBT, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 5, dLBT, true, 1),
+      })
+
     let oil_onstream_date_ = Oil ? Pysc.useDayJs().utc(Oil.onstream_date).local().add(DelAccYear, 'year') : null
     let gas_onstream_date_ = Gas ? Pysc.useDayJs().utc(Gas.onstream_date).local().add(DelAccYear, 'year') : null
     if (+(dGConf.delayAccMode ?? 0) >= 1 && oil_onstream_date_ && oil_onstream_date_.year() < startY)
@@ -1377,6 +1483,7 @@ export const useDataStore = () => {
           inflation_rate: 0.0,
           future_rate: 0.0,
           inflation_rate_applied_to: Pysc.InflateToType.Capex,
+          sum_undepreciated_cost: true,
         }, // contrArg2json(dFisc.Fiskal, true, dGConf, true ? dContr.cr.dmo_is_weighted : dContr.gs.dmo_is_weighted, !!Gas),
         summary_arguments: {
           reference_year: startY,
@@ -1392,6 +1499,8 @@ export const useDataStore = () => {
         intangible: vintangible,
         opex: vopex,
         asr: vasr,
+        lbt: vlbt,
+        cost_of_sales: {},
       }
     }
     else if (type_of_contract < 3) {
@@ -1419,6 +1528,8 @@ export const useDataStore = () => {
         intangible: vintangible,
         opex: vopex,
         asr: vasr,
+        lbt: vlbt,
+        cost_of_sales: type_of_contract === 1 ? vcos : {},
       }
     }
     else if (type_of_contract >= 3) {
@@ -1441,6 +1552,8 @@ export const useDataStore = () => {
           intangible: vintangible.first,
           opex: vopex.first,
           asr: vasr.first,
+          lbt: vlbt.first,
+          cost_of_sales: [3, 4].includes(type_of_contract) ? vcos.first : {},
         },
         contract_2: {
           setup: {
@@ -1459,6 +1572,8 @@ export const useDataStore = () => {
           intangible: vintangible.second,
           opex: vopex.second,
           asr: vasr.second,
+          lbt: vlbt.second,
+          cost_of_sales: [3, 6].includes(type_of_contract) ? vcos.second : {},
         },
         "contract_arguments": {
           unrec_portion: dFisc.Fiskal2.transferred_unrec_cost,
@@ -1480,8 +1595,22 @@ export const useDataStore = () => {
   const curCase2Json = (useDate: boolean = true) => {
     return makeJSONofCase(appStore.curSelCase,
       PyscConf.dataGConf, PyscConf.dataProd, PyscConf.dataContr, PyscConf.dataFisc,
-      PyscConf.dataTan, PyscConf.dataIntan, PyscConf.dataOpex, PyscConf.dataASR,
+      PyscConf.dataTan, PyscConf.dataIntan, PyscConf.dataOpex, PyscConf.dataASR, PyscConf.dataCOS, PyscConf.dataLBT,
       useDate)
+  }
+
+  const canAccessByCaseType = (access: number[] | undefined) => {
+    if (access)
+      return access.includes(appStore.selectedCase.type) && (PyscConf.dataGConf.useCOS ?? false)
+
+    return true
+  }
+
+  const canAccessByType = (access: number[] | undefined) => {
+    if (access)
+      return access.includes(appStore.selectedCase.type)
+
+    return true
   }
 
   return {
@@ -1498,6 +1627,8 @@ export const useDataStore = () => {
     importFrPySC,
 
     changeCtrType,
+    canAccessByType,
+    canAccessByCaseType,
 
     addCase,
     cloneCase,

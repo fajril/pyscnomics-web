@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { hexToRgb } from '@layouts/utils'
 import { BarChart, LineChart } from "echarts/charts"
 import {
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
   TitleComponent,
@@ -11,10 +13,10 @@ import { CanvasRenderer } from "echarts/renderers"
 import * as math from 'mathjs'
 import VChart from "vue-echarts"
 import { useTheme } from 'vuetify'
-import { hexToRgb } from '@layouts/utils'
 import * as Pysc from "@/utils/pysc/pyscType"
 
 use([
+  DataZoomComponent,
   CanvasRenderer,
   BarChart,
   LineChart,
@@ -55,6 +57,7 @@ const cardChartOpt = computed(() => {
       textStyle: { width: 80, color: themePrimaryTextColor, overflow: 'truncate' },
       tooltip: { show: true },
     },
+    dataZoom: { type: 'inside' },
     grid: {
       show: true,
       borderColor: themeBorderColor,
@@ -68,7 +71,7 @@ const cardChartOpt = computed(() => {
         alignWithLabel: true,
       },
       axisLine: {
-        onZero: false,
+        onZero: true,
       },
       nameTextStyle: {
         color: themeDisabledTextColor,
@@ -132,8 +135,9 @@ const showSummCardDialog = (chart: number, mode: number | undefined, data: objec
     min: undefined,
     max: undefined,
     minInterval: undefined,
-    splitNumber: 4,
-    splitLine: { show: true, lineStyle: { color: themeBorderColor } },
+
+    // splitNumber: 4,
+    splitLine: { show: false, lineStyle: { color: themeBorderColor } },
     axisLabel: {
       color: themePrimaryTextColor,
       formatter: (value, index) => {
@@ -188,10 +192,10 @@ const showSummCardDialog = (chart: number, mode: number | undefined, data: objec
   cardChartOpt.value.yAxis[1].splitLine.show = false
 
   if (chart === 8) {
-    chartCardTitle.value = 'Sensitivity - IRR'
+    chartCardTitle.value = 'Sensitivity - NPV'
     cardChartOpt.value.xAxis.type = 'value'
     cardChartOpt.value.xAxis.name = 'Sensitivity %'
-    cardChartOpt.value.yAxis[0].name = 'IRR, %'
+    cardChartOpt.value.yAxis[0].name = 'NPV, MUSD'
     cardChartOpt.value.series.splice(0, cardChartOpt.value.series.length, ...[
       {
         name: "Oil Price",
@@ -350,6 +354,39 @@ const showSummCardDialog = (chart: number, mode: number | undefined, data: objec
     cardChartOpt.value.series[1].color = undefined
   }
   if (chart != 0 && chart != 3 && chart != 8 && data.d.table.length === 2 && data.d.table[0].length && data.d.table[1].length) {
+    try {
+      let minD0Value = +math.min(data.d.table[0])
+      let maxD0Value = +math.max(data.d.table[0])
+      const lenD0Value = math.abs(maxD0Value - minD0Value)
+      const prcLowD0Value = math.abs(minD0Value) / lenD0Value
+      const prcHiD0Value = math.abs(maxD0Value) / lenD0Value
+
+      let minD1Value = +math.min(data.d.table[1])
+      let maxD1Value = +math.max(data.d.table[1])
+      const lenD1Value = math.abs(maxD1Value - minD1Value)
+      const prcLowD1Value = math.abs(minD1Value) / lenD1Value
+      const prcHiD1Value = math.abs(maxD1Value) / lenD1Value
+
+      if (prcLowD1Value < prcLowD0Value)
+        minD1Value = prcLowD0Value * lenD1Value * (minD1Value < 0 ? -1 : 1)
+      else if (prcLowD0Value < prcLowD1Value)
+        minD0Value = prcLowD1Value * lenD0Value * (minD0Value < 0 ? -1 : 1)
+
+      if (prcHiD1Value < prcHiD0Value)
+        maxD1Value = prcHiD0Value * lenD1Value * (maxD1Value < 0 ? -1 : 1)
+      else if (prcHiD0Value < prcHiD1Value)
+        maxD0Value = prcHiD1Value * lenD0Value * (maxD0Value < 0 ? -1 : 1)
+
+      cardChartOpt.value.yAxis[1].min = minD1Value
+      cardChartOpt.value.yAxis[1].max = maxD1Value
+      cardChartOpt.value.yAxis[0].min = minD0Value
+      cardChartOpt.value.yAxis[0].max = maxD0Value
+    }
+    catch (error) {
+      console.log(error)
+    }
+
+    /*
     if (math.min(data.d.table[0]) === 0) {
       const interV = [(math.max(data.d.table[0]) - math.min(data.d.table[0])) / 4, (math.max(data.d.table[1]) - math.min(data.d.table[1])) / 4]
 
@@ -387,8 +424,10 @@ const showSummCardDialog = (chart: number, mode: number | undefined, data: objec
       cardChartOpt.value.yAxis[1].minInterval = interV[1]
 
       cardChartOpt.value.yAxis[1].splitLine.show = true
-    }
+    } */
   }
+
+  // fill data
   if (chart != 8)
     cardChartOpt.value.xAxis.data.splice(0, cardChartOpt.value.xAxis.data.length, ...data.x)
   if (chart === 0 && mode === 1) {

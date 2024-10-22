@@ -13,6 +13,9 @@ importers:
 
   .:
     dependencies:
+      7zip-min-electron:
+        specifier: ^1.4.4
+        version: 1.4.4
       '@vueuse/core':
         specifier: 10.9.0
         version: 10.9.0(vue@3.4.21(typescript@5.3.3))
@@ -174,8 +177,8 @@ importers:
         specifier: 1.0.0
         version: 1.0.0
       electron:
-        specifier: ^29.1.1
-        version: 29.4.3
+        specifier: ^31.2.1
+        version: 31.2.1
       electron-builder:
         specifier: ^24.13.3
         version: 24.13.3(electron-builder-squirrel-windows@24.13.3(dmg-builder@24.13.3))
@@ -294,7 +297,7 @@ importers:
         specifier: 5.1.4
         version: 5.1.4(@types/node@20.11.24)(sass@1.71.1)
       vite-plugin-electron:
-        specifier: ^0.28.4
+        specifier: ^0.28.7
         version: 0.28.7(vite-plugin-electron-renderer@0.14.5)
       vite-plugin-electron-renderer:
         specifier: ^0.14.5
@@ -347,8 +350,14 @@ importers:
 
 packages:
 
+  7zip-bin@5.1.1:
+    resolution: {integrity: sha512-sAP4LldeWNz0lNzmTird3uWfFDWWTeg6V/MsmyyLR9X1idwKBWIgt/ZvinqQldJm3LecKEs1emkbquO6PCiLVQ==}
+
   7zip-bin@5.2.0:
     resolution: {integrity: sha512-ukTPVhqG4jNzMro2qA9HSCSSVJN3aN7tlb+hfqYCt3ER0yWroeA2VR38MNrOHLQ/cVj+DaIMad0kFCtWWowh/A==}
+
+  7zip-min-electron@1.4.4:
+    resolution: {integrity: sha512-WzXB8ajfYQ2kuGA/Fp9nt25wPkg6RZUBPb+hZ2qLluSpN/uhKzGfVYCuJ5NwtqWDgslQ/DGxhaaFl3tQvJVoEQ==}
 
   '@aashutoshrathi/word-wrap@1.2.6':
     resolution: {integrity: sha512-1Yjs2SvM8TflER/OD3cOjhWWOZb58A2t7wpE2S9XfBYTiIl+XFhQG2bjy4Pu1I+EAlCNUzRDYDdFwFYUKvXcIA==}
@@ -2261,8 +2270,8 @@ packages:
   electron-to-chromium@1.4.690:
     resolution: {integrity: sha512-+2OAGjUx68xElQhydpcbqH50hE8Vs2K6TkAeLhICYfndb67CVH0UsZaijmRUE3rHlIxU1u0jxwhgVe6fK3YANA==}
 
-  electron@29.4.3:
-    resolution: {integrity: sha512-Fr/D7Iru7zGFK5DtNf3Ck/DBxLHtP/o/32pRXsSoGTVqyHKu2genIiSUiOhbxdu+gQZw4Do+BDDR6inkyr4CGQ==}
+  electron@31.2.1:
+    resolution: {integrity: sha512-g3CLKjl4yuXt6VWm/KpgEjYYhFiCl19RgUn8lOC8zV/56ZXAS3+mqV4wWzicE/7vSYXs6GRO7vkYRwrwhX3Gaw==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
@@ -5164,7 +5173,13 @@ packages:
 
 snapshots:
 
+  7zip-bin@5.1.1: {}
+
   7zip-bin@5.2.0: {}
+
+  7zip-min-electron@1.4.4:
+    dependencies:
+      7zip-bin: 5.1.1
 
   '@aashutoshrathi/word-wrap@1.2.6': {}
 
@@ -7468,7 +7483,7 @@ snapshots:
 
   electron-to-chromium@1.4.690: {}
 
-  electron@29.4.3:
+  electron@31.2.1:
     dependencies:
       '@electron/get': 2.0.3
       '@types/node': 20.11.24

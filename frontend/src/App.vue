@@ -8,17 +8,17 @@ import { initConfigStore, useConfigStore } from '@core/stores/config'
 import { hexToRgb } from '@layouts/utils'
 import { useTheme } from 'vuetify'
 
+import { useWSStore } from '@/stores/wsStore'
+import { useHTTP } from './utils/pysc/useHttp'
 import SettDialogs from '@/pages/components/settPysc.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
-import { useWSStore } from '@/stores/wsStore'
 import * as Pysc from '@/utils/pysc/pyscType'
 import { useDataStore } from '@/utils/pysc/useDataStore'
 import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
 import XlsxImport from '@/views/components/xlsxImport.vue'
-import { useHTTP } from './utils/pysc/useHttp'
 
 const { global } = useTheme()
 
@@ -39,7 +39,7 @@ const dayjs = Pysc.useDayJs()
 
 const RefSettDialogs = ref()
 
-console.log(`App version: ${import.meta.env.VITE_PSC_VERSION}`)
+console.log(`App version: ${import.meta.env.VITE_PSC_VER122}`)
 
 appStore.mainCallbackCaseID = async (value, oldValue) => {
   if (value !== oldValue && oldValue !== -1) {
@@ -49,7 +49,7 @@ appStore.mainCallbackCaseID = async (value, oldValue) => {
       await useDataStore().saveCaseData(appStore.curWS, oldValue,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
         PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr,
+        PyscConf.opex, PyscConf.asr, PyscConf.cos, PyscConf.lbt,
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)
@@ -213,19 +213,60 @@ wsStore.addBroadCast('os:conf', -1, async msg => {
 </template>
 
 <style lang="scss">
+html {
+ overflow-y: auto !important;
+}
+
 .htMenu.htContextMenu.handsontable {
   z-index: 9000 !important;
 }
 
+.htSelectEditor {
+  background: white;
+  color: rgb(49, 48, 48);
+}
+
 .v-card {
-  .v-card-item {
-    >div:has(.v-card-title) {
-      border-block-end: 2px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+  &:not(.ignore-bottom-line) {
+    >.v-card-item:has(.v-card-title) {
+      padding-inline: 1.125rem;
+      padding-block-start: .625rem;
+      padding-block-end: .3125rem;
+      margin-block-end: .5rem;
+      border-block-end: thin solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
     }
   }
-
+  &.ignore-bottom-line {
+    >.v-card-item:has(.v-card-title) {
+      padding-inline: 1.125rem;
+      padding-block-start: .625rem;
+      padding-block-end: .3125rem;
+      margin-block-end: .3125rem;
+    }
+  }
   .v-card--variant-elevated {
     box-shadow: 0 1px 10px rgba(var(--v-shadow-key-umbra-color), 0.4), 0 0 transparent, 0 0 transparent !important;
   }
 }
+
+.handsontable {
+  .htDimmed {
+    color: #373737 !important;
+  }
+}
+// .htMenu.htContextMenu.handsontable {
+//   z-index: 9000 !important;
+// }
+
+// .v-card {
+//   .v-card-item {
+//     >div:has(.v-card-title) {
+//       border-block-end: 2px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+//     }
+//   }
+
+//   .v-card--variant-elevated {
+//     box-shadow: 0 1px 10px rgba(var(--v-shadow-key-umbra-color), 0.4), 0 0 transparent, 0 0 transparent !important;
+//   }
+// }
 </style>

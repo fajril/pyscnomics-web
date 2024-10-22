@@ -21,6 +21,17 @@
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
+  "[python]": {
+    "diffEditor.ignoreTrimWhitespace": false,
+    "gitlens.codeLens.symbolScopes": [
+      "!Module"
+    ],
+    "editor.indentSize": "tabSize",
+    "editor.tabSize": 2,
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnType": true,
+    "editor.wordBasedSuggestions": "off"
+  },
   "[vue]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },

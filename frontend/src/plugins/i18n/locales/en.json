@@ -15,5 +15,12 @@
   "Project End": "Project End {0}",
   "Discount Rate": "Discount Rate, {0}",
   "ArrValue": "{0} {1}",
-  "Project saved to": "Project saved to {0}"
+  "Project saved to": "Project saved to {0}",
+  "year_rampup": "Number of year from onstream to peak/plateau rate (yr)",
+  "drate": "Arps yearly decline rate (1/yr)",
+  "q_plateau_ratio": "Ratio of plateau rate and volume (1/yr)",
+  "q_min_ratio": "Ratio of minimum rate at abandoned year and volume (1/yr)",
+  "volume": "The volume of the reserves.",
+  "start_year": "The start year",
+  "end_year": "The end year"
 }

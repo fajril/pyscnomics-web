@@ -148,6 +148,8 @@ const GSSetting = ref({
 const TaxData = computed(() => TaxSetting.value.data)
 const GSData = computed(() => GSSetting.value.data)
 
+const NPVSelData = ref<boolean>(true)
+
 const { stop: stopTaxSett, pause: pauseTaxSett, resume: resumeTaxSett } = watchPausable(
   TaxData,
   v => {
@@ -170,6 +172,7 @@ function ShowSetting(tab: number) {
   pauseGSSett()
   TaxSetting.value.data.splice(0, TaxSetting.value.data.length, ...JSON.parse(JSON.stringify(appStore.taxSett)))
   GSSetting.value.data.forEach((value, index) => { value.val = appStore.gsSett[index] })
+  NPVSelData.value = appStore.NPVSelSett
   isDialogVisible.value = true
   currentTab.value = tab
   nextTick(() => {
@@ -185,7 +188,7 @@ const applySett = (step: number) => {
     SecCode.value = ''
     isDialogSecCode.value = true
   }
-  else {
+  else if (step === 1) {
     isDialogSecCode.value = false
     if (SecCode.value.trim().length) {
       // tes sec-code
@@ -194,6 +197,12 @@ const applySett = (step: number) => {
         gsSett: JSON.parse(JSON.stringify(GSSetting.value.data.map(v => v.val))),
       })
     }
+    isDialogVisible.value = false
+  }
+  else if (step === 3) {
+    appStore.$patch({
+      NPVSelSett: NPVSelData.value,
+    })
     isDialogVisible.value = false
   }
 }
@@ -218,6 +227,7 @@ defineExpose({
         <VTabs v-model="currentTab">
           <VTab>Tax</VTab>
           <VTab>GrossSplit</VTab>
+          <VTab>NPV Selection</VTab>
         </VTabs>
         <VWindow v-model="currentTab">
           <VWindowItem value="0">
@@ -238,22 +248,28 @@ defineExpose({
               />
             </VCardText>
           </VWindowItem>
+          <VWindowItem value="2">
+            <VCardText class="px-1">
+              <AppCheckBox
+                v-model="NPVSelData"
+                class="mt-4"
+                label="Show SKK NPV Selections"
+              />
+            </VCardText>
+            <VCardText class="d-flex justify-end gap-3 flex-wrap">
+              <VBtn
+                color="secondary"
+                variant="tonal"
+                @click="isDialogVisible = false"
+              >
+                Cancel
+              </VBtn>
+              <VBtn @click="() => applySett(3)">
+                Ok
+              </VBtn>
+            </VCardText>
+          </VWindowItem>
         </VWindow>
-      </VCardText>
-      <VCardText class="d-flex justify-end gap-3 flex-wrap">
-        <VBtn
-          color="secondary"
-          variant="tonal"
-          @click="isDialogVisible = false"
-        >
-          Cancel
-        </VBtn>
-        <VBtn
-          :disabled="!ItsValidTaxSett || !ItsValidGSSett"
-          @click="() => applySett(0)"
-        >
-          Ok
-        </VBtn>
       </VCardText>
     </VCard>
   </VDialog>

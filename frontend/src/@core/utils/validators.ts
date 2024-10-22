@@ -39,7 +39,9 @@ export const confirmedValidator = (value: string, target: string) =>
 export const betweenValidator = (value: unknown, min: number, max: number, callback?: Function) => {
   const valueAsNumber = Number(value)
   const result = (Number(min) <= valueAsNumber && Number(max) >= valueAsNumber) || `Enter number between ${min} and ${max}`
-  if (typeof result === "string" && callback != undefined) callback(result)
+  if (typeof result === "string" && callback != undefined)
+    callback(result)
+
   return (Number(min) <= valueAsNumber && Number(max) >= valueAsNumber) || `Enter number between ${min} and ${max}`
 }
 
@@ -47,7 +49,9 @@ export const betweenValidator = (value: unknown, min: number, max: number, callb
 export const greatestValidator = (value: unknown, min: number, callback?: Function) => {
   const valueAsNumber = Number(value)
   const result = (Number(min) <= valueAsNumber) || `Enter number >= ${min}`
-  if (typeof result === "string" && callback != undefined) callback(result)
+  if (typeof result === "string" && callback != undefined)
+    callback(result)
+
   return (Number(min) <= valueAsNumber) || `Enter number >= ${min}`
 }
 
@@ -55,7 +59,9 @@ export const greatestValidator = (value: unknown, min: number, callback?: Functi
 export const lowerValidator = (value: unknown, max: number, callback?: Function) => {
   const valueAsNumber = Number(value)
   const result = (Number(max) >= valueAsNumber) || `Enter number <= ${max}`
-  if (typeof result === "string" && callback != undefined) callback(result)
+  if (typeof result === "string" && callback != undefined)
+    callback(result)
+
   return (Number(max) >= valueAsNumber) || `Enter number <= ${max}`
 }
 
@@ -128,4 +134,19 @@ export const alphaDashValidator = (value: unknown) => {
   const valueAsString = String(value)
 
   return /^[\w-]*$/.test(valueAsString) || 'All Character are not valid'
+}
+
+// 👉 Between Validator
+export const decimalDigitValidator = (value: unknown, max: number) => {
+  const decDot = Intl.NumberFormat().formatToParts(1.1).find(e => e.type === 'decimal').value
+  const valueAsNumber = `${Number(value)}`
+
+  const resReg = (decDot === '.')
+    ? valueAsNumber.match(/([\d,]+)\.(\d+(?!\.))/d)
+    : valueAsNumber.match(/([\d.]+),(\d+(?!,))/d)
+
+  if (resReg && !isNullOrUndefined(resReg[2]))
+    return resReg[2].length <= max || `"The max. number of decimal digits is ${max} digits."`
+
+  return true
 }
