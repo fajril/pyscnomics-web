@@ -67,6 +67,8 @@ export const useDataStore = () => {
       }
       if (!Object.keys(genConf_).includes("useCOS"))
         genConf_["useCOS"] = false
+      if (!Object.keys(genConf_).includes("lbtUseCalc"))
+        genConf_["lbtUseCalc"] = false
     }
     else if (urlpath === 'rdfiscalconf') {
       const fiscal_ = respData as Pysc.Fiskal
@@ -188,12 +190,12 @@ export const useDataStore = () => {
   const resetDataStore = (newVer: any, newWS: string, _incVer: boolean = true, _incProjPath: boolean = false) => {
     appStore.$patch(state => {
       PyscConf.$patch(state => {
-        state.tangible.splice(0, state.tangible.length, ...[Array(9).fill(null)])
-        state.intangible.splice(0, state.intangible.length, ...[Array(5).fill(null)])
-        state.opex.splice(0, state.opex.length, ...[Array(8).fill(null)])
-        state.asr.splice(0, state.asr.length, ...[Array(4).fill(null)])
-        state.cos.splice(0, state.cos.length, ...[Array(3).fill(null)])
-        state.lbt.splice(0, state.lbt.length, ...[Array(5).fill(null)])
+        state.capCostv2.splice(0, state.capCostv2.length, ...[Pysc.defCapCost_s()])
+        state.intangCostv2.splice(0, state.intangCostv2.length, ...[Pysc.defintangCost_s()])
+        state.opexCostv2.splice(0, state.opexCostv2.length, ...[Pysc.defopexCost_s()])
+        state.asrCostv2.splice(0, state.asrCostv2.length, ...[Pysc.defasrCost_s()])
+        state.cosCostv2.splice(0, state.cosCostv2.length, ...[Pysc.defcosCost_s()])
+        state.lbtCostv2.splice(0, state.lbtCostv2.length, ...[Pysc.deflbtCost_s()])
 
         state.generalConfig = JSON.parse(JSON.stringify(Pysc.defGenConfig()))
         state.producer = JSON.parse(JSON.stringify(Pysc.defProdConfig()))
@@ -235,12 +237,12 @@ export const useDataStore = () => {
   const applyCase = async (wsPath: string, _caselists: Pysc.ProjectBase[] = [], dataOnly: boolean = false) => {
     // check curselID
     interface dataEco {
-      tangible: Array<number | string | null>[]
-      intangible: Array<number | string | null>[]
-      opex: Array<number | string | null>[]
-      asr: Array<number | string | null>[]
-      lbt: Array<number | string | null>[]
-      cos: Array<number | string | null>[]
+      tangible: Pysc.capitalCost_s
+      intangible: Pysc.intangCost_s
+      opex: Pysc.opexCost_s
+      asr: Pysc.asrCost_s
+      lbt: Pysc.lbtCost_s
+      cos: Pysc.cosCost_s
 
       genConf: Pysc.genConfig
       producer: Pysc.producerConfig[]
@@ -249,12 +251,12 @@ export const useDataStore = () => {
     }
 
     const DataEco: dataEco = {
-      tangible: [Array(9).fill(null)],
-      intangible: [Array(5).fill(null)],
-      opex: [Array(8).fill(null)],
-      asr: [Array(4).fill(null)],
-      lbt: [Array(5).fill(null)],
-      cos: [Array(3).fill(null)],
+      tangible: Pysc.defCapCost_s(),
+      intangible: Pysc.defintangCost_s(),
+      opex: Pysc.defopexCost_s(),
+      asr: Pysc.defasrCost_s(),
+      lbt: Pysc.deflbtCost_s(),
+      cos: Pysc.defcosCost_s(),
       genConf: Pysc.defGenConfig(),
       producer: Pysc.defProdConfig(),
       fiscal: Pysc.defFiskal(),
@@ -324,12 +326,12 @@ export const useDataStore = () => {
     const applyData = () => {
       if (DataLoaded) {
         PyscConf.$patch(state => {
-          state.tangible.splice(0, state.tangible.length, ...JSON.parse(JSON.stringify(DataEco.tangible)))
-          state.intangible.splice(0, state.intangible.length, ...JSON.parse(JSON.stringify(DataEco.intangible)))
-          state.opex.splice(0, state.opex.length, ...JSON.parse(JSON.stringify(DataEco.opex)))
-          state.asr.splice(0, state.asr.length, ...JSON.parse(JSON.stringify(DataEco.asr)))
-          state.lbt.splice(0, state.lbt.length, ...JSON.parse(JSON.stringify(DataEco.lbt)))
-          state.cos.splice(0, state.cos.length, ...JSON.parse(JSON.stringify(DataEco.cos)))
+          state.capCostv2.splice(0, state.capCostv2.length, ...JSON.parse(JSON.stringify(DataEco.tangible)))
+          state.intangCostv2.splice(0, state.intangCostv2.length, ...JSON.parse(JSON.stringify(DataEco.intangible)))
+          state.opexCostv2.splice(0, state.opexCostv2.length, ...JSON.parse(JSON.stringify(DataEco.opex)))
+          state.asrCostv2.splice(0, state.asrCostv2.length, ...JSON.parse(JSON.stringify(DataEco.asr)))
+          state.lbtCostv2.splice(0, state.lbtCostv2.length, ...JSON.parse(JSON.stringify(DataEco.lbt)))
+          state.cosCostv2.splice(0, state.cosCostv2.length, ...JSON.parse(JSON.stringify(DataEco.cos)))
 
           state.generalConfig = JSON.parse(JSON.stringify(DataEco.genConf))
           state.producer.splice(0, state.producer.length, ...JSON.parse(JSON.stringify(DataEco.producer)))
@@ -369,9 +371,9 @@ export const useDataStore = () => {
 
   const saveCaseData = async (curWS: string, caseID: number,
     gConf: Pysc.genConfig, producer: Pysc.producerConfig[], contracts: Pysc.Contracts, fiscal: Pysc.Fiskal,
-    tangible: Array<number | string | null>[], intangible: Array<number | string | null>[],
-    opex: Array<number | string | null>[], asr: Array<number | string | null>[], cos: Array<number | string | null>[],
-    lbt: Array<number | string | null>[],
+    tangible: Pysc.capitalCost_s[], intangible: Pysc.intangCost_s[],
+    opex: Pysc.opexCost_s[], asr: Pysc.asrCost_s[], cos: Pysc.cosCost_s[],
+    lbt: Pysc.lbtCost_s[],
     sensConfig: number[],
     monteConfig: tmonteConfig,
     optimComfig: optimCfg) => {
@@ -603,8 +605,8 @@ export const useDataStore = () => {
       // if (isEmpty(appStore.curWS) || appStore.selectedCase.state === 1) {
       await saveCaseData(curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
-        PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr, PyscConf.cos, PyscConf.lbt,
+        PyscConf.capCostv2, PyscConf.intangCostv2,
+        PyscConf.opexCostv2, PyscConf.asrCostv2, PyscConf.cosCostv2, PyscConf.lbtCostv2,
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)
@@ -794,7 +796,8 @@ export const useDataStore = () => {
       }
       await saveCaseData(appStore.curWS, param.id,
         ngc, Pysc.defProdConfig(), ctr, _fiscal,
-        [Array(9).fill(null)], [Array(5).fill(null)], [Array(8).fill(null)], [Array(4).fill(null)], [Array(3).fill(null)],
+        [Pysc.defCapCost_s()], [Pysc.defintangCost_s()], [Pysc.defopexCost_s()], [Pysc.defasrCost_s()],
+        [Pysc.defcosCost_s()], [Pysc.deflbtCost_s()],
         [80, 80], JSON.parse(JSON.stringify(PyscMonte.defParam)), JSON.parse(JSON.stringify(PyscOptim.defOptimCfg())))
     }
     catch (err) {
@@ -813,9 +816,9 @@ export const useDataStore = () => {
 
   const addOptimCase = async (param: Pysc.ProjectBase,
     dGConf: Pysc.genConfig, dProd: Pysc.producerConfig[], dContr: Pysc.Contracts, dFisc: Pysc.Fiskal,
-    dTan: Array<number | string | null>[], dIntan: Array<number | string | null>[],
-    dOpex: Array<number | string | null>[], dASR: Array<number | string | null>[], dCOS: Array<number | string | null>[],
-    dLBT: Array<number | string | null>[]) => {
+    dTan: Pysc.capitalCost_s[], dIntan: Pysc.intangCost_s[],
+    dOpex: Pysc.opexCost_s[], dASR: Pysc.asrCost_s[], dCOS: Pysc.cosCost_s[],
+    dLBT: Pysc.lbtCost_s[]) => {
     appStore.watcherSelCase.pause()
     PyscConf.watcherAllData.pause()
 
@@ -1005,9 +1008,9 @@ export const useDataStore = () => {
 
   const makeJSONofCase = (id: number,
     dGConf: Pysc.genConfig, dProd: Pysc.producerConfig[], dContr: Pysc.Contracts, dFisc: Pysc.Fiskal,
-    dTan: Array<number | string | null>[], dIntan: Array<number | string | null>[],
-    dOpex: Array<number | string | null>[], dASR: Array<number | string | null>[], dCOS: Array<number | string | null>[],
-    dLBT: Array<number | string | null>[],
+    dTan: Pysc.capitalCost_s[], dIntan: Pysc.intangCost_s[],
+    dOpex: Pysc.opexCost_s[], dASR: Pysc.asrCost_s[], dCOS: Pysc.cosCost_s[],
+    dLBT: Pysc.lbtCost_s[],
     useDate: boolean = true) => {
     const caseIndex = appStore.projects.findIndex(e => e.id === id)
     let jsonres = {}
@@ -1034,6 +1037,7 @@ export const useDataStore = () => {
     const start2Y = Pysc.useDayJs().utc(dGConf.start_date_project_second).local().year()
     const end2Y = Pysc.useDayJs().utc(dGConf.end_date_project_second).local().year()
     const useCOS = [1, 3, 4, 6].includes(type_of_contract) && (dGConf.useCOS ?? false)
+    const lbtUseCalc = (dGConf.lbtUseCalc ?? false)
 
     const getTaxRegime = (istartY: number) => {
       return istartY < 2016 ? 0.44 : (istartY < 2020 ? 0.42 : 0.4)
@@ -1107,7 +1111,7 @@ export const useDataStore = () => {
         co2_revenue: type_of_contract === 0 ? Pysc.OthRevType.OthRev2 : (Object.values(Pysc.OthRevType)[fiscal.co2_revenue_config]),
         is_dmo_end_weighted: type_of_contract === 0 ? undefined : dmo_is_weighted,
         tax_regime: type_of_contract === 0 ? undefined : (fiscal.Tax.tax_mode > 2 ? Object.values(Pysc.TaxType)[fiscal.Tax.tax_mode] : 'nailed down'),
-        tax_rate: type_of_contract === 0
+        effective_tax_rate: type_of_contract === 0
           ? undefined
           : (fiscal.Tax.tax_mode === 1
             ? table2Array(fiscal.Tax.multi_tax_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY))
@@ -1326,27 +1330,38 @@ export const useDataStore = () => {
       return lifting
     }
 
-    const cost2Json = (name: string, tcost: number, icost: Array<number | string | null>[],
-      isTransistion: boolean = false, icontract: number = 0,
+    const cost2Json = (name: string, tcost: number,
+      icost: Pysc.capitalCost_s[] | Pysc.intangCost_s[] | Pysc.opexCost_s[] | Pysc.asrCost_s[] | Pysc.cosCost_s[] | Pysc.lbtCost_s[],
+      fisc: Pysc.FiskalBase, isTransistion: boolean = false, icontract: number = 0,
     ) => {
       const toValue = (val: any, def: number | null = 0.0) => Pysc.is_number(val) ? Pysc.toNumnber(val) : def
 
       const cost_data = JSON.parse(JSON.stringify(icost)).filter(row => {
-        return !isEmpty(row[0]) && !isEmpty(row[1]) && !isEmpty(row[2])
+        return (tcost === 5 && lbtUseCalc && !isEmpty(row.expense_year) && !isEmpty(row.cost_allocation))
+          || ((tcost !== 5 || (tcost === 5 && !lbtUseCalc)) && !isEmpty(row.expense_year) && !isEmpty(row.cost_allocation) && !isEmpty(tcost === 2 ? row.fixed_cost : row.cost))
       })
 
-      cost_data.sort((a, b) => a[0] - b[0])
+      cost_data.sort((a, b) => a.expense_year - b.expense_year)
+
+      cost_data.map(c => {
+        if (Object.keys(c).includes('final_year') && isEmpty(c.final_year))
+          c.final_year = c.expense_year
+      })
 
       // add condisiton of delayed/Acc
       if (DelAccYear !== 0 && cost_data.length) {
         cost_data.map(c => {
-          c[0] += DelAccYear
-          if (tcost === 0 && Pysc.is_number(c[3]))
-            c[3] += DelAccYear
+          if (Pysc.is_number(c.expense_year))
+            c.expense_year += DelAccYear
+          if (tcost === 0 && Pysc.is_number(c.pis_year))
+            c.pis_year += DelAccYear
+          else if ((tcost === 3 || (tcost === 5 && lbtUseCalc)) && Pysc.is_number(c.final_year))
+            c.final_year += DelAccYear
         })
 
         // if (+dGConf.delayAccMode === 1) {
-        const del_index = cost_data.findIndex(c => c[0] > (isTransistion ? end2Y : endY))
+        const del_index = cost_data.findIndex(c => c.expense_year > (isTransistion ? end2Y : endY))
+
         if (del_index !== -1)
           cost_data.splice(del_index)
 
@@ -1361,8 +1376,8 @@ export const useDataStore = () => {
 
       if (isTransistion) {
         cost_data.splice(0, cost_data.length, ...cost_data.filter(row => {
-          return Pysc.toNumnber(row[0]) >= (icontract === 1 ? start2Y : startY)
-            && (icontract === 0 ? (Pysc.toNumnber(row[0]) <= endY) : true)
+          return Pysc.toNumnber(row.expense_year) >= (icontract === 1 ? start2Y : startY)
+            && (icontract === 0 ? (Pysc.toNumnber(row.expense_year) <= endY) : true)
         }))
 
         const dM = [Pysc.useDayJs().utc(dGConf.end_date_project).local().date(), Pysc.useDayJs().utc(dGConf.end_date_project).local().month()]
@@ -1370,8 +1385,20 @@ export const useDataStore = () => {
           const factorD = Pysc.useDayJs().utc(dGConf.end_date_project).local().dayOfYear() / 365.0
 
           cost_data.splice(0, cost_data.length, ...cost_data.map(row => {
-            if (row[0] === endY)
-              row[2] *= (icontract === 0 ? factorD : (1 - factorD))
+            if (row.expense_year === endY) {
+              if (tcost === 5 && lbtUseCalc) {
+                ['utilized_land_area', 'utilized_building_area', 'njop_land', 'njop_building', 'gross_revenue'].forEach(k => {
+                  if (Pysc.is_number(row[k]))
+                    row[k] *= (icontract === 0 ? factorD : (1 - factorD))
+                })
+              }
+              else {
+                if (tcost === 2 && Pysc.is_number(row.fixed_cost))
+                  row.fixed_cost *= (icontract === 0 ? factorD : (1 - factorD))
+                else if (tcost !== 2 && Pysc.is_number(row.cost))
+                  row.cost *= (icontract === 0 ? factorD : (1 - factorD))
+              }
+            }
 
             return row
           }))
@@ -1381,30 +1408,87 @@ export const useDataStore = () => {
       if (!useCOS && tcost === 4)
         cost_data.splice(0)
 
+      const mapperTable: any[] = [
+        { k: 'start_year', f: 'i', v: isTransistion && icontract === 1 ? start2Y : startY, asValue: true },
+        { k: 'end_year', f: 'i', v: isTransistion && icontract === 1 ? end2Y : endY, asValue: true },
+        { k: 'expense_year', f: 'f' },
+        { k: 'cost_allocation', f: [{ k: 'Oil', v: 'Oil' }, { k: 'Gas', v: 'Gas' }] },
+        (tcost === 5 && lbtUseCalc ? { k: 'cost', f: 'f', v: null, asValue: true } : { k: tcost === 2 ? 'fixed_cost' : 'cost', f: 'f' }),
+        { k: 'tax_discount', f: 'f', v: fisc.vat_discount },
+        { k: 'tax_portion', f: 'f' },
+        { k: 'description', f: 's' },
+      ]
+
+      if (tcost === 0) {
+        mapperTable.push(...[
+          { k: 'pis_year', f: 'i' },
+          { k: 'useful_life', f: 'i' },
+          { k: 'depreciation_factor', f: 'f' },
+          { k: 'is_ic_applied', f: [{ k: 'No', v: false }, { k: 'Yes', v: true }] },
+          { k: 'salvage_value', f: 'f', v: 0 },
+        ])
+      }
+      else if (tcost === 2) {
+        mapperTable.push(...[
+          { k: 'prod_rate', f: 'f' },
+          { k: 'cost_per_volume', f: 'f' },
+        ])
+      }
+      else if (tcost === 3) {
+        mapperTable.push(...[
+          { k: 'final_year', f: 'i' },
+          { k: 'future_rate', f: 'f', v: fisc.asr_future_rate },
+        ])
+      }
+      else if (tcost === 5) {
+        if (lbtUseCalc) {
+          mapperTable.push(...[
+            { k: 'final_year', f: 'i' },
+            { k: 'utilized_land_area', f: 'f' },
+            { k: 'utilized_building_area', f: 'f' },
+            { k: 'njop_land', f: 'f' },
+            { k: 'njop_building', f: 'f' },
+            { k: 'gross_revenue', f: 'f' },
+          ])
+        }
+        else {
+          mapperTable.push(...[
+            { k: 'final_year', f: 'i', v: null, asValue: true },
+            { k: 'utilized_land_area', f: 'f', v: null, asValue: true },
+            { k: 'utilized_building_area', f: 'f', v: null, asValue: true },
+            { k: 'njop_land', f: 'f', v: null, asValue: true },
+            { k: 'njop_building', f: 'f', v: null, asValue: true },
+            { k: 'gross_revenue', f: 'f', v: null, asValue: true },
+          ])
+        }
+      }
+
       return {
-        [`${name}`]: {
-          "start_year": isTransistion && icontract === 1 ? start2Y : startY,
-          "end_year": isTransistion && icontract === 1 ? end2Y : endY,
-          [`${tcost === 2 ? 'fixed_cost' : 'cost'}`]: cost_data.length ? cost_data.map(e => toValue(e[2])) : [0.0],
-          "expense_year": cost_data.length ? cost_data.map(e => toValue(e[0], null)) : (isTransistion && icontract === 1 ? [start2Y] : [startY]),
-          "cost_allocation": cost_data.length ? cost_data.map(e => e[1] ?? 'Oil') : ['Oil'],
-          ...(tcost === 4
-            ? {}
-            : {
-              "description": cost_data.length ? cost_data.map(e => e.slice(-1)[0] ?? '-') : ['-'],
-              "vat_portion": tcost !== 3 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(tcost === 2 ? -3 : -2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
-              "vat_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],
-              "lbt_portion": tcost === 2 || tcost === 5 ? (cost_data.length ? cost_data.map(e => toValue(e.slice(-2)[0])) : [0.0]) : (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]),
-              "lbt_discount": cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0],
-              "pis_year": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[3], null)) : [0.0]) : undefined,
-              "salvage_value": tcost === 0 ? (cost_data.length ? Array<number>(cost_data.length).fill(0.0) : [0.0]) : undefined,
-              "useful_life": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[4], 0)) : [0.0]) : undefined,
-              "depreciation_factor": tcost === 0 ? (cost_data.length ? cost_data.map(e => toValue(e[5])) : [0.0]) : undefined,
-              "is_ic_applied": tcost === 0 ? (cost_data.length ? cost_data.map(e => e[6] === 'Yes') : [false]) : undefined,
-              "prod_rate": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[3])) : [0.0]) : undefined,
-              "cost_per_volume": tcost === 2 ? (cost_data.length ? cost_data.map(e => toValue(e[4])) : [0.0]) : undefined,
-            }),
-        },
+        [`${name}`]: mapperTable.reduce((prev, m, i) => {
+          const val_ = Object.keys(m).includes('v')
+            ? (m.asValue === true ? m.v : (cost_data.length ? Array(cost_data.length).fill(m.v) : [m.v]))
+            : (
+              cost_data.length
+                ? cost_data.map(e => {
+                  if (['i', 'f'].includes(m.f)) {
+                    return toValue(e[m.k])
+                  }
+                  else if (m.f === 's') {
+                    return !isEmpty(e[m.k]) ? e[m.k] : '-'
+                  }
+                  else if (Array.isArray(m.f)) {
+                    const _idx = m.f.findIndex(f => f.k.toLowerCase() === (e[m.k] ?? '').toLowerCase())
+
+                    return (_idx !== -1) ? m.f[_idx].v : m.f[0].v
+                  }
+
+                  return null
+                })
+                : (['i', 'f'].includes(m.f) ? (['expense_year', 'final_year'].includes(m.k) ? (isTransistion && icontract === 1 ? [start2Y] : [startY]) : [0.0]) : (m.f === 's' ? ['-'] : (Array.isArray(m.f) ? [m.f[0].v] : [null])))
+            )
+
+          return { ...prev, [`${m.k}`]: val_ }
+        }, {}),
       }
     }
 
@@ -1416,45 +1500,45 @@ export const useDataStore = () => {
       })
 
     const vtangible = (type_of_contract < 3
-      ? cost2Json(appStore.projects[caseIndex].name, 0, dTan)
+      ? cost2Json(appStore.projects[caseIndex].name, 0, dTan, dFisc.Fiskal)
       : {
-        first: cost2Json(appStore.projects[caseIndex].name, 0, dTan, true, 0),
-        second: cost2Json(appStore.projects[caseIndex].name, 0, dTan, true, 1),
+        first: cost2Json(appStore.projects[caseIndex].name, 0, dTan, dFisc.Fiskal, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 0, dTan, dFisc.Fiskal2, true, 1),
       })
 
     const vintangible = (type_of_contract < 3
-      ? cost2Json(appStore.projects[caseIndex].name, 1, dIntan)
+      ? cost2Json(appStore.projects[caseIndex].name, 1, dIntan, dFisc.Fiskal)
       : {
-        first: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, true, 0),
-        second: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, true, 1),
+        first: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, dFisc.Fiskal, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 1, dIntan, dFisc.Fiskal2, true, 1),
       })
 
     const vopex = (type_of_contract < 3
-      ? cost2Json(appStore.projects[caseIndex].name, 2, dOpex)
+      ? cost2Json(appStore.projects[caseIndex].name, 2, dOpex, dFisc.Fiskal)
       : {
-        first: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, true, 0),
-        second: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, true, 1),
+        first: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, dFisc.Fiskal, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 2, dOpex, dFisc.Fiskal2, true, 1),
       })
 
     const vasr = (type_of_contract < 3
-      ? cost2Json(appStore.projects[caseIndex].name, 3, dASR)
+      ? cost2Json(appStore.projects[caseIndex].name, 3, dASR, dFisc.Fiskal)
       : {
-        first: cost2Json(appStore.projects[caseIndex].name, 3, dASR, true, 0),
-        second: cost2Json(appStore.projects[caseIndex].name, 3, dASR, true, 1),
+        first: cost2Json(appStore.projects[caseIndex].name, 3, dASR, dFisc.Fiskal, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 3, dASR, dFisc.Fiskal2, true, 1),
       })
 
     const vcos = (type_of_contract < 3
-      ? cost2Json(appStore.projects[caseIndex].name, 4, dCOS)
+      ? cost2Json(appStore.projects[caseIndex].name, 4, dCOS, dFisc.Fiskal)
       : {
-        first: cost2Json(appStore.projects[caseIndex].name, 4, dCOS, true, 0),
-        second: cost2Json(appStore.projects[caseIndex].name, 4, dCOS, true, 1),
+        first: cost2Json(appStore.projects[caseIndex].name, 4, dCOS, dFisc.Fiskal, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 4, dCOS, dFisc.Fiskal2, true, 1),
       })
 
     const vlbt = (type_of_contract < 3
-      ? cost2Json(appStore.projects[caseIndex].name, 5, dLBT)
+      ? cost2Json(appStore.projects[caseIndex].name, 5, dLBT, dFisc.Fiskal)
       : {
-        first: cost2Json(appStore.projects[caseIndex].name, 5, dLBT, true, 0),
-        second: cost2Json(appStore.projects[caseIndex].name, 5, dLBT, true, 1),
+        first: cost2Json(appStore.projects[caseIndex].name, 5, dLBT, dFisc.Fiskal, true, 0),
+        second: cost2Json(appStore.projects[caseIndex].name, 5, dLBT, dFisc.Fiskal2, true, 1),
       })
 
     let oil_onstream_date_ = Oil ? Pysc.useDayJs().utc(Oil.onstream_date).local().add(DelAccYear, 'year') : null
@@ -1495,7 +1579,7 @@ export const useDataStore = () => {
           profitability_discounted: false,
         },
         lifting: vlifting,
-        tangible: vtangible,
+        capital: vtangible,
         intangible: vintangible,
         opex: vopex,
         asr: vasr,
@@ -1524,7 +1608,7 @@ export const useDataStore = () => {
         grosssplit: type_of_contract === 2 ? gs2json(dContr.gs, !!Gas) : undefined,
         contract_arguments: contrArg2json(dFisc.Fiskal, type_of_contract === 1, dGConf, type_of_contract === 1 ? dContr.cr.dmo_is_weighted : dContr.gs.dmo_is_weighted, !!Gas),
         lifting: vlifting,
-        tangible: vtangible,
+        capital: vtangible,
         intangible: vintangible,
         opex: vopex,
         asr: vasr,
@@ -1548,7 +1632,7 @@ export const useDataStore = () => {
             ([3, 4].includes(type_of_contract) ? dContr.cr : dContr.gs).dmo_is_weighted, !!Gas,
             true, 0),
           lifting: vlifting.first,
-          tangible: vtangible.first,
+          capital: vtangible.first,
           intangible: vintangible.first,
           opex: vopex.first,
           asr: vasr.first,
@@ -1568,7 +1652,7 @@ export const useDataStore = () => {
             ([3, 6].includes(type_of_contract) ? <Pysc.costRec>dContr.second : <Pysc.GS>dContr.second).dmo_is_weighted, !!Gas,
             true, 1),
           lifting: vlifting.second,
-          tangible: vtangible.second,
+          capital: vtangible.second,
           intangible: vintangible.second,
           opex: vopex.second,
           asr: vasr.second,

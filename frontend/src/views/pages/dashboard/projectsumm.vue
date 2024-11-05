@@ -73,11 +73,35 @@ const checkColumnRender = (instance, td, row, col, prop, value, cellProperties) 
 const { TabelContainer: TabelContainer1, hotTableRef: refTableSplitInfo1, hotInstance: hotInstance1, htTblSett: mainSetting1, updateData: updateData1 } = useHTtable({
   data: [],
   nestedHeaders: [
-    ['', { label: 'Base Split', colspan: 2 }, { label: 'Contractor Split', colspan: 2 }, { label: 'Progressive Split', colspan: 2 }, '', { label: 'Year of max. split', colspan: 2 }],
-    ['year', 'Oil', 'Gas', 'Oil', 'Gas', 'Oil', 'Gas', 'Variable Split', 'Oil', 'Gas'],
+    ['',
+      { label: 'Base Split', colspan: 2 },
+      { label: 'Contractor Split', colspan: 2 },
+      '',
+      { label: 'Price Prog. Split', colspan: 2 },
+      { label: 'Cumm. prod. Prog. Split', colspan: 2 },
+      { label: 'Total Prog. Split', colspan: 2 },
+      { label: 'Year of max. split', colspan: 2 }],
+    ['year',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas',
+      'Variable Split',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas'],
   ],
   columns: [
     { type: 'numeric' },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
     { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
     { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
     { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
@@ -98,8 +122,28 @@ const { TabelContainer: TabelContainer1, hotTableRef: refTableSplitInfo1, hotIns
 const { TabelContainer: TabelContainer2, hotTableRef: refTableSplitInfo2, hotInstance: hotInstance2, htTblSett: mainSetting2, updateData: updateData2 } = useHTtable({
   data: [],
   nestedHeaders: [
-    ['', { label: 'Base Split', colspan: 2 }, { label: 'Contractor Split', colspan: 2 }, { label: 'Progressive Split', colspan: 2 }, '', { label: 'Year of max. split', colspan: 2 }],
-    ['year', 'Oil', 'Gas', 'Oil', 'Gas', 'Oil', 'Gas', 'Variable Split', 'Oil', 'Gas'],
+    ['',
+      { label: 'Base Split', colspan: 2 },
+      { label: 'Contractor Split', colspan: 2 },
+      '',
+      { label: 'Price Prog. Split', colspan: 2 },
+      { label: 'Cumm. prod. Prog. Split', colspan: 2 },
+      { label: 'Total Prog. Split', colspan: 2 },
+      { label: 'Year of max. split', colspan: 2 }],
+    ['year',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas',
+      'Variable Split',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas',
+      'Oil',
+      'Gas'],
   ],
   columns: [
     { type: 'numeric' },
@@ -110,9 +154,13 @@ const { TabelContainer: TabelContainer2, hotTableRef: refTableSplitInfo2, hotIns
     { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
     { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
     { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
+    { type: 'numeric', numericFormat: { pattern: { thousandSeparated: false, mantissa: 2, output: 'percent', negative: "parenthesis" } } },
 
     { renderer: checkColumnRender },
-    { type: checkColumnRender },
+    { renderer: checkColumnRender },
   ],
   readOnly: true,
   rowHeaders: false,
@@ -133,9 +181,13 @@ const showSplitInfo = () => {
         _data.gas_base_split[i],
         _data.oil_ctr_split[i],
         _data.gas_ctr_split[i],
-        _data.oil_prog_split[i],
-        _data.gas_prog_split[i],
         _data.var_split_array[i],
+        _data.oil_prog_price_split[i],
+        _data.gas_prog_price_split[i],
+        _data.oil_prog_cumulative_production_split[i],
+        _data.gas_prog_cumulative_production_split[i],
+        _data.oil_prog_total_split[i],
+        _data.gas_prog_total_split[i],
         _data.oil_max_split[i],
         _data.gas_max_split[i],
       ]),
@@ -158,9 +210,13 @@ const showSplitInfo = () => {
             _d.gas_base_split[i],
             _d.oil_ctr_split[i],
             _d.gas_ctr_split[i],
-            _d.oil_prog_split[i],
-            _d.gas_prog_split[i],
             _d.var_split_array[i],
+            _d.oil_prog_price_split[i],
+            _d.gas_prog_price_split[i],
+            _d.oil_prog_cumulative_production_split[i],
+            _d.gas_prog_cumulative_production_split[i],
+            _d.oil_prog_total_split[i],
+            _d.gas_prog_total_split[i],
             _d.oil_max_split[i],
             _d.gas_max_split[i],
           ]))
@@ -176,8 +232,8 @@ const optOption = [
 
 const getDataSource = (value: string, sourceType: string) => {
   const tblDataScr = [
-    [null, 'BaseSplit', null, 'Contractor Split', null, 'Progressive Split', null, null, 'Year of max split'],
-    ['Year', 'Oil', 'Gas', 'Oil', 'Gas', 'Oil', 'Gas', 'Variable Split', 'Oil', 'Gas'],
+    [null, 'BaseSplit', null, 'Contractor Split', null, null, 'Price Prog. Split', null, 'Cumm. Prod. Prog. Split', null, 'Total Prog. Split', null, 'Year of max split'],
+    ['Year', 'Oil', 'Gas', 'Oil', 'Gas', 'Variable Split', 'Oil', 'Gas', 'Oil', 'Gas', 'Oil', 'Gas', 'Oil', 'Gas'],
     ...(wShowCtr.value === 1 ? (hotInstance1.value?.getData()) : (hotInstance2.value?.getData())),
   ]
 
@@ -340,7 +396,7 @@ onMounted(() => {
             <span
               class="text-end me-2"
               :style="{ width: '24px' }"
-            >{{ index + 1 === 14 ? '' : `${index + 1}.` }}</span>{{ item.param }}
+            >{{ index + 1 >= 14 ? '' : `${index + 1}.` }}</span>{{ item.param }}
           </VListItemTitle>
           <template #append>
             <div class="d-flex justify-end">

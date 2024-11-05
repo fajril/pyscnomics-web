@@ -3,7 +3,6 @@ from pyscnomics.api.adapter import (
     get_baseproject,
     get_costrecovery,
     get_grosssplit,
-    get_indirect_taxes,
     get_transition,
 )
 from pyscnomics.tools.table import get_table
@@ -30,12 +29,12 @@ class Summaries:
             )
         )
         self.summary = summaries[0]
-        self.summary["indirect_taxes"] = get_indirect_taxes(data=self.dataJson)
+        # self.summary["indirect_taxes"] = get_indirect_taxes(data=self.dataJson)
         self.contract = summaries[1]
 
         self.tangible = (
-            self.contract._oil_capital_expenditures
-            + self.contract._gas_capital_expenditures
+            self.contract._oil_capital_expenditures_post_tax
+            + self.contract._gas_capital_expenditures_post_tax
         ).tolist()
 
         self.Year = (
@@ -98,7 +97,8 @@ class Summaries:
 
     def getExpenses(self):
         opex = (
-            self.contract._oil_opex_expenditures + self.contract._gas_opex_expenditures
+            self.contract._oil_opex_expenditures_post_tax
+            + self.contract._gas_opex_expenditures_post_tax
             if self.ctrType == 0
             else (
                 self.contract._consolidated_opex

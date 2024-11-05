@@ -44,7 +44,9 @@ class ProcessMonte:
                 distribution=(
                     "Uniform"
                     if self.parameter[i]["dist"] == 0
-                    else "Triangular" if self.parameter[i]["dist"] == 1 else "Normal"
+                    else "Triangular"
+                    if self.parameter[i]["dist"] == 1
+                    else "Normal"
                 ),
                 min_value=self.parameter[i]["min"],
                 mean_value=self.parameter[i]["base"],
@@ -89,9 +91,7 @@ class ProcessMonte:
         # for iloop in range(2 if self.type >= 3 else 1):
         contract_ = (
             # Adj_Contract if self.type < 3 else Adj_Contract[f"contract_{iloop+1}"]
-            Adj_Contract
-            if self.type < 3
-            else Adj_Contract[f"contract_{2}"]
+            Adj_Contract if self.type < 3 else Adj_Contract[f"contract_{2}"]
         )
         for i in range(len(self.parameter)):
             # OIl
@@ -109,7 +109,7 @@ class ProcessMonte:
                 )
             elif self.parameter[i]["id"] == 3:
                 Adj_Partial_Data(
-                    contract_, "CAPEX", "tangible", multipliers[i], ["cost"]
+                    contract_, "CAPEX", "capital", multipliers[i], ["cost"]
                 )
                 Adj_Partial_Data(
                     contract_, "CAPEX", "intangible", multipliers[i], ["cost"]

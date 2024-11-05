@@ -34,7 +34,7 @@ use([
 ])
 
 interface Props {
-  dataChart: Array<any>[]
+  dataChart: Pysc.capitalCost_s[] | Pysc.intangCost_s[] | Pysc.opexCost_s[] | Pysc.asrCost_s[] | Pysc.cosCost_s[] | Pysc.lbtCost_s[]
   title?: string
 }
 const appStore = useAppStore()
@@ -56,7 +56,7 @@ const chartDataConfig = computed(() => {
   const { themeBorderColor, themeDisabledTextColor, themePrimaryTextColor } = colorVariables(vuetifyTheme.current.value)
 
   // grp Years
-  const Years = props.dataChart.map(v => v[0]).sort((a, b) => a - b).filter((v, i, arr) => arr.indexOf(v) === i)
+  const Years = props.dataChart.map(v => v.expense_year).sort((a, b) => a - b).filter((v, i, arr) => arr.indexOf(v) === i)
 
   const Opt = {
     backgroundColor: vuetifyTheme.global.name.value === 'dark' ? '#2f3349' : '#ffffff',
@@ -137,11 +137,11 @@ const chartDataConfig = computed(() => {
         nameGap: 70,
         nameLocation: "middle",
       }],
-    series: props.dataChart.map(v => v[1]).filter((value, index, array) => array.indexOf(value) === index).map(v => {
-      const grpD = props.dataChart.filter(row => row[1] === v).sort((r1, r2) => r1[0] - r2[0])
+    series: props.dataChart.map(v => v.cost_allocation).filter((value, index, array) => array.indexOf(value) === index).map(v => {
+      const grpD = props.dataChart.filter(row => row.cost_allocation === v).sort((r1, r2) => r1.expense_year - r2.expense_year)
         .reduce((year, row) => {
-          year[row[0]] = year[row[0]] ?? 0
-          year[row[0]] += row[2]
+          year[row.expense_year] = year[row.expense_year] ?? 0
+          year[row.expense_year] += (props.title === 'Opex' ? row.fixed_cost : row.cost)
 
           return year
         }, {})

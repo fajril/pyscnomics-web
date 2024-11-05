@@ -29,7 +29,6 @@ log = logging.getLogger("uvicorn")
 
 
 class ConcanateCase:
-
     C_Year: np.ndarray
     C_Lifting_Oil: np.ndarray
     C_Lifting_Gas: np.ndarray
@@ -477,8 +476,8 @@ class ConcanateCase:
             C_Oil_Revenue=contract._oil_revenue,
             C_Gas_Revenue=contract._gas_revenue,
             C_Revenue=contract._consolidated_revenue,
-            C_Oil_tangible=contract._oil_capital_expenditures,
-            C_Gas_tangible=contract._gas_capital_expenditures,
+            C_Oil_tangible=contract._oil_capital_expenditures_post_tax,
+            C_Gas_tangible=contract._gas_capital_expenditures_post_tax,
             C_Depreciable=contract._consolidated_capital_cost,
             C_Intangible=contract._consolidated_intangible,
             C_Opex=contract._consolidated_opex,
@@ -563,8 +562,8 @@ class ConcanateCase:
             C_Oil_Revenue=contract._oil_revenue,
             C_Gas_Revenue=contract._gas_revenue,
             C_Revenue=contract._consolidated_revenue,
-            C_Oil_tangible=contract._oil_capital_expenditures,
-            C_Gas_tangible=contract._gas_capital_expenditures,
+            C_Oil_tangible=contract._oil_capital_expenditures_post_tax,
+            C_Gas_tangible=contract._gas_capital_expenditures_post_tax,
             C_Depreciable=contract._consolidated_capital_cost,
             C_Intangible=contract._consolidated_intangible,
             C_Opex=contract._consolidated_opex,
@@ -840,7 +839,9 @@ class CaseCombine:
             else (
                 get_grosssplit(data=dataJson, summary_result=False)[1]
                 if ctrType == 2
-                else get_transition(data=dataJson)[1] if ctrType >= 3 else []
+                else get_transition(data=dataJson)[1]
+                if ctrType >= 3
+                else []
             )
         )
         if tmpFile.exists():

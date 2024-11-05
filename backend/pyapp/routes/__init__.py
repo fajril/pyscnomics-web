@@ -33,18 +33,15 @@ from pyscnomics import contracts
 from pyscnomics.api.adapter import (
     get_contract_optimization,
     get_contract_table,
-    get_costrecovery,
-    get_grosssplit,
     get_grosssplit_split,
     get_ltp_dict,
     get_rpd_dict,
-    get_transition,
     get_transition_split,
 )
 from pyscnomics.tools import summary
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..crud.project import create_project, get_monte_value, get_projects, update_project
+from ..crud.project import create_project, get_projects, update_project
 from ..database.db import get_async_session
 from ..database.projdb import make_proj_db_and_tables
 from ..models.project import Project
@@ -584,17 +581,17 @@ async def wrt_cost(dataDict: dict):
             os.makedirs(str(tmpPath))
         match mode:
             case 1:
-                filePath = Path(tmpPath, f"intangible_{caseid}.bin")
+                filePath = Path(tmpPath, f"intangiblev2_{caseid}.bin")
             case 2:
-                filePath = Path(tmpPath, f"opex_{caseid}.bin")
+                filePath = Path(tmpPath, f"opexv2_{caseid}.bin")
             case 3:
-                filePath = Path(tmpPath, f"asr_{caseid}.bin")
+                filePath = Path(tmpPath, f"asrv2_{caseid}.bin")
             case 4:
-                filePath = Path(tmpPath, f"cos_{caseid}.bin")
+                filePath = Path(tmpPath, f"cosv2_{caseid}.bin")
             case 5:
-                filePath = Path(tmpPath, f"lbt_{caseid}.bin")
+                filePath = Path(tmpPath, f"lbtv2_{caseid}.bin")
             case _:
-                filePath = Path(tmpPath, f"tangible_{caseid}.bin")
+                filePath = Path(tmpPath, f"tangiblev2_{caseid}.bin")
         with open(filePath, "wb") as out1:
             pickle.dump(data, out1)
             out1.close()
@@ -970,7 +967,9 @@ async def calc_ext_summ(data: dict):
         splitInfo = (
             get_grosssplit_split(data=json_dict["contract"])
             if type == 2
-            else get_transition_split(data=json_dict["contract"]) if type >= 3 else None
+            else get_transition_split(data=json_dict["contract"])
+            if type >= 3
+            else None
         )
 
         cardResult = {
@@ -1017,7 +1016,7 @@ async def get_case_summaries(dataEnt: dict):
         "investment",
         "tangible",
         "intangible",
-        "opex_and_asr",
+        "opex_asr_lbt",
         "opex",
         "asr",
         "cost_recovery/deductible_cost",
@@ -1042,7 +1041,7 @@ async def get_case_summaries(dataEnt: dict):
         "gov_take",
         "gov_take_over_gross_rev",
         "gov_take_npv",
-        "indirect_taxes",
+        "total_indirect_taxes",
     ]
     try:
         type = dataEnt["type"]
@@ -1345,7 +1344,7 @@ async def calc_optim(dataDict: dict):
                 "investment",
                 "tangible",
                 "intangible",
-                "opex_and_asr",
+                "opex_asr_lbt",
                 "opex",
                 "asr",
                 "cost_recovery/deductible_cost",
@@ -1370,7 +1369,7 @@ async def calc_optim(dataDict: dict):
                 "gov_take",
                 "gov_take_over_gross_rev",
                 "gov_take_npv",
-                "indirect_taxes",
+                "total_indirect_taxes",
             ]
 
             return {

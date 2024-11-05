@@ -73,7 +73,7 @@ class ProcessSens:
             elif par == "OPEX":
                 Adj_Partial_Data(contract_, "opex", ["fixed_cost", "cost_per_volume"])
             elif par == "CAPEX":
-                Adj_Partial_Data(contract_, "tangible", ["cost"])
+                Adj_Partial_Data(contract_, "capital", ["cost"])
                 Adj_Partial_Data(contract_, "intangible", ["cost"])
 
         return Adj_Contract

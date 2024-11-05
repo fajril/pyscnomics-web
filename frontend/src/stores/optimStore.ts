@@ -20,7 +20,7 @@ export const optimParamType = {
   VAT_RATE: "VAT Rate",
   EFFECTIVE_TAX_RATE: "Effective Tax Rate",
   MINISTERIAL_DISCRETION: "Ministerial Discretion",
-  DEPRECIATION_ACCELERATION: "Depreciation Acceleration",
+  DEPRECIATION_ACCELERATION: "Accelerated Depreciation",
   VAT_DISCOUNT: 'VAT Discount',
   LBT_DISCOUNT: 'LBT Discount',
 } as const

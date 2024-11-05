@@ -93,8 +93,8 @@ const calcData = async () => {
     /* && appStore.selectedCase.state === 1 */) {
       await useDataStore().saveCaseData(appStore.curWS, appStore.curSelCase,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
-        PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr, PyscConf.cos, PyscConf.lbt,
+        PyscConf.capCostv2, PyscConf.intangCostv2,
+        PyscConf.opexCostv2, PyscConf.asrCostv2, PyscConf.cosCostv2, PyscConf.lbtCostv2,
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)
@@ -107,12 +107,12 @@ const calcData = async () => {
       const dFisc = _caseid === appStore.curSelCase ? PyscConf.fiscal : (await useDataStore().loadDataModule('rdfiscalconf', appStore.curWS, _caseid))
       const dContr = _caseid === appStore.curSelCase ? PyscConf.contracts : (await useDataStore().loadDataModule('rdcontracts', appStore.curWS, _caseid))
       const dProd = _caseid === appStore.curSelCase ? PyscConf.producer : (await useDataStore().loadDataModule('rdproducer', appStore.curWS, _caseid))
-      const dTan = _caseid === appStore.curSelCase ? PyscConf.tangible : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 0))
-      const dIntan = _caseid === appStore.curSelCase ? PyscConf.intangible : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 1))
-      const dOpex = _caseid === appStore.curSelCase ? PyscConf.opex : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 2))
-      const dASR = _caseid === appStore.curSelCase ? PyscConf.asr : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 3))
-      const dCOS = _caseid === appStore.curSelCase ? PyscConf.cos : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 4))
-      const dLBT = _caseid === appStore.curSelCase ? PyscConf.lbt : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 5))
+      const dTan = _caseid === appStore.curSelCase ? PyscConf.capCostv2 : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 0))
+      const dIntan = _caseid === appStore.curSelCase ? PyscConf.intangCostv2 : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 1))
+      const dOpex = _caseid === appStore.curSelCase ? PyscConf.opexCostv2 : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 2))
+      const dASR = _caseid === appStore.curSelCase ? PyscConf.asrCostv2 : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 3))
+      const dCOS = _caseid === appStore.curSelCase ? PyscConf.cosCostv2 : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 4))
+      const dLBT = _caseid === appStore.curSelCase ? PyscConf.lbtCostv2 : (await useDataStore().loadDataModule('rdcosts', appStore.curWS, _caseid, 5))
 
       const dataJson = useDataStore().makeJSONofCase(_caseid,
         dGConf, dProd, dContr, dFisc, dTan, dIntan, dOpex, dASR, dCOS, dLBT, true)

@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
-import { useHTTP } from '@/utils/pysc/useHttp'
-import { useTooltip } from '@/utils/pysc/useTooltips'
-import * as math from 'mathjs'
-import DotdotOpt from '../components/dotdotOpt.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscSensStore } from '@/stores/sensStore'
 import * as Pysc from "@/utils/pysc/pyscType"
 import { useDataStore } from '@/utils/pysc/useDataStore'
+import { useHTTP } from '@/utils/pysc/useHttp'
+import { useTooltip } from '@/utils/pysc/useTooltips'
 import SensItemRes from '@/views/pages/analysis/sensItemRes.vue'
 import 'handsontable/dist/handsontable.full.min.css'
+import * as math from 'mathjs'
+import DotdotOpt from '../components/dotdotOpt.vue'
 
 definePage({
   name: 'pysc-sens',
@@ -158,13 +158,13 @@ const tableSensConfig = computed(() => {
 
   }
   try {
-    Opt.data[1][2] = PyscConf.dataOpex.length ? math.sum(PyscConf.dataOpex.map(v => Pysc.is_number(v[2]) ? +v[2] : 0)) : 0
+    Opt.data[1][2] = PyscConf.dataOpex.length ? math.sum(PyscConf.dataOpex.map(v => Pysc.is_number(v.fixed_cost) ? +v.fixed_cost : 0)) : 0
   }
   catch (error) {
 
   }
   try {
-    Opt.data[2][2] = PyscConf.dataTan.length ? math.sum(PyscConf.dataTan.map(v => Pysc.is_number(v[2]) ? +v[2] : 0)) : 0
+    Opt.data[2][2] = PyscConf.dataTan.length ? math.sum(PyscConf.dataTan.map(v => Pysc.is_number(v.cost) ? +v.cost : 0)) : 0
   }
   catch (error) {
 

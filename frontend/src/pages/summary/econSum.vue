@@ -191,12 +191,12 @@ const buildPDF = async () => {
   const dFisc = PyscConf.fiscal
   const dContr = PyscConf.contracts
   const dProd = PyscConf.producer
-  const dTan = PyscConf.tangible
-  const dIntan = PyscConf.intangible
-  const dOpex = PyscConf.opex
-  const dASR = PyscConf.asr
-  const dCOS = PyscConf.cos
-  const dLBT = PyscConf.lbt
+  const dTan = PyscConf.capCostv2
+  const dIntan = PyscConf.intangCostv2
+  const dOpex = PyscConf.opexCostv2
+  const dASR = PyscConf.asrCostv2
+  const dCOS = PyscConf.cosCostv2
+  const dLBT = PyscConf.lbtCostv2
 
   await useDataStore().saveCaseData(appStore.curWS, appStore.curSelCase,
     dGConf, dProd, dContr, dFisc,

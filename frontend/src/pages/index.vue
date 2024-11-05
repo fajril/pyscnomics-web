@@ -109,7 +109,10 @@ const templatedata = [
       { param: "GoI NPV", unit: "MUS$ ", ctrl: null },
     ],
   },
-  { param: "Indirect Taxes", unit: "MUS$", ctrl: null },
+  { param: "Total Indirect Taxes", unit: "MUS$", ctrl: null },
+  { param: "Undepreciated Asset", unit: "MUS$", ctrl: null },
+  { param: "   Undepreciated Asset (Oil)", unit: "MUS$", ctrl: null },
+  { param: "   Undepreciated Asset (Gas)", unit: "MUS$", ctrl: null },
 ]
 
 const dataSumm = ref(JSON.parse(JSON.stringify(templatedata)))
@@ -209,9 +212,13 @@ const loadSummary = async () => {
           gas_base_split: object2Arr(value.contractor_split.gas_base_split),
           oil_ctr_split: object2Arr(value.contractor_split.oil_ctr_split),
           gas_ctr_split: object2Arr(value.contractor_split.gas_ctr_split),
-          oil_prog_split: object2Arr(value.contractor_split.oil_prog_split),
-          gas_prog_split: object2Arr(value.contractor_split.gas_prog_split),
           var_split_array: object2Arr(value.contractor_split.var_split_array),
+          oil_prog_price_split: object2Arr(value.contractor_split.oil_prog_price_split),
+          gas_prog_price_split: object2Arr(value.contractor_split.gas_prog_price_split),
+          oil_prog_cumulative_production_split: object2Arr(value.contractor_split.oil_prog_cumulative_production_split),
+          gas_prog_cumulative_production_split: object2Arr(value.contractor_split.gas_prog_cumulative_production_split),
+          oil_prog_total_split: object2Arr(value.contractor_split.oil_prog_total_split),
+          gas_prog_total_split: object2Arr(value.contractor_split.gas_prog_total_split),
           years: object2Arr(value.contractor_split.var_split_array, false),
           oil_max_split: [null],
           gas_max_split: [null],
@@ -265,7 +272,7 @@ const loadSummary = async () => {
       }
     })
 
-    // console.log(result.summary)
+    console.log(result.summary)
 
     dataSumm.value[0].ctrl = result.summary.lifting_oil
     dataSumm.value[1].ctrl = result.summary.oil_wap
@@ -282,7 +289,7 @@ const loadSummary = async () => {
     dataSumm.value[7].child[0].ctrl = result.summary.tangible
     dataSumm.value[7].child[1].ctrl = result.summary.intangible
 
-    dataSumm.value[8].ctrl = result.summary.opex_and_asr
+    dataSumm.value[8].ctrl = result.summary.opex_asr_lbt
     dataSumm.value[8].child[0].ctrl = result.summary.opex
     dataSumm.value[8].child[1].ctrl = result.summary.asr
 
@@ -310,7 +317,13 @@ const loadSummary = async () => {
     dataSumm.value[12].child[5].ctrl = result.summary.gov_take_over_gross_rev
     dataSumm.value[12].child[6].ctrl = result.summary.gov_take_npv
 
-    dataSumm.value[13].ctrl = result.summary.indirect_taxes
+    dataSumm.value[13].ctrl = result.summary.total_indirect_taxes
+    dataSumm.value[14].ctrl = result.summary.undepreciated_asset_total
+    dataSumm.value[15].ctrl = result.summary.undepreciated_asset_oil
+    dataSumm.value[16].ctrl = result.summary.undepreciated_asset_gas
+
+    if (!PyscConf.prodHasGas())
+      dataSumm.value.splice(15)
   }
   catch (error) {
     console.log(['error', error])

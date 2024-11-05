@@ -39,7 +39,7 @@ const dayjs = Pysc.useDayJs()
 
 const RefSettDialogs = ref()
 
-console.log(`App version: ${import.meta.env.VITE_PSC_VER122}`)
+console.log(`App version: ${import.meta.env.VITE_PSC_VER125}`)
 
 appStore.mainCallbackCaseID = async (value, oldValue) => {
   if (value !== oldValue && oldValue !== -1) {
@@ -48,8 +48,8 @@ appStore.mainCallbackCaseID = async (value, oldValue) => {
     if (oldIndex !== -1/* && appStore.projects[oldIndex].state === 1 */) {
       await useDataStore().saveCaseData(appStore.curWS, oldValue,
         PyscConf.generalConfig, PyscConf.producer, PyscConf.contracts, PyscConf.fiscal,
-        PyscConf.tangible, PyscConf.intangible,
-        PyscConf.opex, PyscConf.asr, PyscConf.cos, PyscConf.lbt,
+        PyscConf.capCostv2, PyscConf.intangCostv2,
+        PyscConf.opexCostv2, PyscConf.asrCostv2, PyscConf.cosCostv2, PyscConf.lbtCostv2,
         PyscSens.sensConfig,
         PyscMonte.monteConfig,
         PyscOptim.optimConfig)

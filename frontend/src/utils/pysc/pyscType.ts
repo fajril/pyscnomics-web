@@ -537,6 +537,7 @@ export interface genConfig {
   delayAccMode?: number
   delayAccYear?: number
   useCOS?: boolean
+  lbtUseCalc?: boolean
 }
 
 export const defGenConfig = (): genConfig => ({
@@ -551,6 +552,7 @@ export const defGenConfig = (): genConfig => ({
   delayAccMode: 0,
   delayAccYear: 0,
   useCOS: false,
+  lbtUseCalc: false,
 })
 
 export const defProdPriceBase = (index, gsaNumb: number = 1): prodPriceBase[] => {
@@ -1059,3 +1061,121 @@ export interface tIncrType {
   npv_mode: number
   discounting_mode: number
 }
+
+export interface capitalCost_s {
+  expense_year: number | null | undefined
+  cost_allocation: 'Oil' | 'Gas' | null | undefined
+  cost: number | null | undefined
+  pis_year: number | null | undefined
+  useful_life: number | null | undefined
+  depreciation_factor: number | null | undefined
+  is_ic_applied: 'Yes' | 'No' | null | undefined
+  tax_portion: number | null | undefined
+  description: string | null | undefined
+}
+
+export const defCapCost_s = () => ({
+  expense_year: null,
+  cost_allocation: null,
+  cost: null,
+  pis_year: null,
+  useful_life: null,
+  depreciation_factor: null,
+  is_ic_applied: null,
+  tax_portion: null,
+  description: null,
+})
+export interface intangCost_s {
+  expense_year: number | null | undefined
+  cost_allocation: 'Oil' | 'Gas' | null | undefined
+  cost: number | null | undefined
+  tax_portion: number | null | undefined
+  description: string | null | undefined
+}
+export const defintangCost_s = () => ({
+  expense_year: null,
+  cost_allocation: null,
+  cost: null,
+  tax_portion: null,
+  description: null,
+})
+export interface opexCost_s {
+  expense_year: number | null | undefined
+  cost_allocation: 'Oil' | 'Gas' | null | undefined
+  fixed_cost: number | null | undefined
+  prod_rate: number | null | undefined
+  cost_per_volume: number | null | undefined
+  tax_portion: number | null | undefined
+  description: string | null | undefined
+}
+
+export const defopexCost_s = () => ({
+  expense_year: null,
+  cost_allocation: null,
+  fixed_cost: null,
+  prod_rate: null,
+  cost_per_volume: null,
+  tax_portion: null,
+  description: null,
+})
+export interface asrCost_s {
+  expense_year: number | null | undefined
+  cost_allocation: 'Oil' | 'Gas' | null | undefined
+  cost: number | null | undefined
+  final_year: number | null | undefined
+  tax_portion: number | null | undefined
+  description: string | null | undefined
+}
+
+export const defasrCost_s = () => ({
+  expense_year: null,
+  cost_allocation: null,
+  cost: null,
+  final_year: null,
+  tax_portion: null,
+  description: null,
+})
+
+export interface cosCost_s {
+  expense_year: number | null | undefined
+  cost_allocation: 'Oil' | 'Gas' | null | undefined
+  cost: number | null | undefined
+  tax_portion: number | null | undefined
+  description: string | null | undefined
+}
+
+export const defcosCost_s = () => ({
+  expense_year: null,
+  cost_allocation: null,
+  cost: null,
+  tax_portion: null,
+  description: null,
+})
+
+export interface lbtCost_s {
+  expense_year: number | null | undefined
+  cost_allocation: 'Oil' | 'Gas' | null | undefined
+  cost: number | null | undefined
+  tax_portion: number | null | undefined
+  description: string | null | undefined
+  final_year: number | null | undefined
+  utilized_land_area: number | null | undefined
+  utilized_building_area: number | null | undefined
+  njop_land: number | null | undefined
+  njop_building: number | null | undefined
+  gross_revenue: number | null | undefined
+}
+
+export const deflbtCost_s = () => ({
+  expense_year: null,
+  cost_allocation: null,
+  cost: null,
+  tax_portion: null,
+  description: null,
+  final_year: null,
+  utilized_land_area: null,
+  utilized_building_area: null,
+  njop_land: null,
+  njop_building: null,
+  gross_revenue: null,
+})

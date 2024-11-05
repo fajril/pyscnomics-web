@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/appStore'
-import { usePyscConfStore } from '@/stores/genfisStore'
-import { optimParamType, optimTarget, usePyscOptimStore } from '@/stores/optimStore'
-import * as Pysc from "@/utils/pysc/pyscType"
-import { useDataStore } from '@/utils/pysc/useDataStore'
 import { useHTTP } from '@/utils/pysc/useHttp'
-import BarChartCompare from '@/views/components/chartBarCompare.vue'
-import ChartCompare from '@/views/components/chartCompare.vue'
-import ColapsibleCols from '@/views/components/colapsibleCols.vue'
-import TableCompare from '@/views/components/tableCompare.vue'
 import { breakpointsVuetifyV3 } from '@vueuse/core'
 import * as math from 'mathjs'
 import { useDraggable } from 'vue-draggable-plus'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import DotdotOpt from '../components/dotdotOpt.vue'
+import { usePyscConfStore } from '@/stores/genfisStore'
+import { optimParamType, optimTarget, usePyscOptimStore } from '@/stores/optimStore'
+import * as Pysc from "@/utils/pysc/pyscType"
+import { useDataStore } from '@/utils/pysc/useDataStore'
+import BarChartCompare from '@/views/components/chartBarCompare.vue'
+import ChartCompare from '@/views/components/chartCompare.vue'
+import ColapsibleCols from '@/views/components/colapsibleCols.vue'
+import TableCompare from '@/views/components/tableCompare.vue'
 
 definePage({
   name: 'pysc-optim',
@@ -276,7 +276,7 @@ const optimResult = ref<object>({})
 const getOptimResultValue = (paramID: number) => {
   if (optimResult.value?.result) {
     if (paramID === 11) {
-      const res = optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID]]['depreciation acceleration']
+      const res = optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID]]['Accelerated Depreciation']
       if (typeof res !== 'string')
         return [res]
 
@@ -293,7 +293,7 @@ const getOptimResult = (paramID: number) => {
     const key = Object.values(optimParamType)[paramID]
 
     const val = paramID === 11
-      ? optimResult.value.result.list_params_value[key]['depreciation acceleration']
+      ? optimResult.value.result.list_params_value[key]['Accelerated Depreciation']
       : optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
 
     if (typeof val === 'string' && val.toLowerCase() === 'base value') {
@@ -511,7 +511,7 @@ const createNewCase = async () => {
       const key = Object.values(optimParamType)[v.parameter]
       let val = optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
       if (v.parameter === 11)
-        val = val['depreciation acceleration']
+        val = val['Accelerated Depreciation']
       if (!(typeof val === 'string' && val.toLowerCase() === 'base value')) {
         if ([1, 3, 6].includes(dataGConf.type_of_contract) && v.parameter >= 0 && v.parameter <= 7) {
           _hasUpdated = true
@@ -578,8 +578,8 @@ const createNewCase = async () => {
           const res = res_y.map((v, i) => ({ y: v, useful: res_v[i] }))
 
           useArrayUnique(res, (a, b) => a.y === b.y).value.forEach(v => {
-            dataTan.filter(r => r[0] === v.y).forEach(r => {
-              r[4] = v.useful
+            dataTan.filter(r => r.expense_year === v.y).forEach(r => {
+              r.useful_life = v.useful
             })
           })
         }

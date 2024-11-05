@@ -1,3 +1,12 @@
+2024-10-23: ver. 0.1.23
+- UI/framework:
+  * (*) major update UI cost, json maker, pdf builder, etc
+- pyscnomics engine:
+  * (?) upgrade to ver. 1.2.0
+- filesystem: chg header file = 19
+  * (+) lbtUseCalc (option for lbt cost)
+  * (+) switch cost record to object 
+----------------------------------------------------------------------------------------
 2024-10-14: ver. 0.1.22
 - UI/framework:
   - (+) ui colapsible column

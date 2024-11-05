@@ -1,3 +1,4 @@
+import { sleep } from '@antfu/utils'
 import { BrowserWindow, Menu, Notification, app, dialog, ipcMain, shell } from 'electron'
 import fs from 'node:fs'
 import { createServer } from 'node:http'
@@ -1372,6 +1373,7 @@ async function downloadUpdate(url: string, clientID: string, ver: string) {
 }
 
 async function updateApp(ev, clientID: string, ver: string) {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
   try {
     // console.log(process.env.APP_ROOT)
     try {
@@ -1393,9 +1395,19 @@ async function updateApp(ev, clientID: string, ver: string) {
       fs.rmSync(path.join(RESOURCE_DIST, 'app', 'dist', 'launcher'), { recursive: true, force: true })
 
       await _7z.unpack(file7z, RESOURCE_DIST, err => {
-        if (err)
+        if (err) {
+          console.log(err.toString())
           throw new Error('extract update-file failed')
+        }
       })
+
+      await sleep(1000)
+      try {
+        fs.rmSync(TMP_UPDATE, { recursive: true, force: true })
+      }
+      catch (error) {
+
+      }
     }
     else {
       throw new Error(typeof resDownload === 'string' ? resDownload : 'download update-file failed')

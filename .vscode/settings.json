@@ -28,7 +28,7 @@
     ],
     "editor.indentSize": "tabSize",
     "editor.tabSize": 2,
-    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnType": true,
     "editor.wordBasedSuggestions": "off"
   },

@@ -50,6 +50,7 @@ declare module 'vue-router/auto/routes' {
     'components-error-error-animated': RouteRecordInfo<'components-error-error-animated', '/components/error/ErrorAnimated', Record<never, never>, Record<never, never>>,
     'components-error-error-hero': RouteRecordInfo<'components-error-error-hero', '/components/error/ErrorHero', Record<never, never>, Record<never, never>>,
     'components-sett-pysc': RouteRecordInfo<'components-sett-pysc', '/components/settPysc', Record<never, never>, Record<never, never>>,
+    'costs': RouteRecordInfo<'costs', '/costs', Record<never, never>, Record<never, never>>,
     'pysc-asr': RouteRecordInfo<'pysc-asr', '/pysc-asr', Record<never, never>, Record<never, never>>,
     'pysc-conf': RouteRecordInfo<'pysc-conf', '/pysc-conf', Record<never, never>, Record<never, never>>,
     'pysc-cos': RouteRecordInfo<'pysc-cos', '/pysc-cos', Record<never, never>, Record<never, never>>,

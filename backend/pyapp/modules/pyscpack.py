@@ -22,7 +22,7 @@ log = logging.getLogger("uvicorn")
 class pyscPacker:
     typeContract: int = 1
     __hfl: str = "pySCapp"
-    __vfl: int = 18
+    __vfl: int = 19
     root_path = baseAppPath
     """
     ver.3: var (+) sign (1 byte) for Null int
@@ -47,6 +47,8 @@ class pyscPacker:
     ver.16: (+) table LBT
     ver.17: (+) data Incremental
     ver.18: (+) sum_undepreciated_cost
+    ver.19: (+) lbtUseCalc (option in lbtcost)
+            (+) switch cost record to object. ??? => easy to +/- field (if any changes again) 
     """
 
     def __init__(self, path: Path | None = None):
@@ -164,6 +166,8 @@ class pyscPacker:
                     "delayAccYear": self.readPack("h", fs, 0) if vfl >= 12 else 0,
                     # start ver. 15
                     "useCOS": self.readPack("?", fs, 0) if vfl >= 15 else False,
+                    # start ver. 19
+                    "lbtUseCalc": self.readPack("?", fs, 0) if vfl >= 19 else False,
                 }
                 fiscal = {
                     "Fiskal": self.readFiscalBase(fs, vfl),
@@ -171,16 +175,42 @@ class pyscPacker:
                 }
                 producer = self.readProducer(fs, vfl)
                 contracts = self.readcontrats(type_of_contract, fs, vfl)
-                tangible = self.readCosts(0, fs)
-                intangible = self.readCosts(1, fs)
-                opex = self.readCosts(2, fs)
-                asr = self.readCosts(3, fs)
+                tangible = self.readCosts(0, fs, vfl)
+                intangible = self.readCosts(1, fs, vfl)
+                opex = self.readCosts(2, fs, vfl)
+                asr = self.readCosts(3, fs, vfl)
                 # error! miss write in ver.14, fix in ver.15
-                cos = self.readCosts(4, fs) if vfl >= 15 else [[None, None, None]]
+                cos = (
+                    self.readCosts(4, fs, vfl)
+                    if vfl >= 15
+                    else [
+                        {
+                            "expense_year": None,
+                            "cost_allocation": None,
+                            "cost": None,
+                            "tax_portion": None,
+                            "description": None,
+                        }
+                    ]
+                )
                 lbt = (
-                    self.readCosts(5, fs)
+                    self.readCosts(5, fs, vfl)
                     if vfl >= 16
-                    else [[None, None, None, None, None]]
+                    else [
+                        {
+                            "expense_year": None,
+                            "cost_allocation": None,
+                            "cost": None,
+                            "tax_portion": None,
+                            "description": None,
+                            "final_year": None,
+                            "utilized_land_area": None,
+                            "utilized_building_area": None,
+                            "njop_land": None,
+                            "njop_building": None,
+                            "gross_revenue": None,
+                        }
+                    ]
                 )
                 if writeData:
                     with open(Path(wsPath, f"genconf_{caseid}.bin"), "wb") as out1:
@@ -191,17 +221,17 @@ class pyscPacker:
                         pickle.dump(producer, out3)
                     with open(Path(wsPath, f"contracts_{caseid}.bin"), "wb") as out4:
                         pickle.dump(contracts, out4)
-                    with open(Path(wsPath, f"tangible_{caseid}.bin"), "wb") as out5:
+                    with open(Path(wsPath, f"tangiblev2_{caseid}.bin"), "wb") as out5:
                         pickle.dump(tangible, out5)
-                    with open(Path(wsPath, f"intangible_{caseid}.bin"), "wb") as out6:
+                    with open(Path(wsPath, f"intangiblev2_{caseid}.bin"), "wb") as out6:
                         pickle.dump(intangible, out6)
-                    with open(Path(wsPath, f"opex_{caseid}.bin"), "wb") as out7:
+                    with open(Path(wsPath, f"opexv2_{caseid}.bin"), "wb") as out7:
                         pickle.dump(opex, out7)
-                    with open(Path(wsPath, f"asr_{caseid}.bin"), "wb") as out8:
+                    with open(Path(wsPath, f"asrv2_{caseid}.bin"), "wb") as out8:
                         pickle.dump(asr, out8)
-                    with open(Path(wsPath, f"cos_{caseid}.bin"), "wb") as out11:
+                    with open(Path(wsPath, f"cosv2_{caseid}.bin"), "wb") as out11:
                         pickle.dump(cos, out11)
-                    with open(Path(wsPath, f"lbt_{caseid}.bin"), "wb") as out12:
+                    with open(Path(wsPath, f"lbtv2_{caseid}.bin"), "wb") as out12:
                         pickle.dump(lbt, out12)
             if vfl >= 5:
                 # extract sens
@@ -312,6 +342,10 @@ class pyscPacker:
         )
         # start ver 15
         self.writePack(value["useCOS"] if "useCOS" in value.keys() else False, "?", fs)
+        # start ver 19
+        self.writePack(
+            value["lbtUseCalc"] if "lbtUseCalc" in value.keys() else False, "?", fs
+        )
 
     def getFormatIndex(self, fmtType: List | str, index: int) -> str:
         if isinstance(fmtType, List):
@@ -808,7 +842,6 @@ class pyscPacker:
 
         def readTable_(tipeProd: int):
             if tipeProd == 0:  # Oil Producer
-
                 return self.readTable(
                     (
                         {
@@ -946,84 +979,256 @@ class pyscPacker:
         self, path: Path, mode: int, value: List, fsw: BufferedWriter | None = None
     ):
         fs = fsw if fsw is not None else open(path, "ab")
-        fmt = ["d"]
-        cvvalue = [
-            [
-                (
-                    0
-                    if icol == 1 and col == "Oil"
-                    else (
-                        1
-                        if icol == 1 and col == "Gas"
-                        else (
-                            1
-                            if mode == 0 and icol == 6 and col == "Yes"
-                            else 0 if mode == 0 and icol == 6 and col == "No" else col
-                        )
-                    )
-                )
-                for icol, col in enumerate(
-                    row
-                    if len(row) == len(fmt)
-                    else (
-                        row[: len(fmt) - 1]
-                        if len(row) > len(fmt)
-                        else row + [None] * (len(fmt) - len(row))
-                    )
-                )
-            ]
-            for irow, row in enumerate(value)
-        ]
-        if mode == 0:  # tangible
-            fmt = ["i", "h", "d", "i", "i", "d", "h", "d", "s"]
-        elif mode == 1:  # intangible
-            fmt = ["i", "h", "d", "d", "s"]
-        elif mode == 2:  # opex
-            fmt = ["i", "h", "d", "d", "d", "d", "d", "s"]
-        elif mode == 3:  # asr
-            fmt = ["i", "h", "d", "s"]
-        elif mode == 4:  # COS
-            fmt = ["i", "h", "d"]
-        elif mode == 5:  # LBT
-            fmt = ["i", "h", "d", "d", "s"]
-        self.writeTable(cvvalue, fmt, fs)
 
-    def readCosts(self, mode: int, fs: BufferedReader):
-        def readTableList(fmt: List) -> List[Any]:
-            def extractRows(index: int, ifmt: str):
-                val = self.readPack(ifmt, fs)
-                if index == 1 and val is not None:
+        def writeField(k: str, val: any, fmt: str):
+            if k == "cost_allocation":
+                val = 0 if val == "Oil" else (1 if val == "Gas" else None)
+            elif k == "is_ic_applied":
+                val = 1 if val == "Yes" else None
+            self.writePack(val, fmt, fs)
+
+        # fmt = ["d"]
+        # cvvalue = [
+        #     [
+        #         (
+        #             0
+        #             if icol == 1 and col == "Oil"
+        #             else (
+        #                 1
+        #                 if icol == 1 and col == "Gas"
+        #                 else (
+        #                     1
+        #                     if mode == 0 and icol == 6 and col == "Yes"
+        #                     else 0
+        #                     if mode == 0 and icol == 6 and col == "No"
+        #                     else col
+        #                 )
+        #             )
+        #         )
+        #         for icol, col in enumerate(
+        #             row
+        #             if len(row) == len(fmt)
+        #             else (
+        #                 row[: len(fmt) - 1]
+        #                 if len(row) > len(fmt)
+        #                 else row + [None] * (len(fmt) - len(row))
+        #             )
+        #         )
+        #     ]
+        #     for irow, row in enumerate(value)
+        # ]
+        if mode == 0:  # tangible
+            fmt = {
+                "expense_year": "i",
+                "cost_allocation": "h",
+                "cost": "d",
+                "pis_year": "i",
+                "useful_life": "i",
+                "depreciation_factor": "d",
+                "is_ic_applied": "h",
+                "tax_portion": "d",
+                "description": "s",
+            }
+        elif mode == 1:  # intangible
+            fmt = {
+                "expense_year": "i",
+                "cost_allocation": "h",
+                "cost": "d",
+                "tax_portion": "d",
+                "description": "s",
+            }
+        elif mode == 2:  # opex
+            fmt = {
+                "expense_year": "i",
+                "cost_allocation": "h",
+                "fixed_cost": "d",
+                "prod_rate": "d",
+                "cost_per_volume": "d",
+                "tax_portion": "d",
+                "description": "s",
+            }
+        elif mode == 3:  # asr
+            fmt = {
+                "expense_year": "i",
+                "cost_allocation": "h",
+                "cost": "d",
+                "final_year": "i",
+                "tax_portion": "d",
+                "description": "s",
+            }
+        elif mode == 4:  # COS
+            fmt = {
+                "expense_year": "i",
+                "cost_allocation": "h",
+                "cost": "d",
+                "tax_portion": "d",
+                "description": "s",
+            }
+        else:  # LBT
+            fmt = {
+                "expense_year": "i",
+                "cost_allocation": "h",
+                "cost": "d",
+                "tax_portion": "d",
+                "description": "d",
+                "final_year": "i",
+                "utilized_land_area": "d",
+                "utilized_building_area": "d",
+                "njop_land": "d",
+                "njop_building": "d",
+                "gross_revenue": "d",
+            }
+        self.writePack(len(value), "i", fs)
+        if len(value) > 0:
+            keyfmt = fmt.keys()
+            for i, row in enumerate(value):
+                keyData = row.keys()
+                for c, k in enumerate(keyfmt):
+                    writeField(k, row[k] if k in keyData else None, fmt[k])
+
+        # if mode == 0:  # tangible
+        #     fmt = ["i", "h", "d", "i", "i", "d", "h", "d", "s"]
+        # elif mode == 1:  # intangible
+        #     fmt = ["i", "h", "d", "d", "s"]
+        # elif mode == 2:  # opex
+        #     fmt = ["i", "h", "d", "d", "d", "d", "d", "s"]
+        # elif mode == 3:  # asr
+        #     fmt = ["i", "h", "d", "s"]
+        # elif mode == 4:  # COS
+        #     fmt = ["i", "h", "d"]
+        # elif mode == 5:  # LBT
+        #     fmt = ["i", "h", "d", "d", "s"]
+        # self.writeTable(cvvalue, fmt, fs)
+
+    def readCosts(self, mode: int, fs: BufferedReader, vfl: int):
+        def readTableList(fmt: List, vt: List) -> List[Any]:
+            def readField(index: int | str, ivt: str):
+                val = self.readPack(ivt, fs)
+                if (index == 1 or index == "cost_allocation") and val is not None:
                     return "Gas" if val == 1 else "Oil"
-                elif mode == 0 and index == 6 and val is not None:
+                elif (
+                    mode == 0 and (index == 6 or index == "is_ic_applied")
+                ) and val is not None:
                     return "Yes" if val == 1 else "No"
                 return val
 
             lenTable = int(self.readPack("i", fs, 0))
             if lenTable > 0:
-                cols = self.readPack("i", fs, 0)
-                cfmt = fmt if cols == len(fmt) else fmt + ["s"] * (cols - len(fmt))
-                resRow = [
-                    [extractRows(ii, ifmt) for ii, ifmt in enumerate(cfmt)]
-                    for i in range(lenTable)
-                ]
-                return resRow[: len(fmt)]
+                if vfl >= 19:
+                    return [
+                        {
+                            f"{k}": readField(k, fmt["fmt"][k])
+                            for ir, k in enumerate(fmt["fmt"].keys())
+                        }
+                        for i in range(lenTable)
+                    ]
+                else:
+                    result_ = []
+                    cols = self.readPack("i", fs, 0)
+                    cvt = vt
+                    if cols > 0 and cols > len(vt):
+                        cvt = vt + ["s"] * (cols - len(vt))
+                    for i in range(lenTable):
+                        rows = {f"{k}": None for ik, k in enumerate(fmt["fmt"].keys())}
+                        if cols > 0:
+                            vrow = [readField(ii, ivt) for ii, ivt in enumerate(cvt)]
+                            for ik, k in enumerate(fmt["fmt"].keys()):
+                                if fmt["colMap"][ik] is not None and fmt["colMap"][
+                                    ik
+                                ] < len(vrow):
+                                    rows[k] = vrow[fmt["colMap"][ik]]
+                        result_.append(rows)
+                    return result_
             else:
-                return [[None] * len(fmt)]
+                return [{f"{k}": None for ik, k in enumerate(fmt["fmt"].keys())}]
 
-        fmt = ["d"]
+        # fmt = ["d"]
         if mode == 0:  # tangible
-            fmt = ["i", "h", "d", "i", "i", "d", "h", "d", "s"]
+            fmt = {
+                "fmt": {
+                    "expense_year": "i",
+                    "cost_allocation": "h",
+                    "cost": "d",
+                    "pis_year": "i",
+                    "useful_life": "i",
+                    "depreciation_factor": "d",
+                    "is_ic_applied": "h",
+                    "tax_portion": "d",
+                    "description": "s",
+                },
+                "colMap": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+            }
+            return readTableList(fmt, ["i", "h", "d", "i", "i", "d", "h", "d", "s"])
         elif mode == 1:  # intangible
-            fmt = ["i", "h", "d", "d", "s"]
+            fmt = {
+                "fmt": {
+                    "expense_year": "i",
+                    "cost_allocation": "h",
+                    "cost": "d",
+                    "tax_portion": "d",
+                    "description": "s",
+                },
+                "colMap": [0, 1, 2, 3, 4],
+            }
+            return readTableList(fmt, ["i", "h", "d", "d", "s"])
         elif mode == 2:  # opex
-            fmt = ["i", "h", "d", "d", "d", "d", "d", "s"]
+            fmt = {
+                "fmt": {
+                    "expense_year": "i",
+                    "cost_allocation": "h",
+                    "fixed_cost": "d",
+                    "prod_rate": "d",
+                    "cost_per_volume": "d",
+                    "tax_portion": "d",
+                    "description": "s",
+                },
+                "colMap": [0, 1, 2, 3, 4, 5, 7],
+            }
+            return readTableList(fmt, ["i", "h", "d", "d", "d", "d", "d", "s"])
         elif mode == 3:  # asr
-            fmt = ["i", "h", "d", "s"]
+            fmt = {
+                "fmt": {
+                    "expense_year": "i",
+                    "cost_allocation": "h",
+                    "cost": "d",
+                    "final_year": "i",
+                    "tax_portion": "d",
+                    "description": "s",
+                },
+                "colMap": [0, 1, 2, None, None, 3],
+            }
+            return readTableList(fmt, ["i", "h", "d", "s"])
         elif mode == 4:  # COS
-            fmt = ["i", "h", "d"]
+            fmt = {
+                "fmt": {
+                    "expense_year": "i",
+                    "cost_allocation": "h",
+                    "cost": "d",
+                    "tax_portion": "d",
+                    "description": "s",
+                },
+                "colMap": [0, 1, 2, None, None],
+            }
+            return readTableList(fmt, ["i", "h", "d"])
         elif mode == 5:  # LBT
-            fmt = ["i", "h", "d", "d", "s"]
-        return readTableList(fmt)
+            fmt = {
+                "fmt": {
+                    "expense_year": "i",
+                    "cost_allocation": "h",
+                    "cost": "d",
+                    "tax_portion": "d",
+                    "description": "d",
+                    "final_year": "i",
+                    "utilized_land_area": "d",
+                    "utilized_building_area": "d",
+                    "njop_land": "d",
+                    "njop_building": "d",
+                    "gross_revenue": "d",
+                },
+                "colMap": [0, 1, 2, 3, 4, None, None, None, None, None, None],
+            }
+            return readTableList(fmt, ["i", "h", "d", "d", "s"])
+        return []
 
     def ExtractFile(self, source: Path, target: Path, useID: bool = False):
         with open(source, "rb") as fs:
@@ -1054,6 +1259,8 @@ class pyscPacker:
                     "delayAccYear": self.readPack("h", fs, 0) if vfl >= 12 else 0,
                     # start ver. 15
                     "useCOS": self.readPack("?", fs, 0) if vfl >= 15 else False,
+                    # start ver. 19
+                    "lbtUseCalc": self.readPack("?", fs, 0) if vfl >= 19 else False,
                 }
                 fiscal = {
                     "Fiskal": self.readFiscalBase(fs, vfl),
@@ -1061,18 +1268,44 @@ class pyscPacker:
                 }
                 producer = self.readProducer(fs, vfl)
                 contracts = self.readcontrats(type_of_contract, fs, vfl)
-                tangible = self.readCosts(0, fs)
-                intangible = self.readCosts(1, fs)
-                opex = self.readCosts(2, fs)
-                asr = self.readCosts(3, fs)
+                tangible = self.readCosts(0, fs, vfl)
+                intangible = self.readCosts(1, fs, vfl)
+                opex = self.readCosts(2, fs, vfl)
+                asr = self.readCosts(3, fs, vfl)
 
                 # error! miss write in ver.14, fix on ver.15
-                cos = self.readCosts(4, fs) if vfl >= 15 else [[None, None, None]]
+                cos = (
+                    self.readCosts(4, fs, vfl)
+                    if vfl >= 15
+                    else [
+                        {
+                            "expense_year": None,
+                            "cost_allocation": None,
+                            "cost": None,
+                            "tax_portion": None,
+                            "description": None,
+                        }
+                    ]
+                )
 
                 lbt = (
-                    self.readCosts(5, fs)
+                    self.readCosts(5, fs, vfl)
                     if vfl >= 16
-                    else [[None, None, None, None, None]]
+                    else [
+                        {
+                            "expense_year": None,
+                            "cost_allocation": None,
+                            "cost": None,
+                            "tax_portion": None,
+                            "description": None,
+                            "final_year": None,
+                            "utilized_land_area": None,
+                            "utilized_building_area": None,
+                            "njop_land": None,
+                            "njop_building": None,
+                            "gross_revenue": None,
+                        }
+                    ]
                 )
 
                 sensCfg = [80, 80]
@@ -1088,17 +1321,17 @@ class pyscPacker:
                     pickle.dump(producer, out3)
                 with open(Path(target, f"contracts_{id}.bin"), "wb") as out4:
                     pickle.dump(contracts, out4)
-                with open(Path(target, f"tangible_{id}.bin"), "wb") as out5:
+                with open(Path(target, f"tangiblev2_{id}.bin"), "wb") as out5:
                     pickle.dump(tangible, out5)
-                with open(Path(target, f"intangible_{id}.bin"), "wb") as out6:
+                with open(Path(target, f"intangiblev2_{id}.bin"), "wb") as out6:
                     pickle.dump(intangible, out6)
-                with open(Path(target, f"opex_{id}.bin"), "wb") as out7:
+                with open(Path(target, f"opexv2_{id}.bin"), "wb") as out7:
                     pickle.dump(opex, out7)
-                with open(Path(target, f"asr_{id}.bin"), "wb") as out8:
+                with open(Path(target, f"asrv2_{id}.bin"), "wb") as out8:
                     pickle.dump(asr, out8)
-                with open(Path(target, f"cos_{id}.bin"), "wb") as out11:
+                with open(Path(target, f"cosv2_{id}.bin"), "wb") as out11:
                     pickle.dump(cos, out11)
-                with open(Path(target, f"lbt_{id}.bin"), "wb") as out12:
+                with open(Path(target, f"lbtv2_{id}.bin"), "wb") as out12:
                     pickle.dump(lbt, out12)
 
             if vfl >= 5:
@@ -1167,37 +1400,37 @@ class pyscPacker:
 
     def loadCosts(self, mode: int, sourcePath: Path, index: int):
         if mode == 0:
-            filePath = Path(sourcePath, f"tangible_{index}.bin")
+            filePath = Path(sourcePath, f"tangiblev2_{index}.bin")
             if not filePath.exists():
                 raise Exception(f"tangible file for id={index} not found")
             with open(filePath, "rb") as fl:
                 return pickle.load(fl)
         elif mode == 1:
-            filePath = Path(sourcePath, f"intangible_{index}.bin")
+            filePath = Path(sourcePath, f"intangiblev2_{index}.bin")
             if not filePath.exists():
                 raise Exception(f"intangible file for id={index} not found")
             with open(filePath, "rb") as fl:
                 return pickle.load(fl)
         elif mode == 2:
-            filePath = Path(sourcePath, f"opex_{index}.bin")
+            filePath = Path(sourcePath, f"opexv2_{index}.bin")
             if not filePath.exists():
                 raise Exception(f"opex file for id={index} not found")
             with open(filePath, "rb") as fl:
                 return pickle.load(fl)
         elif mode == 3:
-            filePath = Path(sourcePath, f"asr_{index}.bin")
+            filePath = Path(sourcePath, f"asrv2_{index}.bin")
             if not filePath.exists():
                 raise Exception(f"asr file for id={index} not found")
             with open(filePath, "rb") as fl:
                 return pickle.load(fl)
         elif mode == 4:
-            filePath = Path(sourcePath, f"cos_{index}.bin")
+            filePath = Path(sourcePath, f"cosv2_{index}.bin")
             if not filePath.exists():
                 raise Exception(f"cos file for id={index} not found")
             with open(filePath, "rb") as fl:
                 return pickle.load(fl)
         elif mode == 5:
-            filePath = Path(sourcePath, f"lbt_{index}.bin")
+            filePath = Path(sourcePath, f"lbtv2_{index}.bin")
             if not filePath.exists():
                 raise Exception(f"lbt file for id={index} not found")
             with open(filePath, "rb") as fl:
@@ -1455,7 +1688,11 @@ class pyscPacker:
                     "max": (
                         0.6
                         if i in [0, 1]
-                        else 0.44 if i == 9 else 1.0 if i in [6, 7] else 0.4
+                        else 0.44
+                        if i == 9
+                        else 1.0
+                        if i in [6, 7]
+                        else 0.4
                     ),
                     "pos": i,
                     "checked": False,
@@ -1586,12 +1823,12 @@ class pyscPacker:
                 pass
         else:
             clonefile(tmpPath, "contracts")
-        clonefile(tmpPath, "tangible")
-        clonefile(tmpPath, "intangible")
-        clonefile(tmpPath, "opex")
-        clonefile(tmpPath, "asr")
-        clonefile(tmpPath, "cos")
-        clonefile(tmpPath, "lbt")
+        clonefile(tmpPath, "tangiblev2")
+        clonefile(tmpPath, "intangiblev2")
+        clonefile(tmpPath, "opexv2")
+        clonefile(tmpPath, "asrv2")
+        clonefile(tmpPath, "cosv2")
+        clonefile(tmpPath, "lbtv2")
         if not typechg:
             clonefile(tmpPath, "senscfg")
             clonefile(tmpPath, "montecfg")

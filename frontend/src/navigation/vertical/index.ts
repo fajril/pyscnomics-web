@@ -27,32 +27,32 @@ export default [
       {
         title: 'Capital',
         icon: { icon: 'tabler-circle-1-filled', size: '21' },
-        to: { name: 'pysc-tangi' },
+        to: { name: 'pysc-cost-capital' },
       },
       {
         title: 'Intangible',
         icon: { icon: 'tabler-circle-2-filled', size: '21' },
-        to: { name: 'pysc-intangi' },
+        to: { name: 'pysc-cost-intang' },
       },
       {
         title: 'Opex',
         icon: { icon: 'tabler-circle-3-filled', size: '21' },
-        to: { name: 'pysc-opex' },
+        to: { name: 'pysc-cost-opex' },
       },
       {
         title: 'ASR',
         icon: { icon: 'tabler-circle-4-filled', size: '21' },
-        to: { name: 'pysc-asr' },
+        to: { name: 'pysc-cost-asr' },
       },
       {
         title: 'LBT',
         icon: { icon: 'tabler-circle-5-filled', size: '21' },
-        to: { name: 'pysc-lbt' },
+        to: { name: 'pysc-cost-lbt' },
       },
       {
         title: 'Cost of Sales',
         icon: { icon: 'tabler-circle-6-filled', size: '21' },
-        to: { name: 'pysc-cos' },
+        to: { name: 'pysc-cost-cos' },
         cosNav: true,
         access: [1, 3, 4, 6],
       },

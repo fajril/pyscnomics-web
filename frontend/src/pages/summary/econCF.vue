@@ -48,6 +48,8 @@ const pyKeyOfTable = [
   { index: -1, total: 'sum', name: 'Equity To Be Shared (ETS) Before Transfer', keys: ['ets_before_transfer', 'c_ets_before_tf'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: null, name: 'BaseSplit', keys: ['base_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: null, name: 'Variable Split', keys: ['variable_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+  { index: -1, total: null, name: 'Progressive Price Split', keys: ['Progressive_Price_Split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
+  { index: -1, total: null, name: 'Progressive Cumm.Prod. Split', keys: ['Progressive_Cumulative_Production_Split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: null, name: 'Progressive Split', keys: ['progressive_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: null, name: 'Contractor Split', keys: ['contractor_split'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: 'sum', name: 'Transfer (Tf) to GAS', keys: ['transfer_to_gas'], cr_o: 1, cr_tr_o: 1, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
@@ -207,6 +209,8 @@ const loadCF = async () => {
     if (!(isObject(result) && !isEmpty(result)))
       throw "Error Calculation"
 
+    console.log(result)
+
     const MapDataCF = (output: Pysc.TableCFOption, mode: 'O' | 'G' | 'C', data: any, isCR: boolean = true) => {
       const keyMapTmpl = JSON.parse(JSON.stringify(PyscConf.dataGConf.type_of_contract === 0
         ? pyKeyOfTable.filter(k => (mode === 'O' ? k.bp_o : (mode === 'G' ? k.bp_g : k.bp_cons)) === 1)
@@ -219,7 +223,7 @@ const loadCF = async () => {
 
       keyMapTmpl.forEach(k => k.index = keyMapData.findIndex(md => k.keys.includes(md.toLowerCase())))
 
-      // console.log(keyMapTmpl)
+      console.log(keyMapTmpl)
 
       output.data.splice(0, output.data.length,
         ...Array(DYear.length + 1).fill(Array(keyMapData.length).fill(null)).map((row, ir) => {
@@ -235,6 +239,8 @@ const loadCF = async () => {
               return col
             })
           }
+
+          console.log(row)
 
           return row.map((col, ic) => {
             if (ic === 0)

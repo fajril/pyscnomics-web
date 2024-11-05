@@ -95,9 +95,12 @@ const FillDataTable = () => {
   else if (!PyscConf.prodHasGas() && idxGas !== -1)
     dataTable.value.splice(idxGas, idxGas)
 
-  const dataOpex = PyscConf.dataOpex.filter(r => Pysc.is_number(r[2])).map(v => v[2])
-  const dataTan = PyscConf.dataTan.filter(r => Pysc.is_number(r[2])).map(v => v[2])
+  const dataOpex = PyscConf.dataOpex.filter(r => Pysc.is_number(r.fixed_cost)).map(v => v.fixed_cost)
+  const dataTan = PyscConf.dataTan.filter(r => Pysc.is_number(r.cost)).map(v => v.cost)
   const dataOil = oilProd ? oilProd.prod_price[0].filter(r => Pysc.is_number(r.sales)).map(v => v.sales) : []
+
+  // console.log(dataTan)
+  // console.log(dataOpex)
 
   dataTable.value.forEach(el => {
     if (el.id === 0) {
