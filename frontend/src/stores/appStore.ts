@@ -18,9 +18,9 @@ export interface tAlert {
 
 export const useAppStore = defineStore('pyscConfig', () => {
   const dayjs = useDayJs()
-  const PYSCAPPVER = import.meta.env.VITE_PSC_VER125
+  const PYSCAPPVER = import.meta.env.VITE_PSC_VER126
 
-  // const PYSC_APP_VERSION = import.meta.env.VITE_PSC_VER125
+  // const PYSC_APP_VERSION = import.meta.env.VITE_PSC_VER126
 
   // const appPort = ref(null)
   const osConf = ref({ sep: '/', os: 'win', port: null })

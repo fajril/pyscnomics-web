@@ -204,8 +204,11 @@ const chtOption = computed(() => {
   }
 
   const lenData = props.dataChart.data.length
-  const contCF_col = props.contractType === 'BASE' ? props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v)) : props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
-  const contcumCF_col = props.contractType === 'BASE' ? (!isEmpty(contCF_col) ? math.cumsum(contCF_col) : []) : props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
+  const contCF_col = props.dataChart.data.map(v => v.slice(props.dataChart.ctr_cash_flow)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
+  const contcumCF_col = props.contractType === 'BASE' ? (!isEmpty(contCF_col) ? math.cumsum(contCF_col) : []) : props.dataChart.data.map(v => v.slice(props.dataChart.ctr_cumm_cash_flow)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
+
+  // const contCF_col = props.contractType === 'BASE' ? props.dataChart.data.map(v => v.slice(-1)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v)) : props.dataChart.data.map(v => v.slice(-3)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
+  // const contcumCF_col = props.contractType === 'BASE' ? (!isEmpty(contCF_col) ? math.cumsum(contCF_col) : []) : props.dataChart.data.map(v => v.slice(-2)[0]).slice(0, lenData - 1).map(v => Pysc.toNumnber(v))
 
   // const interV = [contcumCF_col.length ? (math.max(contcumCF_col) - math.min(contcumCF_col)) / 4 : 0, contCF_col.length ? (math.max(contCF_col) - math.min(contCF_col)) / 4 : 0]
 

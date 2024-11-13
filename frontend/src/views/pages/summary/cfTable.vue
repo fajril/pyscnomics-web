@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppStore } from "@/stores/appStore"
 import * as Pysc from "@/utils/pysc/pyscType"
+import { useHTTP } from "@/utils/pysc/useHttp"
 import 'handsontable/dist/handsontable.full.min.css'
 import { isNull } from "mathjs"
 
@@ -9,6 +10,7 @@ interface Props {
   title: string
   multiContract?: boolean
   isContract2?: boolean
+  ecoLimitMth?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,8 +22,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const appStore = useAppStore()
 const refTableCF = ref()
+const yearofEcoLimit = ref<number | null>(null)
 
 const dataTable = computed(() => props.dataTable)
+const ecolimitMth = computed(() => props.ecoLimitMth)
 
 function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
   if (row === dataTable.value?.data.length - 1) {
@@ -68,13 +72,17 @@ function renderedColumn(instance, td, row, col, prop, value, cellProperties) {
 const tableCFConfig = computed(() => ({
   data: dataTable.value.data,
   colHeaders: dataTable.value.headers,
-  columns: dataTable.value.columns.map(col => ({ renderer: renderedColumn })),
+  columns: dataTable.value.columns, // .map(col => ({ renderer: renderedColumn })),
   cell: dataTable.value.cells,
   readOnly: true,
   rowHeaders: true,
   height: 'auto',
   autoWrapRow: false,
   contextMenu: Pysc.TableContextMenus([{ name: 'copy' }, { name: 'copy_with_column_headers' }]),
+  beforeGetCellMeta(row, col, cellProperties) {
+    if (dataTable.value.data.length > 0 && yearofEcoLimit.value && row < dataTable.value.data.length - 1 && dataTable.value.data[row][0] === yearofEcoLimit.value)
+      cellProperties.className = 'cf-make-yellow'
+  },
 
   // stretchH: 'none',
   manualColumnResize: true,
@@ -85,12 +93,48 @@ const tableCFConfig = computed(() => ({
   licenseKey: 'non-commercial-and-evaluation',
 }))
 
+const calcecoLimit = () => {
+  try {
+    yearofEcoLimit.value = null
+    if (dataTable.value.data.length && ecolimitMth.value) {
+      const dc = dataTable.value.data.slice(0, dataTable.value.data.length - 2).map(r => [r[0], r[dataTable.value.ctr_cash_flow]])
+
+      useHTTP().put({
+        path: 'calc_ecolimit',
+        body: {
+          json: btoa(JSON.stringify({
+            'method': ecolimitMth.value,
+            'years': dc.map(d => d[0]),
+            'cash_flow': dc.map(d => d[1]),
+          })),
+        },
+      }).then(resp => {
+        if (resp.status === 200 && resp.result.ecoYear) {
+          yearofEcoLimit.value = resp.result.ecoYear
+          refTableCF.value?.hotInstance.updateSettings(tableCFConfig.value)
+        }
+      })
+    }
+  }
+  catch (error) {
+    console.log(error)
+  }
+}
+
+const watchEcoLimit = watchPausable(ecolimitMth, () => calcecoLimit(), { immediate: false })
+
 function updateTable() {
+  yearofEcoLimit.value = null
+  watchEcoLimit.pause()
+  calcecoLimit()
   tableCFConfig.value.data.splice(0, tableCFConfig.value.data.length, ...dataTable.value.data)
   tableCFConfig.value.colHeaders.splice(0, tableCFConfig.value.colHeaders.length, ...dataTable.value.headers)
-  tableCFConfig.value.columns.splice(0, tableCFConfig.value.columns.length, ...dataTable.value.columns.map(col => ({ renderer: renderedColumn })))
+  tableCFConfig.value.columns.splice(0, tableCFConfig.value.columns.length, ...dataTable.value.columns) // .map(col => ({ renderer: renderedColumn })))
   tableCFConfig.value.cell.splice(0, tableCFConfig.value.cell.length, ...dataTable.value.cells)
-  nextTick(() => nextTick(() => refTableCF.value?.hotInstance.updateSettings(tableCFConfig.value)))
+  nextTick(() => {
+    refTableCF.value?.hotInstance.updateSettings(tableCFConfig.value)
+    watchEcoLimit.resume()
+  })
 }
 
 const getDataSource = (value: string, sourceType: string) => {
@@ -151,5 +195,8 @@ defineExpose({
   .handsontable .htDimmed {
     color: inherit !important;
   }
+}
+.cf-make-yellow {
+  background-color: rgba(255,255, 0, 0.3) !important;
 }
 </style>

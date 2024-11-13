@@ -2,7 +2,6 @@
 import { useAppStore } from '@/stores/appStore'
 import { useHTTP } from '@/utils/pysc/useHttp'
 import { breakpointsVuetifyV3 } from '@vueuse/core'
-import { add } from 'mathjs'
 import DotdotOpt from '../components/dotdotOpt.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import * as Pysc from "@/utils/pysc/pyscType"
@@ -34,6 +33,7 @@ const pyKeyOfTable = [
   { index: -1, total: 'sum', name: 'Intangible', keys: ['intangible', 'c_intangible'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 1, bp_g: 1, bp_cons: 1 },
   { index: -1, total: 'sum', name: 'OPEX', keys: ['opex', 'c_opex'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
   { index: -1, total: 'sum', name: 'ASR', keys: ['asr', 'c_asr'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'LBT', keys: ['lbt', 'c_lbt'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
   { index: -1, total: 'sum', name: 'Revenue', keys: ['revenue'], cr_o: 0, cr_tr_o: 0, cr_g: 0, cr_tr_g: 0, cr__cons: 0, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: 'sum', name: 'Depreciation', keys: ['depreciation', 'c_depreciation'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 0, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: 'sum', name: 'Non Capital', keys: ['non_capital', 'c_non_capital'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 0, gs_tr_o: 0, gs_g: 0, gs_tr_g: 0, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
@@ -84,6 +84,21 @@ const pyKeyOfTable = [
   { index: -1, total: 'sum', name: 'Cashflow', keys: ['cashflow', 'c_cashflow', 'ctr_cash_flow'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
   { index: -1, total: 'last', name: 'Cum. Cashflow', keys: ['cum_cashflow', 'cum_cash_flow', 'cum. c_cashflow', 'cum._cashflow', 'cum.c_cashflow', 'cum_c_cashflow'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
   { index: -1, total: 'sum', name: 'Governent Take', keys: ['government_take', 'c_government_take'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 0, bp_g: 0, bp_cons: 0 },
+
+  { index: -1, total: 'sum', name: 'Capital Expenditures Pre Tax', keys: ['capital_expenditures_pre_tax', 'c_capital_expenditures_pre_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'Intangible Expenditures Pre Tax', keys: ['intangible_expenditures_pre_tax', 'c_intangible_expenditures_pre_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'Opex Expenditures Pre Tax', keys: ['opex_expenditures_pre_tax', 'c_opex_expenditures_pre_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'ASR Expenditures Pre Tax', keys: ['asr_expenditures_pre_tax', 'c_asr_expenditures_pre_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'LBT Expenditures Pre Tax', keys: ['LBT_Expenditures_Pre_Tax', 'c_lbt_expenditures_pre_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'CostOfSales Expenditures Pre Tax', keys: ['costofsales_expenditures_pre_tax', 'c_costofsales_expenditures_pre_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'Total Expenditures Pre Tax', keys: ['total_expenditures_pre_tax', 'c_total_expenditures_pre_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'Capital Indirect Tax', keys: ['capital_indirect_tax', 'c_capital_indirect_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'Intangible Indirect Tax', keys: ['intangible_indirect_tax', 'c_intangible_indirect_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'Opex Indirect Tax', keys: ['opex_indirect_tax', 'c_opex_indirect_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'ASR Indirect Tax', keys: ['asr_indirect_tax', 'c_asr_indirect_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'LBT Indirect Tax', keys: ['lbt_indirect_tax', 'c_lbt_indirect_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'CostOfSales Indirect Tax', keys: ['costofsales_indirect_tax', 'c_costofsales_indirect_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
+  { index: -1, total: 'sum', name: 'Total Indirect Tax', keys: ['total_indirect_tax', 'c_total_indirect_tax'], cr_o: 1, cr_tr_o: 1, cr_g: 1, cr_tr_g: 1, cr__cons: 1, gs_o: 1, gs_tr_o: 1, gs_g: 1, gs_tr_g: 1, gs_cons: 1, bp_o: 1, bp_g: 1, bp_cons: 1 },
 ]
 
 const appStore = useAppStore()
@@ -95,6 +110,7 @@ const tableGas1 = ref()
 const tableGas2 = ref()
 const tableCons1 = ref()
 const tableCons2 = ref()
+const ecolimitMth = ref(Pysc.LimitMethod.MAX_CUM_CASHFLOW)
 
 // 👉 Misc
 const isLessThanCardBreak = computed(() => useMediaQuery(`(max-width: ${breakpointsVuetifyV3.md}px)`).value)
@@ -107,11 +123,15 @@ const OilOpt = ref<Pysc.TableCFOption[]>([
     headers: [],
     columns: [],
     cells: [],
+    ctr_cash_flow: -1,
+    ctr_cumm_cash_flow: -1,
   }, {
     data: [Array(34).fill(null)],
     headers: [],
     columns: [],
     cells: [],
+    ctr_cash_flow: -1,
+    ctr_cumm_cash_flow: -1,
   },
 ])
 
@@ -124,11 +144,15 @@ const GasOpt = ref<Pysc.TableCFOption[]>([
     headers: [],
     columns: [],
     cells: [],
+    ctr_cash_flow: -1,
+    ctr_cumm_cash_flow: -1,
   }, {
     data: [Array(34).fill(null)],
     headers: [],
     columns: [],
     cells: [],
+    ctr_cash_flow: -1,
+    ctr_cumm_cash_flow: -1,
   },
 ])
 
@@ -141,11 +165,15 @@ const ConstOpt = ref<Pysc.TableCFOption[]>([
     headers: [],
     columns: [],
     cells: [],
+    ctr_cash_flow: -1,
+    ctr_cumm_cash_flow: -1,
   }, {
     data: [Array(35).fill(null)],
     headers: [],
     columns: [],
     cells: [],
+    ctr_cash_flow: -1,
+    ctr_cumm_cash_flow: -1,
   },
 ])
 
@@ -191,9 +219,21 @@ const loadCF = async () => {
   isLoading.value = true
 
   // clear data
-  OilOpt.value.forEach(value => value.data.splice(0, value.data.length, ...JSON.parse(JSON.stringify([Array(34).fill(null)]))))
-  GasOpt.value.forEach(value => value.data.splice(0, value.data.length, ...JSON.parse(JSON.stringify([Array(34).fill(null)]))))
-  ConstOpt.value.forEach(value => value.data.splice(0, value.data.length, ...JSON.parse(JSON.stringify([Array(35).fill(null)]))))
+  OilOpt.value.forEach(value => {
+    value.data.splice(0, value.data.length, ...JSON.parse(JSON.stringify([Array(34).fill(null)])))
+    value.ctr_cash_flow = -1
+    value.ctr_cumm_cash_flow = -1
+  })
+  GasOpt.value.forEach(value => {
+    value.data.splice(0, value.data.length, ...JSON.parse(JSON.stringify([Array(34).fill(null)])))
+    value.ctr_cash_flow = -1
+    value.ctr_cumm_cash_flow = -1
+  })
+  ConstOpt.value.forEach(value => {
+    value.data.splice(0, value.data.length, ...JSON.parse(JSON.stringify([Array(35).fill(null)])))
+    value.ctr_cash_flow = -1
+    value.ctr_cumm_cash_flow = -1
+  })
   try {
     const { status, result } = await useHTTP().put({
       path: 'calc_cf',
@@ -221,9 +261,17 @@ const loadCF = async () => {
       const keyMapData = ['Year', ...Object.keys(data)]
       const DYear = Object.keys(data[keyMapData[1]])
 
-      keyMapTmpl.forEach(k => k.index = keyMapData.findIndex(md => k.keys.includes(md.toLowerCase())))
+      keyMapTmpl.forEach((k, idx_c) => {
+        k.index = keyMapData.findIndex(md => k.keys.includes(md.toLowerCase()))
+        if (k.index !== -1 && ['cashflow', 'c_cashflow', 'ctr_cash_flow'].includes(keyMapData[k.index].toLowerCase()))
+          output.ctr_cash_flow = idx_c
+        else if (k.index !== -1 && ['cum_cashflow', 'cum_cash_flow', 'cum. c_cashflow', 'cum._cashflow', 'cum.c_cashflow', 'cum_c_cashflow'].includes(keyMapData[k.index].toLowerCase()))
+          output.ctr_cumm_cash_flow = idx_c
+      })
 
-      console.log(keyMapTmpl)
+      // console.log(output)
+
+      // console.log(keyMapTmpl)
 
       output.data.splice(0, output.data.length,
         ...Array(DYear.length + 1).fill(Array(keyMapData.length).fill(null)).map((row, ir) => {
@@ -240,7 +288,7 @@ const loadCF = async () => {
             })
           }
 
-          console.log(row)
+          // console.log(row)
 
           return row.map((col, ic) => {
             if (ic === 0)
@@ -270,7 +318,7 @@ const loadCF = async () => {
       MapDataCF(ConstOpt.value[0], 'C', result.consolidated, PyscConf.dataGConf.type_of_contract === 1)
     }
     else {
-      console.log(result)
+      // console.log(result)
       MapDataCF(OilOpt.value[0], 'O', result.contract_1.oil, [3, 4].includes(PyscConf.dataGConf.type_of_contract))
       if (PyscConf.prodHasGas())
         MapDataCF(GasOpt.value[0], 'G', result.contract_1.gas, [3, 4].includes(PyscConf.dataGConf.type_of_contract))
@@ -333,16 +381,21 @@ watch(currentTab, val => {
 const dataCombineChart = computed(() => {
   let _dataCh = []
   try {
-    _dataCh = ConstOpt.value[0].data.map((row, i) => [row[0], ...add(row.slice(-3), ConstOpt.value[1].data[i].slice(-3))])
+    _dataCh = ConstOpt.value[0].data.map((row, i) => [row[0],
+      row[ConstOpt.value[0].ctr_cash_flow] + ConstOpt.value[1].data[i][ConstOpt.value[1].ctr_cash_flow],
+      row[ConstOpt.value[0].ctr_cumm_cash_flow] + ConstOpt.value[1].data[i][ConstOpt.value[1].ctr_cumm_cash_flow]])
   }
   catch (error) {
   }
+  console.log(_dataCh)
 
   const _out: Pysc.TableCFOption = {
     data: _dataCh,
     headers: [],
     columns: [],
     cells: [],
+    ctr_cash_flow: 1,
+    ctr_cumm_cash_flow: 2,
   }
 
   return _out
@@ -375,6 +428,14 @@ const actionOption = (refContent: any, type: string) => {
       <VCardText class="px-1">
         <VWindow v-model="currentTab">
           <VWindowItem value="0">
+            <div style="max-inline-size: 20rem;padding-block: .3125rem;">
+              <AppSelect
+                v-model="ecolimitMth"
+                label-placeholder="Economic limit"
+                :items="Object.values(Pysc.LimitMethod)"
+              />
+            </div>
+
             <ColapsibleCols
               :col-ratio="PyscConf.dataGConf.type_of_contract >= 3 ? [50, 50] : [100, 0]"
               :allow-right="PyscConf.dataGConf.type_of_contract >= 3"
@@ -399,6 +460,7 @@ const actionOption = (refContent: any, type: string) => {
                   v-model="tableCollapsed[2][0]"
                   title="Consolidated"
                   :data-table="const_ctr1"
+                  :eco-limit-mth="ecolimitMth"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
                 />
               </template>
@@ -427,6 +489,7 @@ const actionOption = (refContent: any, type: string) => {
                   :data-table="const_ctr2"
                   multi-contract
                   is-contract2
+                  :eco-limit-mth="ecolimitMth"
                 />
               </template>
             </ColapsibleCols>
@@ -455,6 +518,7 @@ const actionOption = (refContent: any, type: string) => {
                   v-model="tableCollapsed[0][0]"
                   title="Oil/Condensate"
                   :data-table="oil_ctr1"
+                  :eco-limit-mth="ecolimitMth"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
                 />
               </template>
@@ -482,6 +546,7 @@ const actionOption = (refContent: any, type: string) => {
                   title="Oil/Condensate"
                   :data-table="oil_ctr2"
                   multi-contract
+                  :eco-limit-mth="ecolimitMth"
                   is-contract2
                 />
               </template>
@@ -512,6 +577,7 @@ const actionOption = (refContent: any, type: string) => {
                   v-model="tableCollapsed[1][0]"
                   title="Gas"
                   :data-table="gas_ctr1"
+                  :eco-limit-mth="ecolimitMth"
                   :multi-contract="PyscConf.dataGConf.type_of_contract >= 3"
                 />
               </template>
@@ -536,6 +602,7 @@ const actionOption = (refContent: any, type: string) => {
                   title="Gas"
                   :data-table="gas_ctr2"
                   multi-contract
+                  :eco-limit-mth="ecolimitMth"
                   is-contract2
                 />
               </template>

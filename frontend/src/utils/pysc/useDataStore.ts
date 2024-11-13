@@ -1121,7 +1121,8 @@ export const useDataStore = () => {
         depr_method: type_of_contract === 0 ? undefined : (Object.values(Pysc.DepreciationType)[fiscal.Depreciation.depreciation_method]),
         decline_factor: type_of_contract === 0 ? undefined : (Pysc.toNumnber(fiscal.Depreciation.decline_factor)),
         vat_rate: type_of_contract === 0 ? 0.0 : (fiscal.VAT.vat_mode === 1 ? table2Array(fiscal.VAT.multi_vat_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : Pysc.toNumnber(fiscal.VAT.vat_rate_init)),
-        lbt_rate: type_of_contract === 0 ? 0.0 : (fiscal.LBT.lbt_mode === 1 ? table2Array(fiscal.LBT.multi_lbt_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : Pysc.toNumnber(fiscal.LBT.lbt_rate_init)),
+
+        // lbt_rate: type_of_contract === 0 ? 0.0 : (fiscal.LBT.lbt_mode === 1 ? table2Array(fiscal.LBT.multi_lbt_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : Pysc.toNumnber(fiscal.LBT.lbt_rate_init)),
         inflation_rate: type_of_contract === 0 ? 0.0 : (fiscal.Inflation.inflation_rate_mode === 1 ? table2Array(fiscal.Inflation.multi_inflation_init, (isTransition && icontract === 1 ? start2Y : startY), (isTransition && icontract === 1 ? end2Y : endY)) : Pysc.toNumnber(fiscal.Inflation.inflation_rate_init)),
         future_rate: type_of_contract === 0 ? 0.02 : (Pysc.toNumnber(fiscal.asr_future_rate)),
         inflation_rate_applied_to: type_of_contract === 0 ? Pysc.InflateToType.Capex : (Object.values(Pysc.InflateToType)[genconf.inflation_rate_applied_to]),
@@ -1563,7 +1564,8 @@ export const useDataStore = () => {
           co2_revenue: Pysc.OthRevType.OthRev2,
           sunk_cost_reference_year: startY,
           vat_rate: 0.0,
-          lbt_rate: 0.0,
+
+          // lbt_rate: 0.0,
           inflation_rate: 0.0,
           future_rate: 0.0,
           inflation_rate_applied_to: Pysc.InflateToType.Capex,

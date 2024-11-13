@@ -185,6 +185,8 @@ export interface TableCFOption {
   headers: Array<string>
   columns: Array<object>
   cells: Array<object>
+  ctr_cash_flow: number
+  ctr_cumm_cash_flow: number
 }
 
 export interface TImportData {
@@ -893,7 +895,7 @@ export const TaxType = {
 
 export const TaxPaymentType = {
   PDJP: "PDJP No.20 Tahun 2017",
-  PrePDJP: "Pre-PDJP No.20 Tahun 2017",
+  PrePDJP: "Pre PDJP No.20 Tahun 2017",
   Direct: "Direct Mode",
 } as const
 
@@ -1179,3 +1181,9 @@ export const deflbtCost_s = () => ({
   njop_building: null,
   gross_revenue: null,
 })
+
+export const LimitMethod = {
+  MAX_CUM_CASHFLOW: "Maximum Cumulative Cashflow",
+  NEGATIVE_CASHFLOW: "Negative Cashflow",
+  MAX_NPV: "Maximum NPV",
+} as const

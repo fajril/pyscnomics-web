@@ -295,39 +295,41 @@ const getNPVSelMode = computed(() => {
       />
     </VCol>
 
-    <VCol
+    <!--
+      <VCol
       cols="12"
       class="ms-4 pe-4 mt-2"
-    >
+      >
       <span class="ml-n4 font-weight-bold text-primary">LBT</span>
       <AppSelect
-        v-model="fiscal.LBT.lbt_mode"
-        :items="Field2Array(GlobalType)"
-        item-props
-        variant="outlined"
-        label-placeholder="LBT Mode"
-        placeholder="LBT Mode"
-        class="mt-4"
-        :tooltip-content="getToolTip('fiscal.lbt')"
+      v-model="fiscal.LBT.lbt_mode"
+      :items="Field2Array(GlobalType)"
+      item-props
+      variant="outlined"
+      label-placeholder="LBT Mode"
+      placeholder="LBT Mode"
+      class="mt-4"
+      :tooltip-content="getToolTip('fiscal.lbt')"
       />
       <VCardText
-        v-if="fiscal.LBT.lbt_mode === 1"
-        class="mt-2 ms-4 py-0 px-0"
+      v-if="fiscal.LBT.lbt_mode === 1"
+      class="mt-2 ms-4 py-0 px-0"
       >
-        <TableEditor
-          v-model:model-value="fiscal.LBT.multi_lbt_init"
-          :columns="columnTable"
-        />
+      <TableEditor
+      v-model:model-value="fiscal.LBT.multi_lbt_init"
+      :columns="columnTable"
+      />
       </VCardText>
       <AppTextField
-        v-else
-        v-model.number="lbt_rate_init"
-        label-placeholder="LBT Rate, %"
-        variant="outlined"
-        class="ms-4 mt-4"
-        :rules="[requiredValidator, numberValidator, betweenValidator(lbt_rate_init, 0, 100, appStore.showAlert)]"
+      v-else
+      v-model.number="lbt_rate_init"
+      label-placeholder="LBT Rate, %"
+      variant="outlined"
+      class="ms-4 mt-4"
+      :rules="[requiredValidator, numberValidator, betweenValidator(lbt_rate_init, 0, 100, appStore.showAlert)]"
       />
-    </VCol>
+      </VCol>
+    -->
 
     <VCol
       cols="12"

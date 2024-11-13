@@ -23,7 +23,7 @@ export default defineConfig(({ command, mode }) => {
   const isServe = command === 'serve'
   const isBuild = command === 'build'
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
-  const appVersion = process.env.VITE_PSC_VER125
+  const appVersion = process.env.VITE_PSC_VER126
 
   console.log(chalk.blueBright('Build Frontend'))
   console.log(`App version: ${appVersion}`)

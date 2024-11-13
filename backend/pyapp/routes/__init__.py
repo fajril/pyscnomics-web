@@ -31,9 +31,12 @@ from pyapp.shemas.project import ProjectCreate, ProjectUpdate
 from pydantic import BaseModel
 from pyscnomics import contracts
 from pyscnomics.api.adapter import (
+    get_asr_expenditures,
     get_contract_optimization,
     get_contract_table,
+    get_economic_limit,
     get_grosssplit_split,
+    get_lbt_expenditures,
     get_ltp_dict,
     get_rpd_dict,
     get_transition_split,
@@ -1095,6 +1098,22 @@ async def calc_cf(data: dict):
         )
 
 
+@routerapi.put("/calc_ecolimit")
+async def calcEcolimit(data: dict):
+    try:
+        dataJson = base64.b64decode(data["json"]).decode("utf-8")
+        json_dict = json.loads(dataJson)
+        ecolimit_ = get_economic_limit(data=json_dict)
+        return {"ecoYear": int(ecolimit_)}
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
 @routerapi.put("/calc_sens")
 async def calc_sens(data: dict):
     try:
@@ -1483,6 +1502,51 @@ async def calc_ltp(dataDict: dict):
 async def calc_rpd(dataDict: dict):
     try:
         return get_rpd_dict(data=dataDict)
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/geteconomiclimit", response_class=JSONResponse)
+async def getEconomicLimit(dataDict: dict):
+    try:
+        data = base64.b64decode(dataDict["data"]).decode("utf-8")
+        json_dict: dict = json.loads(data)
+        return get_economic_limit(data=json_dict)
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/getasrexpenditures", response_class=JSONResponse)
+async def getAsrExpenditures(dataDict: dict):
+    try:
+        data = base64.b64decode(dataDict["data"]).decode("utf-8")
+        json_dict: dict = json.loads(data)
+        return get_asr_expenditures(data=json_dict)
+    except Exception as err:
+        print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=err.args,
+        )
+
+
+@routerapi.put("/getlbtexpenditures", response_class=JSONResponse)
+async def getLbtExpenditures(dataDict: dict):
+    try:
+        data = base64.b64decode(dataDict["data"]).decode("utf-8")
+        json_dict: dict = json.loads(data)
+        return get_lbt_expenditures(data=json_dict)
     except Exception as err:
         print(f"{bcolors.WARNING}{traceback.format_exc()}{bcolors.ENDC}")
         print(f"{bcolors.FAIL}ERROR: {err}{bcolors.ENDC}")

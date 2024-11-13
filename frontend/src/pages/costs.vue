@@ -34,7 +34,7 @@ const costKeyName = {
   useful_life: 'Useful Life (Years)',
   depreciation_factor: 'Depreciation Factor',
   is_ic_applied: 'Applied By IC',
-  tax_portion: 'Tax Postion',
+  tax_portion: 'Tax Portion',
   description: 'Description',
   fixed_cost: 'Fixed Cost (MUSD)',
   prod_rate: 'Prod. Rate',
@@ -287,6 +287,6 @@ onUnmounted(() => stopCaseID())
 
 <style lang="scss">
 .lbt-make-gray {
-  background-color: rgba(205, 161, 161, 0.6) !important;
+  background-color: rgba(161, 161, 161, 0.4) !important;
 }
 </style>

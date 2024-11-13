@@ -8,17 +8,17 @@ import { initConfigStore, useConfigStore } from '@core/stores/config'
 import { hexToRgb } from '@layouts/utils'
 import { useTheme } from 'vuetify'
 
-import { useWSStore } from '@/stores/wsStore'
-import { useHTTP } from './utils/pysc/useHttp'
 import SettDialogs from '@/pages/components/settPysc.vue'
 import { usePyscConfStore } from '@/stores/genfisStore'
 import { usePyscMonteStore } from '@/stores/monteStore'
 import { usePyscOptimStore } from '@/stores/optimStore'
 import { usePyscSensStore } from '@/stores/sensStore'
+import { useWSStore } from '@/stores/wsStore'
 import * as Pysc from '@/utils/pysc/pyscType'
 import { useDataStore } from '@/utils/pysc/useDataStore'
 import DirDialogs from "@/views/components/fileDialogs/dirDialogs.vue"
 import XlsxImport from '@/views/components/xlsxImport.vue'
+import { useHTTP } from './utils/pysc/useHttp'
 
 const { global } = useTheme()
 
@@ -39,7 +39,7 @@ const dayjs = Pysc.useDayJs()
 
 const RefSettDialogs = ref()
 
-console.log(`App version: ${import.meta.env.VITE_PSC_VER125}`)
+console.log(`App version: ${import.meta.env.VITE_PSC_VER126}`)
 
 appStore.mainCallbackCaseID = async (value, oldValue) => {
   if (value !== oldValue && oldValue !== -1) {
