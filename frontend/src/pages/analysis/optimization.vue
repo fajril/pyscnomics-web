@@ -177,7 +177,7 @@ const getBaseValue = (paramID: number) => {
   }
   else if (paramID === 11) {
     const endY = dayjs.utc(PyscConf.dataGConf.end_date_project).local().year()
-    const values = PyscConf.tangible.map(r => ({ year: r[0], rate: r[4] }))
+    const values = PyscConf.dataTan.map(r => ({ year: r.expense_year, rate: r.useful_life }))
     if (PyscConf.dataGConf.type_of_contract >= 3)
       return values.filter(r => r.year > endY).sort((a, b) => a.year - b.year)
 
@@ -210,8 +210,6 @@ const getBaseTarget = (targetIndex: number | string, valueOnly: boolean = false)
 
 const buildDataParams = async (calcBase: boolean = false) => {
   watcherOptimData.pause()
-
-  console.log(PyscOptim.optimConfig.optimization)
 
   const lParsChecked = PyscOptim.optimConfig.optimization
     .filter(p => paramsOptim.value.map(l => l.value).includes(p.parameter) && p.parameter !== 8 && p.checked)
@@ -276,7 +274,7 @@ const optimResult = ref<object>({})
 const getOptimResultValue = (paramID: number) => {
   if (optimResult.value?.result) {
     if (paramID === 11) {
-      const res = optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID]]['Accelerated Depreciation']
+      const res = optimResult.value.result.list_params_value[Object.values(optimParamType)[paramID]]['Depreciation Acceleration']
       if (typeof res !== 'string')
         return [res]
 
@@ -293,7 +291,7 @@ const getOptimResult = (paramID: number) => {
     const key = Object.values(optimParamType)[paramID]
 
     const val = paramID === 11
-      ? optimResult.value.result.list_params_value[key]['Accelerated Depreciation']
+      ? optimResult.value.result.list_params_value[key]['Depreciation Acceleration']
       : optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
 
     if (typeof val === 'string' && val.toLowerCase() === 'base value') {
@@ -373,6 +371,8 @@ const CalcOptim = async () => {
       throw { status, result }
 
     if (result.state === true) {
+      console.log(result.out)
+
       const optOut = JSON.parse(JSON.stringify(result.out))
 
       // convert % values
@@ -507,11 +507,12 @@ const createNewCase = async () => {
 
     let _hasUpdated = false
 
+    // Accelerated Depreciation
     dataParams.value.forEach(v => {
       const key = Object.values(optimParamType)[v.parameter]
       let val = optimResult.value.result.list_params_value[key === 'Gas DMO Fee' ? 'Gas Dmo Fee' : key]
       if (v.parameter === 11)
-        val = val['Accelerated Depreciation']
+        val = val['Depreciation Acceleration']
       if (!(typeof val === 'string' && val.toLowerCase() === 'base value')) {
         if ([1, 3, 6].includes(dataGConf.type_of_contract) && v.parameter >= 0 && v.parameter <= 7) {
           _hasUpdated = true
@@ -778,7 +779,7 @@ onUnmounted(() => {
                     >
                       <VList density="compact">
                         <template
-                          v-for="(item, index) in [...paramsOptim, { title: 'separator', value: -1 }, { title: 'Checked All', value: -2 }, { title: 'Unchecked All', value: -3 }]"
+                          v-for="(item, index) in [...paramsOptim.map(p => p.title === 'Depreciation Acceleration' ? ({ title: 'Accelerated Depreciation', value: p.value }) : p), { title: 'separator', value: -1 }, { title: 'Checked All', value: -2 }, { title: 'Unchecked All', value: -3 }]"
                           :key="item.title"
                         >
                           <VDivider v-if="item.value === -1" />
@@ -815,7 +816,7 @@ onUnmounted(() => {
                       <VListItem
                         border
                         class="mx-1"
-                        :title="Object.values(optimParamType)[item.parameter]"
+                        :title="item.parameter === 11 ? 'Accelerated Depreciation' : Object.values(optimParamType)[item.parameter]"
                         :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (`base value: ${Pysc.is_number(item.base) ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : ''}`)"
                       >
                         <template #title="{ title }">
@@ -823,13 +824,13 @@ onUnmounted(() => {
                           <IconBtn size="x-small">
                             <VIcon
                               icon="tabler-info-triangle-filled"
-                              :color="isHigher(Object.values(optimParamType).findIndex(v => v === title)) ? 'success' : 'error'"
+                              :color="isHigher(Object.values(optimParamType).findIndex(v => v === (title === 'Accelerated Depreciation' ? 'Depreciation Acceleration' : title))) ? 'success' : 'error'"
                             />
                             <VTooltip
                               activator="parent"
                               max-width="340"
                             >
-                              <span v-html="getInfoParam(Object.values(optimParamType).findIndex(v => v === title)) " />
+                              <span v-html="getInfoParam(Object.values(optimParamType).findIndex(v => v === (title === 'Accelerated Depreciation' ? 'Depreciation Acceleration' : title))) " />
                             </VTooltip>
                           </IconBtn>
                         </template>
@@ -846,7 +847,7 @@ onUnmounted(() => {
                               >
                                 <VCard>
                                   <VCardItem class="info-section">
-                                    {{ Object.values(optimParamType)[item.parameter] }}, %:
+                                    {{ item.parameter === 11 ? 'Accelerated Depreciation' : Object.values(optimParamType)[item.parameter] }}, %:
                                   </VCardItem>
                                   <VCardText>
                                     <PerfectScrollbar
@@ -984,7 +985,7 @@ onUnmounted(() => {
                 >
                   <VListItem
                     class="mx-0 px-1"
-                    :title="Object.values(optimParamType)[item.parameter]"
+                    :title="item.parameter === 11 ? 'Accelerated Depreciation' : Object.values(optimParamType)[item.parameter]"
                     density="compact"
                     :subtitle="Array.isArray(item.base) ? JSON.stringify(item.base) : (Pysc.is_number(item.base) ? numbro(item.base).format({ output: 'percent', mantissa: 2, optionalMantissa: true, spaceSeparated: true }) : '')"
                   >
@@ -1001,7 +1002,7 @@ onUnmounted(() => {
                           >
                             <VCard>
                               <VCardItem class="info-section">
-                                {{ Object.values(optimParamType)[item.parameter] }}, %:
+                                {{ item.parameter === 11 ? 'Accelerated Depreciation' : Object.values(optimParamType)[item.parameter] }}, %:
                               </VCardItem>
                               <VCardText>
                                 <PerfectScrollbar
@@ -1051,7 +1052,7 @@ onUnmounted(() => {
                         >
                           <VCard>
                             <VCardItem class="info-section">
-                              {{ Object.values(optimParamType)[item.parameter] }}, %:
+                              {{ item.parameter === 11 ? 'Accelerated Depreciation' : Object.values(optimParamType)[item.parameter] }}, %:
                             </VCardItem>
                             <VCardText>
                               <PerfectScrollbar

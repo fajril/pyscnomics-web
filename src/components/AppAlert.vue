@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConfigStore } from '@/@core/stores/config'
 import { layoutConfig } from '@layouts'
 
 interface Props {
@@ -21,6 +22,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emit>()
+
+const configStore = useConfigStore()
 
 const isShowAlert = defineModel<boolean>({ required: true })
 
@@ -55,7 +58,7 @@ const extractMsg = (msg: object | string | []) => {
     </p>
     <p
       class="text-sm"
-      :style="{ color: props.isAlert ? 'rgba(255, 250, 250, 0.9)' : 'rgba(250, 255, 250, 0.9)' }"
+      :style="{ color: props.isAlert ? (configStore.theme === 'dark' ? 'rgba(255, 250, 250, 0.9)' : 'rgba(26, 25, 25, 0.9)') : (configStore.theme === 'dark' ? 'rgba(250, 255, 250, 0.9)' : 'rgba(25, 25, 25, 0.9)') }"
       v-html="extractMsg(props.msg)"
     />
   </VSnackbar>

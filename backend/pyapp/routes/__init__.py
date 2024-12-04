@@ -1343,8 +1343,8 @@ async def calc_optim(dataDict: dict):
                     and resOptim["list_params_value"][key]["depreciation acceleration"]
                     != "Base Value"
                 ):
-                    for k in contract["tangible"].keys():
-                        contract["tangible"][k]["useful_life"] = resOptim[
+                    for k in contract["capital"].keys():
+                        contract["capital"][k]["useful_life"] = resOptim[
                             "list_params_value"
                         ][key]["optimized_useful_life"]["useful_life_optimized"]
 

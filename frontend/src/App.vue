@@ -39,7 +39,7 @@ const dayjs = Pysc.useDayJs()
 
 const RefSettDialogs = ref()
 
-console.log(`App version: ${import.meta.env.VITE_PSC_VER126}`)
+console.log(`App version: ${import.meta.env.VITE_PSC_VER127}`)
 
 appStore.mainCallbackCaseID = async (value, oldValue) => {
   if (value !== oldValue && oldValue !== -1) {
