@@ -153,7 +153,7 @@ const CR_gas_cr_cap_rate = computed({
         :tooltip-content="getToolTip('costrec.dmow')" />
       <DmoUI v-model="contractValue.OilDMO" label="Oil" class="ms-4" />
       <DmoUI v-if="prodHasGas()" v-model="contractValue.GasDMO" label="Gas" class="ms-4" />
-      <AppCheckBox class="mt-4" v-model="contractValue.post_uu_22_year2001" label="Post UU No. 22 Tahun 2001" />
+      <AppCheckBox class="mt-4" v-model="contractValue.post_uu_22_year2001" label="Post UU No. 22 Tahun 2001" tooltip-content="<b>Pre UU No. 22 Tahun 2001</b><br>In this regime, the DMO will be calculated based on the condition of the <br>minimum between DMO Volume x Gross Revenue x Oil Pre-Tax Contractor <br>Split and Contractor Equity to be Shared  Contractor FTP<br><b>Post UU No. 22 Tahun 2001</b><br>In this regime the DMO will be calculated directly without the minimum condition"/>
     </VCol>
   </VRow>
 </template>

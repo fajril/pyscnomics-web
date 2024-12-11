@@ -25,9 +25,9 @@ export default defineConfig(({ command, mode }) => {
 
   dotenv.config({ path: path.normalize(path.join(__dirname, '.env')) })
 
-  // pkg.version = process.env.VITE_PSC_VER127
+  // pkg.version = process.env.VITE_PSC_VER128
 
-  console.log(`APP version: ${process.env.VITE_PSC_VER127}`)
+  console.log(`APP version: ${process.env.VITE_PSC_VER128}`)
 
   console.log(chalk.blueBright('Build Launcher'))
 
@@ -163,7 +163,7 @@ export default defineConfig(({ command, mode }) => {
 
     ],
     define: {
-      PYSC_APP_VERSION: `"${process.env.VITE_PSC_VER127}"`,
+      PYSC_APP_VERSION: `"${process.env.VITE_PSC_VER128}"`,
       'process.env': {},
     },
     resolve: {

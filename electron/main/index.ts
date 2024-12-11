@@ -153,6 +153,19 @@ async function read_path(flext: string, srcpath: string) {
   }
 }
 
+async function openFilePSC(ev, lookup: string) {
+  const dl = JSON.parse(atob(lookup))
+
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Select PSC file',
+    defaultPath: dl.path != null ? path.normalize(dl.path) : path.normalize(path.join(RESOURCE_DIST, 'Samples')),
+    filters: [{ name: 'PSCnomics project file', extensions: ['psc'] }],
+    properties: ['openFile'],
+  })
+
+  return !canceled ? filePaths[0] : null
+}
+
 async function read_dirs(ev, lookup: string) {
   const dl = JSON.parse(atob(lookup))
 
@@ -1036,7 +1049,7 @@ async function installPyLib(ev, clientid: string) {
     if (osType === 'win') {
       require('node:child_process').execFile('activate',
         ['&&',
-          'pip',
+          'python -m pip',
           'install',
           '-r',
           `"${path.normalize(path.join(RESOURCE_DIST, 'backend', 'requirements.txt'))}"`,
@@ -1055,7 +1068,7 @@ async function installPyLib(ev, clientid: string) {
     else {
       require('node:child_process').execFile('source ./pyscnomics-env/bin/activate',
         ['&&',
-          'pip install -r ./backend/requirements.txt',
+          'python -m pip install -r ./backend/requirements.txt',
           '&&',
           'deactivate'],
         {
@@ -1097,7 +1110,7 @@ async function chkPythonLibs(ev, clientid_: string, appver_: string) {
     if (osType === 'win') {
       require('node:child_process').execFile('activate',
         ['&&',
-          'pip',
+          'python -m pip',
           'install',
           '-r',
           `"${path.normalize(path.join(RESOURCE_DIST, 'backend', 'requirements.txt'))}"`,
@@ -1118,7 +1131,7 @@ async function chkPythonLibs(ev, clientid_: string, appver_: string) {
     else {
       require('node:child_process').execFile('source ./pyscnomics-env/bin/activate',
         ['&&',
-          'pip install -r ./backend/requirements.txt',
+          'python -m pip install -r ./backend/requirements.txt',
           '&&',
           'deactivate'],
         {

@@ -17,6 +17,7 @@ const appStore = useAppStore()
 const isDialogVisible = ref(false)
 const IsLoading = ref(false)
 const confMode = ref<'LTP' | 'RPD'>('LTP')
+const fluidMode = ref<'Oil' | 'Gas'>('Oil')
 const LTP_RPDStore = useLTP_RPDStore()
 const PyscConf = usePyscConfStore()
 const dayjs = useDayJs()
@@ -25,7 +26,7 @@ const RPDConfig = ref<RPDConf>(JSON.parse(JSON.stringify(LTP_RPDStore.RPDConfig)
 
 const { TabelContainer, hotTableRef: refTableLTPRPD, hotInstance, htTblSett: mainSetting, updateData } = useHTtable({
   data: [],
-  colHeaders: ["Year", "Sales (MSTB)"],
+  colHeaders: ["Year", `Sales (${fluidMode.value === 'Gas' ? 'BSCF' : 'MSTB'})`],
   columns: [
     { type: 'numeric', validator: 'numeric', allowInvalid: false },
     { type: 'numeric', validator: 'numeric', numericFormat: { pattern: { thousandSeparated: true, mantissa: 2, optionalMantissa: true, negative: "parenthesis" } }, allowInvalid: false },
@@ -75,8 +76,10 @@ const applySett = () => {
   isDialogVisible.value = false
 }
 
-const ShowLTPRPD = (mode: 'LTP' | 'RPD') => {
+const ShowLTPRPD = (mode: 'LTP' | 'RPD', fluid: 'Oil' | 'Gas' = 'Oil') => {
   confMode.value = mode
+  fluidMode.value = fluid
+  mainSetting.value.colHeaders[1] = `Sales (${fluidMode.value === 'Gas' ? 'BSCF' : 'MSTB'})`
   if (confMode.value === 'LTP')
     LTPConfig.value = Object.assign({}, LTP_RPDStore.LTPConfig)
   else

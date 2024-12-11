@@ -27,6 +27,7 @@ const IsLoading = ref(false)
 const itsOverwriteNote = ref(false)
 const isDialogVisible = ref(false)
 const filePath = ref<string | null>(null)
+const filenamePath = ref<string | null>(null)
 const childSelected = ref(undefined)
 const appStore = useAppStore()
 const wsStore = useWSStore()
@@ -40,6 +41,34 @@ const childlist = ref<filepathIntf>({
 
 const drives = ref<filepathIntf>()
 const driveSelected = ref(undefined)
+
+const watchFileNameEd = watchIgnorable(
+  filenamePath,
+  v => {
+    const _path = typeof v === 'string' ? (v.split(/\/|\\/)) : [v]
+    if (_path.length > 1) {
+      if (!isEmpty(v) && v.includes('.'))
+        _path.splice(-1)
+
+      filePath.value = _path.join(appStore.osConf.sep)
+      console.log(filePath.value)
+    }
+    else if (!isEmpty(v)) {
+      watchFileSel.ignoreUpdates(() => {
+        const _filename = (v?.toLowerCase().includes('.')) ? (`${v.split(/\./)[0]}.psc`) : (`${v}.psc`)
+        const idxItem = childlist.value.children?.findIndex(ch => ch.name.toLowerCase() === _filename)
+        if (idxItem !== -1)
+          childSelected.value = [childlist.value.children[idxItem]]
+        else
+          childSelected.value = undefined
+      })
+    }
+    else {
+      watchFileSel.ignoreUpdates(() => childSelected.value = undefined)
+    }
+  },
+  { eventFilter: debounceFilter(1000) },
+)
 
 const watchFileEd = watchIgnorable(
   filePath,
@@ -75,14 +104,22 @@ const watchFileSel = watchIgnorable(
   v => {
     const selitem = childSelected.value?.[0]
     if (selitem) {
-      watchFileEd.ignoreUpdates(() => {
-        if (typeof selitem === 'object')
-          filePath.value = childlist.value.dir + appStore.osConf.sep + selitem.name
+      // const _oldfilePath = filePath.value
+
+      // watchFileEd.ignoreUpdates(() => {
+      if (typeof selitem === 'object') {
+        if (selitem.name.toLowerCase().includes(`.${fileExt.value}`))
+          filenamePath.value = selitem.name // childlist.value.dir + appStore.osConf.sep + selitem.name
         else
-          filePath.value = childlist.value.parent
-      })
-      if (filePath.value?.toLowerCase().indexOf(`.${fileExt.value}`) === -1)
-        fetchDirs(filePath.value)
+          filePath.value = childlist.value.dir + appStore.osConf.sep + selitem.name
+      }
+      else {
+        filePath.value = childlist.value.parent
+      }
+
+      // })
+      // if (_oldfilePath.compare(filePath.value) !== 0)
+      //   fetchDirs(filePath.value)
     }
     else {
       watchFileEd.ignoreUpdates(() => {
@@ -98,12 +135,19 @@ const extractPathResult = (_path: object) => {
   childlist.value = _path
   watchFileEd.ignoreUpdates(() => {
     if (isEmpty(filePath.value))
-      filePath.value = childlist.value.dir + (childlist.value.filename ? (appStore.osConf.sep + childlist.value.filename) : '')
+      filePath.value = childlist.value.dir // + (childlist.value.filename ? (appStore.osConf.sep + childlist.value.filename) : '')
   })
   if (children) {
     watchFileSel.ignoreUpdates(() => {
-      if (filePath.value?.toLowerCase().includes(`.${fileExt.value}`)) {
-        const filename = filePath.value?.split(/\/|\\/).slice(-1)[0]
+      // if (filePath.value?.toLowerCase().includes(`.${fileExt.value}`)) {
+      let filename = filenamePath.value?.split(/\/|\\/).slice(-1)[0]
+      if (filename?.includes('.'))
+        filename = `${filename.split(/\./)[0]}.psc`
+      else
+        filename += '.psc'
+      console.log(filename)
+      if (filename?.toLowerCase().includes(`.${fileExt.value}`)) {
+        // const filename = filePath.value?.split(/\/|\\/).slice(-1)[0]
         const idxItem = children.findIndex(v => v.name.toLowerCase() === filename.toLowerCase())
         if (idxItem != -1) {
           childSelected.value = [children[idxItem]]
@@ -114,7 +158,9 @@ const extractPathResult = (_path: object) => {
       childSelected.value = undefined
     })
   }
-  else { childSelected.value = undefined }
+  else {
+    childSelected.value = undefined
+  }
   watchDriveSel.ignoreUpdates(() => {
     const curPaths = filePath.value?.split(/\/|\\/)
     const idx = drives.value?.children?.findIndex(d => d.name.toLowerCase() === (curPaths?.[0].toLowerCase() + appStore.osConf.sep))
@@ -142,14 +188,37 @@ const fetchDirs = async (_path: string | null) => {
 
 const applyPath = () => {
   isDialogVisible.value = false
-  emit('update:path', filePath.value)
+  let _filename = filenamePath.value?.split(/\/|\\/).slice(-1)[0]
+  if (_filename?.includes('.'))
+    _filename = `${_filename.split(/\./)[0]}.psc`
+  else if (!isEmpty(_filename))
+    _filename += '.psc'
+
+  const _fullPath = filePath.value + appStore.osConf.sep + _filename
+
+  // console.log([filePath.value, filenamePath.value, _filename, _fullPath])
+
+  emit('update:path', _fullPath)
 }
 
 const loadMyDris = (mode: string, lookup: string | null) => {
   fileMode.value = mode
   isDialogVisible.value = true
+  let _fullPath = typeof lookup === 'string' ? lookup : null
+  let _filename = typeof lookup === 'string' ? lookup : null
+  if (!isEmpty(_fullPath) && _fullPath?.toLowerCase().includes('.psc')) {
+    const arrPath = _fullPath.split(/\/|\\/)
+
+    _filename = arrPath.slice(-1)[0]
+    arrPath.splice(-1)
+    _fullPath = arrPath.join(appStore.osConf.sep)
+  }
+
   watchFileEd.ignoreUpdates(() => {
-    filePath.value = typeof lookup === 'string' ? lookup : null
+    filePath.value = _fullPath// typeof lookup === 'string' ? lookup : null
+  })
+  watchFileNameEd.ignoreUpdates(() => {
+    filenamePath.value = _filename// typeof lookup === 'string' ? lookup : null
   })
   childlist.value = {
     dir: '',
@@ -171,20 +240,30 @@ const loadMyDris = (mode: string, lookup: string | null) => {
     data: null,
   })), false)
 
-  fetchDirs(lookup)
+  // fetchDirs(lookup)
+  fetchDirs(filePath.value)
 }
 
 const ItsValidPath = computed(() => {
-  const isvalidFl = childlist.value.parent != null && childlist.value.parent != '' && filePath.value?.toLowerCase().includes(`.${fileExt.value}`)
-  const filename = filePath.value?.split(/\/|\\/).slice(-1)[0]
-  const idxItem = childlist.value.children ? childlist.value.children.findIndex(v => v.name === filename) : -1
-  if (fileMode.value === 'save') {
-    itsOverwriteNote.value = idxItem != -1
+  const _isValidDir = filePath.value?.localeCompare(childlist.value?.dir) === 0
+  let _filename = filenamePath.value?.split(/\/|\\/).slice(-1)[0]
+  if (_filename?.includes('.'))
+    _filename = `${_filename.split(/\./)[0]}.psc`
+  else if (!isEmpty(_filename))
+    _filename += '.psc'
 
-    return isvalidFl
+  const _idxItem = childlist.value.children ? childlist.value.children.findIndex(v => v.name.toLowerCase() === _filename?.toLowerCase()) : -1
+
+  // const isvalidFl = childlist.value.parent != null && childlist.value.parent != '' && filePath.value?.toLowerCase().includes(`.${fileExt.value}`)
+  // const filename = filePath.value?.split(/\/|\\/).slice(-1)[0]
+  // const idxItem = childlist.value.children ? childlist.value.children.findIndex(v => v.name === filename) : -1
+  if (fileMode.value === 'save') {
+    itsOverwriteNote.value = _idxItem !== -1
+
+    return _isValidDir && !isEmpty(_filename)
   }
   else if (fileMode.value === 'open') {
-    return isvalidFl && idxItem != -1
+    return _isValidDir && _idxItem !== -1
   }
 
   return false
@@ -247,8 +326,8 @@ defineExpose({
         <VRow no-gutters>
           <VCol cols="12">
             <VTextField
-              v-model="filePath"
-              label="Select Path"
+              v-model="filenamePath"
+              label="File name"
               variant="outlined"
               autofocus
             />

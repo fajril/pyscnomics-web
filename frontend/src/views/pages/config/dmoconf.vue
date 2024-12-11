@@ -27,6 +27,14 @@ const dmo_fee = computed({
 })
 
 const dayjs = useDayJs()
+
+const dmo_Period = computed({
+  get: () => dmo.value.holiday ? dmo.value.period : 0,
+  set: val => {
+    if (dmo.value.holiday)
+      dmo.value.period = val
+  },
+})
 </script>
 
 <template>
@@ -38,7 +46,7 @@ const dayjs = useDayJs()
       :tooltip-content="getToolTip('costrec.dmoh')"
     />
     <AppTextField
-      v-model.number="dmo.period"
+      v-model.number="dmo_Period"
       label-placeholder="Period, Month(s)"
       class="mt-2"
       :disabled="!dmo.holiday"

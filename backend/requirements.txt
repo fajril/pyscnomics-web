@@ -5,9 +5,10 @@ packaging
 websockets
 uvicorn
 databases
-numpy==1.26.4
+numpy==1.26.2
 numpy-financial
 dateutils>=0.6.12
+pyscnomics==1.2.*
 matplotlib==3.8.3
 pandas==2.2.1
 pytest>=7.1.2

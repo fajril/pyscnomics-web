@@ -174,7 +174,7 @@ const ApplyLTPRPD = async (mode: 'LTP' | 'RPD') => {
 }
 
 const showLtpRdp = (mode: 'LTP' | 'RPD') => {
-  LTPRPDRef.value?.ShowLTPRPD(mode)
+  LTPRPDRef.value?.ShowLTPRPD(mode, selProd.value === 1 ? 'Gas' : 'Oil')
 }
 
 const currentTab = ref(0)
